@@ -33,3 +33,19 @@ al momento de empacar.
 - No importar `@tauri-apps/api` ni ningún módulo exclusivo de Tauri todavía.
 - No asumir acceso a filesystem nativo, notificaciones nativas, etc. — si una
   pantalla lo necesita, usar un stub web-safe y dejar un TODO.
+
+## Actualización 2026-07-24: empaquetado adelantado con Electron
+
+A pedido explícito de Darwin se generó un `.exe` de Windows antes de que el
+bridge esté validado (fuera del orden que describe este documento), usando
+**Electron + electron-builder** en vez de Tauri — no por una limitación de
+Tauri, sino porque Rust/MSVC Build Tools no estaban instalados y Electron no
+los requiere para empaquetar una app sin módulos nativos. Ver
+`apps/desktop-ui/electron/main.cjs` y el campo `build` en
+`apps/desktop-ui/package.json` (`npm run dist` / `npm run dist:publish`).
+
+Esto es una excepción puntual, no un cambio de la decisión de arriba: Tauri
+sigue siendo la opción por defecto para el empaquetado real cuando el
+producto esté funcionalmente completo. Si se necesita seguir iterando el
+`.exe` antes de eso, evaluar si conviene formalizar el cambio a Electron o
+volver a Tauri en ese momento.
