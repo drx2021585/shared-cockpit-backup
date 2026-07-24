@@ -1,0 +1,17 @@
+# Cómo el bridge decide "esta aeronave cargada es un PMDG 737-900/900ER con
+# este perfil". titleContains hace match contra la variable ATC MODEL / título
+# de la aeronave activa.
+#
+# NOTA (Fase 7, bloqueada pendiente SDK oficial de PMDG): estos valores son
+# placeholders razonables ("PMDG 737-900", "PMDG 737-900ER") y deben
+# confirmarse contra el título real que expone MSFS para ambas variantes antes
+# de considerarse definitivos.
+
+titleContains:
+  - "PMDG 737-900"
+  - "PMDG 737-900ER"
+
+# El 900 y el 900ER comparten perfil por ahora (mismo tipo, variante de
+# alcance/peso). Si en el futuro difieren en variables internas relevantes,
+# separar en perfiles/overrides distintos antes de subir capabilities.
+fallbackToPartialMatch: true

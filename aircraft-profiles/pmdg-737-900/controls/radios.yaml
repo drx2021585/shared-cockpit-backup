@@ -1,0 +1,64 @@
+# Radios básicos (partial coverage — ver capabilities.yaml). PLACEHOLDER
+# SimConnect estándar; el PMDG 737 tunea radios normalmente vía CDU (pendiente
+# del SDK oficial, Fase 7) — aquí solo se exponen las frecuencias activas
+# genéricas de MSFS como fallback/observación.
+
+- id: radios.com1_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM ACTIVE FREQUENCY:1"
+  write:
+    type: inputEvent
+    name: "COM_RADIO_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: radios.com2_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM ACTIVE FREQUENCY:2"
+  write:
+    type: inputEvent
+    name: "COM2_RADIO_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: radios.nav1_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV ACTIVE FREQUENCY:1"
+  write:
+    type: inputEvent
+    name: "NAV1_RADIO_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: radios.transponder_code
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "TRANSPONDER CODE:1"
+  write:
+    type: inputEvent
+    name: "XPNDR_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500

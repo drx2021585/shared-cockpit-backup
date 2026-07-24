@@ -1,0 +1,131 @@
+# PLACEHOLDER: mapeos SimConnect estándar (simvars/eventos K:), NO la Client
+# Data Area / SDK oficial de PMDG (bloqueado — ver docs/plan-maestro.md Fase 7,
+# pendiente de que Darwin provea el SDK/headers reales). Estos controles deben
+# revalidarse contra el avión real en cuanto el SDK esté disponible.
+#
+# Ejes continuos → canal rápido (polled), authority: exclusive.
+# Discretos (flaps handle, gear, spoilers) → canal confiable (event) con
+# confirmAfterWrite, SIEMPRE SET explícito, nunca TOGGLE crudo.
+
+- id: flight.yoke.pitch
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: "ELEVATOR POSITION"
+  write:
+    type: calculatorCode
+    name: "(A:ELEVATOR POSITION, position) 0 (>K:ELEVATOR_SET)"
+  synchronization:
+    mode: polled
+    debounceMs: 0
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.yoke.roll
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: "AILERON POSITION"
+  write:
+    type: calculatorCode
+    name: "(A:AILERON POSITION, position) 0 (>K:AILERON_SET)"
+  synchronization:
+    mode: polled
+    debounceMs: 0
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.rudder
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: "RUDDER POSITION"
+  write:
+    type: calculatorCode
+    name: "(A:RUDDER POSITION, position) 0 (>K:RUDDER_SET)"
+  synchronization:
+    mode: polled
+    debounceMs: 0
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.elevator_trim
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ELEVATOR TRIM POSITION"
+  write:
+    type: inputEvent
+    name: "ELEVATOR_TRIM_SET"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+# Flaps: manija discreta (0/1/2/5/10/15/25/30/40 en el 737 real vía PMDG FMC;
+# aquí se mapea a la posición de la manija estándar de MSFS), NO un TOGGLE de
+# pulso único.
+- id: flight.flaps
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "FLAPS HANDLE PERCENT"
+  write:
+    type: inputEvent
+    name: "FLAPS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.gear
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "GEAR HANDLE POSITION"
+  write:
+    type: inputEvent
+    name: "GEAR_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.spoilers
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "SPOILERS HANDLE POSITION"
+  write:
+    type: inputEvent
+    name: "SPOILERS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.spoilers_arm
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "SPOILERS ARMED"
+  write:
+    type: inputEvent
+    name: "SPOILERS_ARM_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

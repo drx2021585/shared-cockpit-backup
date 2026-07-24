@@ -1,0 +1,108 @@
+# Panel superior: luces, parking brake. PLACEHOLDER SimConnect estándar (no
+# PMDG SDK/Client Data Area, bloqueado — ver Fase 7 del plan maestro).
+# SIEMPRE SET explícito (SET_ON/SET_OFF/SET_VALUE), nunca TOGGLE crudo.
+
+- id: lights.beacon
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT BEACON"
+  write:
+    type: inputEvent
+    name: "BEACON_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.nav
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT NAV"
+  write:
+    type: inputEvent
+    name: "NAV_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.landing
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT LANDING"
+  write:
+    type: inputEvent
+    name: "LANDING_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.taxi
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT TAXI"
+  write:
+    type: inputEvent
+    name: "TAXI_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.strobe
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT STROBE"
+  write:
+    type: inputEvent
+    name: "STROBES_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.logo
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT LOGO"
+  write:
+    type: inputEvent
+    name: "LOGO_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ground.parking_brake
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "BRAKE PARKING POSITION"
+  write:
+    type: inputEvent
+    name: "PARKING_BRAKE_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

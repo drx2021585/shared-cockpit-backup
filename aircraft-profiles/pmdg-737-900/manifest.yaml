@@ -1,0 +1,40 @@
+schemaVersion: 1
+
+aircraft:
+  id: pmdg-737-900
+  name: PMDG 737-900 / 900ER
+  developer: PMDG
+
+compatibility:
+  msfs2020: true
+  msfs2024: true
+
+versions:
+  minimum: "1.0.0"
+  tested:
+    - "1.0.0"
+
+# titleContains: valores placeholder razonables sin confirmar todavía contra el
+# sim real. Pendiente de validación por aircraft-profiles-agent (ver Fase 7 del
+# plan maestro, bloqueada hasta que Darwin provea el SDK/headers oficiales de
+# PMDG). Confirmar el título ATC MODEL exacto que expone MSFS para el 900 y el
+# 900ER antes de subir capabilities por encima de "partial".
+detection:
+  titleContains:
+    - "PMDG 737-900"
+    - "PMDG 737-900ER"
+
+# Nivel de cobertura por sistema. Este perfil usa únicamente SimConnect
+# estándar (simvars/eventos K:), NO la Client Data Area / SDK oficial de PMDG
+# (bloqueado — ver docs/plan-maestro.md Fase 7). Por lo tanto ningún sistema
+# se declara "full": los mapeos estándar no reflejan fielmente la lógica
+# interna del FMC/EFIS de PMDG. Mantener conservador hasta validar en el sim
+# real y, si aplica, integrar el SDK oficial.
+capabilities:
+  flightControls: partial
+  autopilot: partial
+  electrical: partial
+  hydraulics: none
+  radios: partial
+  mcdu: none
+  failures: none

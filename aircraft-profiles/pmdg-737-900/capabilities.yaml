@@ -1,0 +1,37 @@
+# Detalle expandido de manifest.yaml capabilities — usado por la UI (Gestor de
+# aeronaves) para mostrar el % de compatibilidad, y por QA para saber qué
+# probar. Todo lo aquí declarado usa SimConnect estándar como placeholder;
+# nada ha sido validado contra el PMDG real (bloqueado por SDK, Fase 7).
+
+systems:
+  flightControls:
+    level: partial
+    controls: [yoke, rudder, trim, flaps, gear, spoilers]
+    missing: [flight_control_law_feedback]
+  engine:
+    level: partial
+    controls: [throttle_lever, fuel_control_switches, engine_start_selector]
+    missing: [pmdg_fmc_engine_logic]
+  electrical:
+    level: partial
+    controls: [battery, apu_master, apu_generator, external_power]
+    missing: [circuit_breakers_individual, pmdg_electrical_synoptics]
+  lights:
+    level: partial
+    controls: [beacon, nav_lights, landing_lights, taxi_light, strobe, logo_light]
+  fuel:
+    level: none
+    controls: []
+    missing: [fuel_panel_full, crossfeed]
+  autopilot:
+    level: partial
+    controls: [ap_master, mcp_heading_bug, mcp_altitude_bug, mcp_nav_source]
+    missing: [pmdg_fmc_cdu, vnav, lnav, approach_coupling]
+  radios:
+    level: partial
+    controls: [com1_freq, com2_freq, nav1_freq, transponder_code]
+    missing: [pmdg_cdu_radio_tuning, gps_flightplan_sync]
+  groundControls:
+    level: partial
+    controls: [parking_brake, gear_static]
+    missing: [ground_equipment_sync]

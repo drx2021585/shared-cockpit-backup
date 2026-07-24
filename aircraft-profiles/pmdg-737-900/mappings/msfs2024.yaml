@@ -1,0 +1,6 @@
+# Overrides específicos de MSFS2024. Pendiente de validar en el simulador
+# real por aircraft-profiles-agent en cuanto el SDK oficial de PMDG esté
+# disponible (Fase 7, actualmente bloqueada). No se han detectado diferencias
+# conocidas entre MSFS2020 y MSFS2024 para este perfil todavía.
+
+overrides: []

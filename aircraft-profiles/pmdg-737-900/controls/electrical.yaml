@@ -1,0 +1,57 @@
+# PLACEHOLDER: SimConnect estándar, no SDK/Client Data Area oficial de PMDG
+# (bloqueado, ver Fase 7 del plan maestro). El sistema eléctrico real del
+# PMDG 737 tiene mucha más lógica (buses, APU generator, external power
+# interlocks) gestionada internamente por el add-on; aquí solo se exponen los
+# switches base vía simvars/eventos estándar de MSFS que tienen un evento SET
+# explícito real. Se omiten deliberadamente APU generator switch y external
+# power: en el SimConnect estándar de MSFS solo existen como pulso crudo
+# (TOGGLE_APU_GENERATOR_SWITCH / TOGGLE_EXTERNAL_POWER, sin variante _SET),
+# lo cual violaría la regla anti-TOGGLE. Se agregarán cuando el SDK oficial de
+# PMDG esté disponible y exponga un L:Var/HVar de set explícito.
+#
+# Todos boolean, SIEMPRE SET explícito, nunca TOGGLE crudo.
+
+- id: electrical.battery
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "ELECTRICAL MASTER BATTERY"
+  write:
+    type: inputEvent
+    name: "MASTER_BATTERY_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.apu_master
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "APU SWITCH"
+  write:
+    type: inputEvent
+    name: "APU_STARTER"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.avionics_master
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "AVIONICS MASTER SWITCH"
+  write:
+    type: inputEvent
+    name: "AVIONICS_MASTER_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
