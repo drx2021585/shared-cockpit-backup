@@ -30,6 +30,15 @@
     "appId": "com.weconnect.sharedcockpit",
     "productName": "WeConnect",
     "files": ["dist/**/*", "electron/**/*"],
+    "extraResources": [
+      { "from": "vendor/node", "to": "app-data/node" },
+      {
+        "from": "../../server/api",
+        "to": "app-data/server/api",
+        "filter": ["**/*", "!data", "!test", "!node_modules/.cache"]
+      },
+      { "from": "../../aircraft-profiles", "to": "app-data/aircraft-profiles" }
+    ],
     "directories": {
       "output": "release"
     },

@@ -49,3 +49,20 @@ sigue siendo la opción por defecto para el empaquetado real cuando el
 producto esté funcionalmente completo. Si se necesita seguir iterando el
 `.exe` antes de eso, evaluar si conviene formalizar el cambio a Electron o
 volver a Tauri en ese momento.
+
+### El `.exe` es autocontenido: server/api embebido
+
+Para que el instalador no dependa de que el usuario final tenga Node/npm
+instalados ni tenga que correr `server/api` a mano, `electron/main.cjs`
+levanta ese backend como proceso hijo al arrancar (y lo mata al cerrar la
+app), usando un Node portátil + el código de `server/api` + `aircraft-profiles/`
+copiados como `extraResources` (ver `build.extraResources` en
+`apps/desktop-ui/package.json`). El primer arranque puede tardar ~30s
+mientras Windows Defender escanea el binario de Node sin firmar por primera
+vez; arranques siguientes son casi instantáneos.
+
+Requisito para compilar (`npm run dist` / `dist:publish`): copiar un
+`node.exe` real a `apps/desktop-ui/vendor/node/node.exe` antes de buildear —
+esa carpeta está en `.gitignore` (no se versiona un binario de ~90MB), así
+que no viene en el checkout. Cualquier Node 22+ de Windows x64 sirve (probado
+con el mismo binario que corre `server/api` en desarrollo).
