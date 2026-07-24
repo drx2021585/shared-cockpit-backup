@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shared-cockpit/profile-schema/control.schema.json",
+  "title": "AircraftControlDefinition",
+  "type": "object",
+  "required": ["id", "dataType", "authority", "read", "write", "synchronization"],
+  "properties": {
+    "id": { "type": "string", "description": "ej. overhead.beacon" },
+    "dataType": { "type": "string", "enum": ["boolean", "number", "string"] },
+    "authority": {
+      "type": "string",
+      "enum": ["exclusive", "shared", "captain-only", "first-officer-only", "instructor-only", "local-only"]
+    },
+    "read": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "type": "string", "enum": ["simvar", "lvar", "hvar"] },
+        "name": { "type": "string" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "type": "string", "enum": ["inputEvent", "hvar", "calculatorCode"] },
+        "name": { "type": "string" }
+      },
+      "description": "type NUNCA debe representar un pulso TOGGLE crudo para interruptores sincronizables; usar equivalentes SET_ON/SET_OFF/SET_VALUE."
+    },
+    "synchronization": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["event", "polled"] },
+        "debounceMs": { "type": "integer", "minimum": 0 },
+        "confirmAfterWrite": { "type": "boolean", "description": "Recomendado true: leer el estado real tras escribir para detectar divergencia." },
+        "timeoutMs": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

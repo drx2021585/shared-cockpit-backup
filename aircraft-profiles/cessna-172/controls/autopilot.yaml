@@ -1,0 +1,61 @@
+# Piloto automático básico (partial coverage — ver capabilities.yaml)
+
+- id: autopilot.master
+  dataType: boolean
+  authority: captain-only
+  read:
+    type: simvar
+    name: "AUTOPILOT MASTER"
+  write:
+    type: inputEvent
+    name: "AP_MASTER"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autopilot.heading_bug
+  dataType: number
+  authority: captain-only
+  read:
+    type: simvar
+    name: "AUTOPILOT HEADING LOCK DIR"
+  write:
+    type: inputEvent
+    name: "HEADING_BUG_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: autopilot.altitude_bug
+  dataType: number
+  authority: captain-only
+  read:
+    type: simvar
+    name: "AUTOPILOT ALTITUDE LOCK VAR"
+  write:
+    type: inputEvent
+    name: "AP_ALT_VAR_SET_ENGLISH"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: autopilot.nav_source
+  dataType: number
+  authority: captain-only
+  read:
+    type: simvar
+    name: "AUTOPILOT NAV SELECTED"
+  write:
+    type: inputEvent
+    name: "AP_NAV_SELECT_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 500

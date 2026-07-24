@@ -1,0 +1,31 @@
+schemaVersion: 1
+
+aircraft:
+  id: cessna-172
+  name: Cessna 172 Skyhawk (G1000)
+  developer: Asobo/Microsoft
+
+compatibility:
+  msfs2020: true
+  msfs2024: true
+
+versions:
+  minimum: "1.0.0"
+  tested:
+    - "1.0.0"
+
+detection:
+  titleContains:
+    - "Cessna Skyhawk"
+    - "C172"
+
+# Nivel de cobertura por sistema. Empieza conservador (partial) y sube
+# a medida que aircraft-profiles-agent valida cada control contra el sim real.
+capabilities:
+  flightControls: full
+  autopilot: partial
+  electrical: partial
+  hydraulics: none
+  radios: partial
+  mcdu: none
+  failures: none
