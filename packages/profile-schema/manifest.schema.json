@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shared-cockpit/profile-schema/manifest.schema.json",
+  "title": "AircraftProfileManifest",
+  "type": "object",
+  "required": ["schemaVersion", "aircraft", "compatibility", "versions", "detection", "capabilities"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "aircraft": {
+      "type": "object",
+      "required": ["id", "name", "developer"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "developer": { "type": "string" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "msfs2020": { "type": "boolean" },
+        "msfs2024": { "type": "boolean" }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "required": ["minimum", "tested"],
+      "properties": {
+        "minimum": { "type": "string" },
+        "tested": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "detection": {
+      "type": "object",
+      "properties": {
+        "titleContains": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "flightControls": { "$ref": "#/definitions/capabilityLevel" },
+        "autopilot": { "$ref": "#/definitions/capabilityLevel" },
+        "electrical": { "$ref": "#/definitions/capabilityLevel" },
+        "hydraulics": { "$ref": "#/definitions/capabilityLevel" },
+        "radios": { "$ref": "#/definitions/capabilityLevel" },
+        "mcdu": { "$ref": "#/definitions/capabilityLevel" },
+        "failures": { "$ref": "#/definitions/capabilityLevel" }
+      }
+    }
+  },
+  "definitions": {
+    "capabilityLevel": { "type": "string", "enum": ["none", "partial", "full"] }
+  }
+}

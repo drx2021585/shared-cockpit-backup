@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+**/data/*.sqlite
+**/data/*.db
+__pycache__/
+*.pyc
+bin/
+obj/

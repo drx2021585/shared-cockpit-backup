@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shared-cockpit/protocol/messages.schema.json",
+  "title": "SharedCockpitMessage",
+  "oneOf": [
+    { "$ref": "#/definitions/ControlEvent" },
+    { "$ref": "#/definitions/ControlAxis" },
+    { "$ref": "#/definitions/AircraftSnapshot" },
+    { "$ref": "#/definitions/AuthorityTransfer" },
+    { "$ref": "#/definitions/SessionMessage" }
+  ],
+  "definitions": {
+    "ControlEvent": {
+      "type": "object",
+      "description": "Cambio discreto de un control (interruptor, valor seleccionado). Canal confiable. NUNCA usar para representar un TOGGLE crudo: value siempre es explícito.",
+      "required": ["type", "sessionId", "controlId", "value", "source", "sequence", "timestamp"],
+      "properties": {
+        "type": { "const": "control.event" },
+        "sessionId": { "type": "string" },
+        "controlId": { "type": "string", "description": "Identificador normalizado, ej. lights.beacon" },
+        "value": { "description": "boolean, number o string según el control" },
+        "source": { "type": "string", "description": "id del participante que originó el cambio" },
+        "origin": { "type": "string", "enum": ["local", "remote"], "description": "Marcado por el receptor, no se envía por red" },
+        "sequence": { "type": "integer" },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "ControlAxis": {
+      "type": "object",
+      "description": "Eje continuo. Canal rápido, best-effort, último valor gana.",
+      "required": ["type", "controlId", "value", "sequence", "timestamp"],
+      "properties": {
+        "type": { "const": "control.axis" },
+        "sessionId": { "type": "string" },
+        "controlId": { "type": "string", "description": "ej. flight.yoke.pitch" },
+        "value": { "type": "number" },
+        "sequence": { "type": "integer" },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "AircraftSnapshot": {
+      "type": "object",
+      "description": "Estado persistente completo, usado para sincronización inicial y resincronización tras divergencia.",
+      "required": ["type", "revision", "profile", "systems"],
+      "properties": {
+        "type": { "const": "aircraft.snapshot" },
+        "sessionId": { "type": "string" },
+        "revision": { "type": "integer" },
+        "profile": { "type": "string", "description": "id del perfil de aeronave, ej. cessna-172" },
+        "systems": {
+          "type": "object",
+          "properties": {
+            "electrical": { "type": "object" },
+            "hydraulic": { "type": "object" },
+            "fuel": { "type": "object" },
+            "lights": { "type": "object" },
+            "autopilot": { "type": "object" },
+            "radios": { "type": "object" }
+          }
+        }
+      }
+    },
+    "AuthorityTransfer": {
+      "type": "object",
+      "description": "Cambio de dueño de un grupo de controles. El motor de sincronización bloquea temporalmente los ejes del grupo durante la transferencia.",
+      "required": ["type", "group", "previousOwner", "newOwner", "revision"],
+      "properties": {
+        "type": { "const": "authority.transfer" },
+        "sessionId": { "type": "string" },
+        "group": { "type": "string", "description": "ej. flight_controls" },
+        "previousOwner": { "type": "string" },
+        "newOwner": { "type": "string" },
+        "revision": { "type": "integer" }
+      }
+    },
+    "SessionMessage": {
+      "type": "object",
+      "description": "Ciclo de vida de sesión: join, leave, role changes, ping.",
+      "required": ["type", "sessionId"],
+      "properties": {
+        "type": { "enum": ["session.join", "session.leave", "session.role_change", "session.ping"] },
+        "sessionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["captain", "first_officer", "observer"] },
+        "timestamp": { "type": "integer" }
+      }
+    }
+  }
+}

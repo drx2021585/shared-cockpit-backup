@@ -1,0 +1,32 @@
+# Detalle expandido de capabilities.yaml — usado por la UI (Gestor de aeronaves)
+# para mostrar el % de compatibilidad, y por QA para saber qué probar.
+
+systems:
+  flightControls:
+    level: full
+    controls: [yoke, rudder, trim, flaps]
+  engine:
+    level: full
+    controls: [throttle, mixture, carb_heat, magnetos, starter]
+  electrical:
+    level: partial
+    controls: [master_battery, master_alternator, avionics_master]
+    missing: [circuit_breakers_individual]
+  lights:
+    level: full
+    controls: [beacon, nav_lights, landing_light, taxi_light, strobe, panel_lights]
+  fuel:
+    level: partial
+    controls: [fuel_selector]
+    missing: [fuel_pump_electric_detail]
+  autopilot:
+    level: partial
+    controls: [ap_master, heading_bug, altitude_bug, nav_source]
+    missing: [vnav, approach_coupling]
+  radios:
+    level: partial
+    controls: [com1_freq, com2_freq, nav1_freq, transponder_code]
+    missing: [gps_flightplan_sync]
+  groundControls:
+    level: full
+    controls: [parking_brake, gear_static]

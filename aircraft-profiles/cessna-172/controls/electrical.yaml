@@ -1,0 +1,46 @@
+# Sistema eléctrico — todos boolean, SIEMPRE SET explícito, nunca TOGGLE crudo.
+
+- id: electrical.master_battery
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "ELECTRICAL MASTER BATTERY"
+  write:
+    type: inputEvent
+    name: "MASTER_BATTERY_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.master_alternator
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG MASTER ALTERNATOR:1"
+  write:
+    type: inputEvent
+    name: "ALTERNATOR_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.avionics_master
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "AVIONICS MASTER SWITCH"
+  write:
+    type: inputEvent
+    name: "AVIONICS_MASTER_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

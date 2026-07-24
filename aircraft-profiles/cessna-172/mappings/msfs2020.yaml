@@ -1,0 +1,12 @@
+# Overrides específicos de MSFS2020, si algún nombre de variable difiere del
+# usado por defecto en controls/*.yaml. Vacío por ahora: el C172 default de
+# Asobo usa los mismos nombres en ambas versiones hasta donde se ha probado.
+#
+# Formato cuando se necesite un override:
+# overrides:
+#   - controlId: lights.beacon
+#     write:
+#       type: inputEvent
+#       name: "BEACON_LIGHTS_SET"
+
+overrides: []
