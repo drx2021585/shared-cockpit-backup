@@ -33,6 +33,7 @@ export interface Session {
   sessionName: string;
   aircraftProfileId: string;
   status: "waiting" | "active";
+  sim: "msfs2020" | "msfs2024";
   hasPassword: boolean;
   participants: SessionParticipant[];
 }
@@ -68,6 +69,7 @@ export function createSession(input: {
   password?: string;
   hostPilotName: string;
   hostSeat: "captain" | "first_officer";
+  sim: "msfs2020" | "msfs2024";
 }) {
   return request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(input) });
 }
@@ -81,6 +83,18 @@ export function joinSession(
 
 export function fetchSession(joinCode: string) {
   return request<Session>(`/api/sessions/${joinCode}`);
+}
+
+export async function closeSession(joinCode: string, pilotName: string) {
+  const res = await fetch(`${API_BASE}/api/sessions/${joinCode}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pilotName }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.error ?? "request-failed", res.status);
+  }
 }
 
 export function apiBaseUrl() {

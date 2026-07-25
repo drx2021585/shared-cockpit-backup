@@ -6,20 +6,28 @@ import { createSession, ApiError, type Session } from "../lib/apiClient";
 interface PartyProps {
   pilotName: string;
   onPilotNameChange: (name: string) => void;
+  createdSession: Session | null;
+  onSessionCreated: (session: Session, pilotName: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
 }
 
-export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyProps) {
+export function Party({
+  pilotName,
+  onPilotNameChange,
+  createdSession,
+  onSessionCreated,
+  onSessionReady,
+}: PartyProps) {
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
 
   const [sessionName, setSessionName] = useState("Afternoon flight");
   const [aircraftProfileId, setAircraftProfileId] = useState<string>("");
+  const [sim, setSim] = useState<"msfs2020" | "msfs2024">("msfs2020");
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer">("captain");
   const [ipBlurred, setIpBlurred] = useState(true);
-  const [createdSession, setCreatedSession] = useState<Session | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,8 +52,9 @@ export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyPro
         password: usePassword ? password : undefined,
         hostPilotName: pilotName.trim(),
         hostSeat: seat,
+        sim,
       });
-      setCreatedSession(session);
+      onSessionCreated(session, pilotName.trim());
     } catch (err) {
       setError(err instanceof ApiError ? `Could not create session: ${err.code}` : "Could not reach the server.");
     } finally {
@@ -68,7 +77,7 @@ export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyPro
             <label>Your pilot name</label>
             <input
               type="text"
-              placeholder="Darwin"
+              placeholder="Enter your name"
               value={pilotName}
               onChange={(e) => onPilotNameChange(e.target.value)}
             />
@@ -96,6 +105,14 @@ export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyPro
                 ))}
               </select>
             )}
+          </div>
+
+          <div className="field">
+            <label>Sim</label>
+            <select value={sim} onChange={(e) => setSim(e.target.value as "msfs2020" | "msfs2024")}>
+              <option value="msfs2020">Microsoft Flight Simulator 2020</option>
+              <option value="msfs2024">Microsoft Flight Simulator 2024</option>
+            </select>
           </div>
 
           <button
@@ -135,7 +152,7 @@ export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyPro
           {error && <div style={{ color: "#e24c4b", fontSize: 13 }}>{error}</div>}
 
           <div style={{ paddingTop: 6 }}>
-            <button className="btn" onClick={handleCreate} disabled={submitting}>
+            <button className="btn" onClick={handleCreate} disabled={submitting || createdSession !== null}>
               {submitting ? "Creating…" : "Create session"}
             </button>
           </div>
@@ -157,7 +174,7 @@ export function Party({ pilotName, onPilotNameChange, onSessionReady }: PartyPro
           {createdSession && (
             <div style={{ marginBottom: 16 }}>
               <button className="btn" onClick={() => onSessionReady(createdSession, pilotName)}>
-                Enter cockpit
+                Get in cockpit
               </button>
             </div>
           )}

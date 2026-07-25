@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Nav } from "./components/Nav";
 import { UpdateModal } from "./components/UpdateModal";
 import { Home } from "./views/Home";
@@ -14,13 +14,53 @@ import type { Session } from "./lib/apiClient";
 export function App() {
   const [view, setView] = useState<ViewId>("home");
   const [pilotName, setPilotName] = useState("");
+  const [createdSession, setCreatedSession] = useState<Session | null>(null);
+  const [createdSessionPilotName, setCreatedSessionPilotName] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [sessionPilotName, setSessionPilotName] = useState<string | null>(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
 
+  useEffect(() => {
+    // electron/main.cjs hace un chequeo silencioso al abrir la app
+    // (app.isPackaged) y lo publica por este mismo canal — si encuentra una
+    // versión nueva, se abre el modal solo, sin que el usuario tenga que ir
+    // a "Check for updates" a mano. No existe en el build web puro.
+    const bridge = (window as unknown as { weconnectUpdater?: { onEvent: (cb: (p: { status: string }) => void) => () => void } })
+      .weconnectUpdater;
+    if (!bridge) return;
+    return bridge.onEvent((payload) => {
+      if (payload.status === "available") setUpdateModalOpen(true);
+    });
+  }, []);
+
   function handleSessionReady(session: Session, name: string) {
+    setCreatedSession(null);
+    setCreatedSessionPilotName(null);
     setActiveSession(session);
     setPilotName(name);
+    setSessionPilotName(name);
     setView("cockpit");
+  }
+
+  function handleSessionCreated(session: Session, name: string) {
+    setCreatedSession(session);
+    setCreatedSessionPilotName(name);
+    setPilotName(name);
+  }
+
+  function handleNavigate(nextView: ViewId) {
+    if (activeSession && (nextView === "party" || nextView === "join")) {
+      return;
+    }
+    if (createdSession && nextView === "join") {
+      return;
+    }
+    setView(nextView);
+  }
+
+  function handleSessionClosed() {
+    setActiveSession(null);
+    setSessionPilotName(null);
   }
 
   function renderView() {
@@ -33,14 +73,20 @@ export function App() {
         return <Aircraft />;
       case "party":
         return (
-          <Party pilotName={pilotName} onPilotNameChange={setPilotName} onSessionReady={handleSessionReady} />
+          <Party
+            pilotName={createdSessionPilotName ?? pilotName}
+            onPilotNameChange={setPilotName}
+            createdSession={createdSession}
+            onSessionCreated={handleSessionCreated}
+            onSessionReady={handleSessionReady}
+          />
         );
       case "join":
         return (
           <Join pilotName={pilotName} onPilotNameChange={setPilotName} onSessionReady={handleSessionReady} />
         );
       case "cockpit":
-        return <Cockpit joinCode={activeSession?.joinCode ?? null} pilotName={pilotName || null} />;
+        return null;
       case "profile":
         return (
           <Profile
@@ -54,8 +100,25 @@ export function App() {
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)" }}>
-      <Nav active={view} onNavigate={setView} />
-      {renderView()}
+      <Nav
+        active={view}
+        onNavigate={handleNavigate}
+        sessionActive={activeSession !== null}
+        partyCreated={createdSession !== null}
+      />
+      {view !== "cockpit" && renderView()}
+      {activeSession ? (
+        <div style={{ display: view === "cockpit" ? "block" : "none" }}>
+          <Cockpit
+            joinCode={activeSession.joinCode}
+            pilotName={sessionPilotName}
+            initialSession={activeSession}
+            onSessionClosed={handleSessionClosed}
+          />
+        </div>
+      ) : (
+        view === "cockpit" && <Cockpit joinCode={null} pilotName={null} />
+      )}
       <UpdateModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)} />
     </div>
   );

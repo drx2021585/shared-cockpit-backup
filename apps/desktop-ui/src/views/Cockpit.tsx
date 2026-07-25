@@ -2,11 +2,14 @@ import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { useSimulatorBridge } from "../lib/bridgeClient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { closeSession, type Session } from "../lib/apiClient";
 
 interface CockpitProps {
   joinCode: string | null;
   pilotName: string | null;
+  initialSession?: Session | null;
+  onSessionClosed?: () => void;
 }
 
 const SEAT_LABEL: Record<string, string> = {
@@ -15,13 +18,44 @@ const SEAT_LABEL: Record<string, string> = {
   observer: "Observer",
 };
 
-export function Cockpit({ joinCode, pilotName }: CockpitProps) {
-  const { connected, session, pingMs } = useSessionSocket(joinCode, pilotName);
+export function Cockpit({
+  joinCode,
+  pilotName,
+  initialSession = null,
+  onSessionClosed,
+}: CockpitProps) {
+  const { connected, session, pingMs, sessionClosed } = useSessionSocket(
+    joinCode,
+    pilotName,
+    initialSession,
+  );
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles } = useAircraftProfiles();
   const bridge = useSimulatorBridge();
   const [ipBlurred, setIpBlurred] = useState(true);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+  const [closingSession, setClosingSession] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
+
+  useEffect(() => {
+    if (sessionClosed) onSessionClosed?.();
+  }, [sessionClosed, onSessionClosed]);
+
+  async function handleCloseSession() {
+    if (!joinCode || !pilotName) return;
+    setClosingSession(true);
+    setCloseError(null);
+    try {
+      await closeSession(joinCode, pilotName);
+      setConfirmCloseOpen(false);
+      onSessionClosed?.();
+    } catch {
+      setCloseError("No se pudo cerrar la sesión. Inténtalo nuevamente.");
+    } finally {
+      setClosingSession(false);
+    }
+  }
 
   if (!joinCode || !pilotName) {
     return (
@@ -42,6 +76,19 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
       <div className="section-head section-top" style={{ marginBottom: 6, paddingTop: 16 }}>
         <h2 className="h2-modal">In cockpit</h2>
+        <button
+          className="btn"
+          onClick={() => setConfirmCloseOpen(true)}
+          disabled={closingSession}
+          style={{
+            marginLeft: "auto",
+            background: "#e24c4b",
+            borderColor: "#e24c4b",
+            padding: "7px 14px",
+          }}
+        >
+          {closingSession ? "Cerrando…" : "Cerrar la sesión"}
+        </button>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
         Live status while you're flying together — {session?.sessionName ?? joinCode}.
@@ -57,7 +104,7 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
         </span>
         <span className="connected-desc">
           {connected
-            ? `Live over WebSocket — ${session?.participants.length ?? 0} pilot(s) in this session`
+            ? `${session?.participants.length ?? 0} pilot(s) in this session`
             : "Reconnecting to the session server…"}
         </span>
       </div>
@@ -112,6 +159,16 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
           <div className="net-row">
             <div className="net-label">Aircraft</div>
             <div className="net-value">{aircraft?.name ?? session?.aircraftProfileId ?? "—"}</div>
+          </div>
+          <div className="net-row">
+            <div className="net-label">Sim</div>
+            <div className="net-value">
+              {session?.sim === "msfs2024"
+                ? "Microsoft Flight Simulator 2024"
+                : session?.sim === "msfs2020"
+                  ? "Microsoft Flight Simulator 2020"
+                  : "—"}
+            </div>
           </div>
 
           <div className="divider-row" style={{ marginTop: 24, marginBottom: 10, border: "none" }}>
@@ -196,6 +253,41 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
           </>
         )}
       </div>
+
+      {confirmCloseOpen && (
+        <div className="modal-overlay">
+          <div className="update-card" role="alertdialog" aria-modal="true" aria-labelledby="close-session-title">
+            <h2 id="close-session-title" className="h2-modal" style={{ marginBottom: 12 }}>
+              ¿Cerrar la sesión?
+            </h2>
+            <p style={{ color: "var(--text-55)", fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>
+              Todos los pilotos serán desconectados y el código de la party dejará de funcionar.
+            </p>
+            {closeError && (
+              <div style={{ color: "#e24c4b", fontSize: 13, marginBottom: 14 }}>{closeError}</div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                className="btn"
+                onClick={() => setConfirmCloseOpen(false)}
+                disabled={closingSession}
+                style={{ background: "transparent", color: "var(--text-65)", border: "1px solid var(--hairline)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn"
+                onClick={handleCloseSession}
+                disabled={closingSession}
+                style={{ background: "#e24c4b", borderColor: "#e24c4b" }}
+              >
+                {closingSession ? "Cerrando…" : "Sí, cerrar sesión"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

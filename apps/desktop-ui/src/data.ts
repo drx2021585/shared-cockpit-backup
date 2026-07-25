@@ -1,3 +1,5 @@
+import packageMetadata from "../package.json";
+
 // Contenido extraído literalmente de renderVals() en el handoff de diseño
 // (Shared Cockpit Plan.dc.html). Mantenido en inglés porque así está el diseño
 // aprobado; cambiar el idioma es una decisión de producto aparte.
@@ -169,19 +171,4 @@ export const requirements = [
 export const accentColor = "#50e8f4";
 
 // ---------------------------------------------------------------------------
-// Update / version copy (static marketing/product copy, same category as the
-// rest of this file — NOT live operational data). Reused by UpdateModal to
-// simulate the update-check flow while there is no real update server yet.
-
-export const currentVersion = "0.0.1";
-export const latestVersion = "0.2.0";
-
-export const updateChangelog = [
-  "Shared radio panel now stays in sync after a reconnect",
-  "Faster control handoff — under 40ms on local networks",
-  "Cessna 172 profile coverage raised to 58%",
-  "Fixed a divergence warning that could flicker on takeoff",
-];
-
-export const updateDownloadSizeMb = 84.2;
-export const updateEstSeconds = 20;
+export const currentVersion = packageMetadata.version;

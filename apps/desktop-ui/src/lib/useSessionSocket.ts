@@ -8,6 +8,7 @@ export interface SessionSocketState {
   pingMs: number | null;
   /** true mientras se está esperando/reintentando tras una desconexión. */
   reconnecting: boolean;
+  sessionClosed: boolean;
 }
 
 const RECONNECT_BASE_DELAY_MS = 500;
@@ -24,12 +25,17 @@ const RECONNECT_MAX_DELAY_MS = 15000;
  * exponencial (500ms, 1s, 2s, 4s... hasta un tope de 15s) más jitter, hasta
  * que se reconecta o el componente se desmonta.
  */
-export function useSessionSocket(joinCode: string | null, pilotName: string | null): SessionSocketState {
+export function useSessionSocket(
+  joinCode: string | null,
+  pilotName: string | null,
+  initialSession: Session | null = null,
+): SessionSocketState {
   const [state, setState] = useState<SessionSocketState>({
     connected: false,
-    session: null,
+    session: initialSession,
     pingMs: null,
     reconnecting: false,
+    sessionClosed: false,
   });
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -104,6 +110,10 @@ export function useSessionSocket(joinCode: string | null, pilotName: string | nu
       ws.onclose = (event) => {
         clearPingTimer();
         setState((s) => ({ ...s, connected: false }));
+        if (event.code === 4001) {
+          setState((s) => ({ ...s, reconnecting: false, sessionClosed: true }));
+          return;
+        }
         // 4000 = código de sesión o piloto inválido (ver server.ts): no tiene
         // sentido reintentar, es un error permanente de esta combinación.
         if (event.code === 4000 || unmountedRef.current) {

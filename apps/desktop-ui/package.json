@@ -1,7 +1,7 @@
 {
-  "name": "@shared-cockpit/desktop-ui",
+  "name": "shared-cockpit-desktop-ui",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared Cockpit UI - web-first, empacado como app de escritorio con Electron.",
   "type": "module",
   "main": "electron/main.cjs",
@@ -14,6 +14,7 @@
     "dist:publish": "npm run build && electron-builder --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -29,12 +30,17 @@
   "build": {
     "appId": "com.weconnect.sharedcockpit",
     "productName": "WeConnect",
-    "files": ["dist/**/*", "electron/**/*"],
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
     "directories": {
       "output": "release"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "signAndEditExecutable": false
     },
     "publish": [
