@@ -1,80 +1,104 @@
 /**
- * Base de datos real (SQLite vía node:sqlite, sin mocks). Esquema basado en
+ * Base de datos real (PostgreSQL vía `pg`, sin mocks). Esquema basado en
  * docs/database-schema.md, simplificado para el MVP (sin tabla users todavía
  * — las sesiones se identifican por nombre de piloto, no por cuenta).
+ *
+ * Antes este módulo usaba SQLite local (node:sqlite) con un archivo por
+ * máquina. Eso rompía el flujo multijugador real: cada piloto corría su
+ * propio servidor con su propio archivo, así que un amigo uniéndose con un
+ * código de sesión nunca veía la sesión creada en la máquina del host. Ahora
+ * se conecta a una instancia de PostgreSQL compartida (Supabase u otra) vía
+ * DATABASE_URL, para que un único proceso de servidor desplegado sea la
+ * fuente de verdad para todos los pilotos. Ver docs/database-schema.md.
  */
-import { DatabaseSync } from "node:sqlite";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { mkdirSync } from "node:fs";
+import pg from "pg";
 import { randomBytes } from "node:crypto";
 import type { ScannedProfile } from "./profiles.ts";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "data");
-mkdirSync(DATA_DIR, { recursive: true });
+const { Pool } = pg;
 
-export const db = new DatabaseSync(join(DATA_DIR, "shared-cockpit.db"));
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS aircraft_profiles (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    developer TEXT NOT NULL,
-    version TEXT NOT NULL,
-    coverage INTEGER NOT NULL,
-    capabilities_json TEXT NOT NULL,
-    msfs2020 INTEGER NOT NULL,
-    msfs2024 INTEGER NOT NULL
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL no está definida. Este servidor requiere una base de datos " +
+      "PostgreSQL real y compartida (por ejemplo, Supabase) — no hay fallback " +
+      "a SQLite ni a un mock en memoria. Define DATABASE_URL en el entorno " +
+      "(ver docs/database-schema.md) y vuelve a arrancar."
   );
+}
 
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    join_code TEXT UNIQUE NOT NULL,
-    session_name TEXT NOT NULL,
-    aircraft_profile_id TEXT NOT NULL REFERENCES aircraft_profiles(id),
-    password TEXT,
-    status TEXT NOT NULL DEFAULT 'waiting',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    ended_at TEXT
-  );
+export const pool = new Pool({ connectionString: DATABASE_URL });
 
-  CREATE TABLE IF NOT EXISTS session_participants (
-    session_id TEXT NOT NULL REFERENCES sessions(id),
-    pilot_name TEXT NOT NULL,
-    seat TEXT NOT NULL,
-    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
-    disconnected_at TEXT,
-    PRIMARY KEY (session_id, pilot_name)
-  );
-`);
+async function init() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS aircraft_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      developer TEXT NOT NULL,
+      version TEXT NOT NULL,
+      coverage INTEGER NOT NULL,
+      capabilities_json TEXT NOT NULL,
+      msfs2020 BOOLEAN NOT NULL,
+      msfs2024 BOOLEAN NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      join_code TEXT UNIQUE NOT NULL,
+      session_name TEXT NOT NULL,
+      aircraft_profile_id TEXT NOT NULL REFERENCES aircraft_profiles(id),
+      password TEXT,
+      status TEXT NOT NULL DEFAULT 'waiting',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      ended_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS session_participants (
+      session_id TEXT NOT NULL REFERENCES sessions(id),
+      pilot_name TEXT NOT NULL,
+      seat TEXT NOT NULL,
+      joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      disconnected_at TIMESTAMPTZ,
+      PRIMARY KEY (session_id, pilot_name)
+    );
+  `);
+}
+
+// Se dispara al importar el módulo; server.ts espera a que termine antes de
+// aceptar tráfico (ver initDb export usado en server.ts).
+export const dbReady = init().catch((err) => {
+  console.error("[db] fallo al inicializar el esquema de PostgreSQL:", err.message);
+  throw err;
+});
 
 /** Reemplaza el catálogo de perfiles con lo escaneado realmente de disco. */
-export function syncAircraftProfiles(profiles: ScannedProfile[]) {
-  const upsert = db.prepare(`
-    INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      name=excluded.name, developer=excluded.developer, version=excluded.version,
-      coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
-      msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024
-  `);
+export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
+  await dbReady;
   for (const p of profiles) {
-    upsert.run(
-      p.id,
-      p.name,
-      p.developer,
-      p.version,
-      p.coverage,
-      JSON.stringify(p.capabilities),
-      p.compatibility.msfs2020 ? 1 : 0,
-      p.compatibility.msfs2024 ? 1 : 0
+    await pool.query(
+      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT(id) DO UPDATE SET
+         name=excluded.name, developer=excluded.developer, version=excluded.version,
+         coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
+         msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024`,
+      [
+        p.id,
+        p.name,
+        p.developer,
+        p.version,
+        p.coverage,
+        JSON.stringify(p.capabilities),
+        p.compatibility.msfs2020,
+        p.compatibility.msfs2024,
+      ]
     );
   }
 }
 
-export function listAircraftProfiles() {
-  const rows = db.prepare("SELECT * FROM aircraft_profiles ORDER BY coverage DESC").all();
+export async function listAircraftProfiles() {
+  await dbReady;
+  const { rows } = await pool.query("SELECT * FROM aircraft_profiles ORDER BY coverage DESC");
   return rows.map((r: any) => ({
     id: r.id,
     name: r.name,
@@ -102,37 +126,48 @@ export interface CreateSessionInput {
   hostSeat: "captain" | "first_officer";
 }
 
-export function createSession(input: CreateSessionInput) {
-  const profile = db.prepare("SELECT id FROM aircraft_profiles WHERE id = ?").get(input.aircraftProfileId);
-  if (!profile) {
+export async function createSession(input: CreateSessionInput) {
+  await dbReady;
+  const { rows: profileRows } = await pool.query(
+    "SELECT id FROM aircraft_profiles WHERE id = $1",
+    [input.aircraftProfileId]
+  );
+  if (profileRows.length === 0) {
     throw new Error(`unknown aircraft profile: ${input.aircraftProfileId}`);
   }
 
   const id = randomBytes(12).toString("hex");
   let joinCode = generateJoinCode();
   // Reintenta si por casualidad colisiona con un código ya activo (muy improbable, pero real).
-  while (db.prepare("SELECT 1 FROM sessions WHERE join_code = ?").get(joinCode)) {
+  while (
+    (await pool.query("SELECT 1 FROM sessions WHERE join_code = $1", [joinCode])).rows.length > 0
+  ) {
     joinCode = generateJoinCode();
   }
 
-  db.prepare(
+  await pool.query(
     `INSERT INTO sessions (id, join_code, session_name, aircraft_profile_id, password, status)
-     VALUES (?, ?, ?, ?, ?, 'waiting')`
-  ).run(id, joinCode, input.sessionName, input.aircraftProfileId, input.password ?? null);
+     VALUES ($1, $2, $3, $4, $5, 'waiting')`,
+    [id, joinCode, input.sessionName, input.aircraftProfileId, input.password ?? null]
+  );
 
-  db.prepare(
-    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES (?, ?, ?)`
-  ).run(id, input.hostPilotName, input.hostSeat);
+  await pool.query(
+    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES ($1, $2, $3)`,
+    [id, input.hostPilotName, input.hostSeat]
+  );
 
   return getSessionByCode(joinCode);
 }
 
-export function getSessionByCode(joinCode: string) {
-  const session: any = db.prepare("SELECT * FROM sessions WHERE join_code = ?").get(joinCode);
+export async function getSessionByCode(joinCode: string) {
+  await dbReady;
+  const { rows } = await pool.query("SELECT * FROM sessions WHERE join_code = $1", [joinCode]);
+  const session: any = rows[0];
   if (!session) return null;
-  const participants = db
-    .prepare("SELECT pilot_name, seat, joined_at FROM session_participants WHERE session_id = ? AND disconnected_at IS NULL")
-    .all(session.id);
+  const { rows: participants } = await pool.query(
+    "SELECT pilot_name, seat, joined_at FROM session_participants WHERE session_id = $1 AND disconnected_at IS NULL",
+    [session.id]
+  );
   return {
     id: session.id,
     joinCode: session.join_code,
@@ -151,37 +186,45 @@ export interface JoinSessionInput {
   password?: string;
 }
 
-export function joinSession(input: JoinSessionInput) {
-  const session: any = db.prepare("SELECT * FROM sessions WHERE join_code = ?").get(input.joinCode);
+export async function joinSession(input: JoinSessionInput) {
+  await dbReady;
+  const { rows } = await pool.query("SELECT * FROM sessions WHERE join_code = $1", [input.joinCode]);
+  const session: any = rows[0];
   if (!session) return { ok: false as const, reason: "session-not-found" };
   if (session.password && session.password !== input.password) {
     return { ok: false as const, reason: "invalid-password" };
   }
 
-  const activeCount: any = db
-    .prepare("SELECT COUNT(*) as n FROM session_participants WHERE session_id = ? AND disconnected_at IS NULL")
-    .get(session.id);
-  if (activeCount.n >= 2 && input.seat !== "observer") {
+  const { rows: countRows } = await pool.query(
+    "SELECT COUNT(*) as n FROM session_participants WHERE session_id = $1 AND disconnected_at IS NULL",
+    [session.id]
+  );
+  const activeCount = Number(countRows[0].n);
+  if (activeCount >= 2 && input.seat !== "observer") {
     return { ok: false as const, reason: "session-full" };
   }
 
-  db.prepare(
-    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES (?, ?, ?)
-     ON CONFLICT(session_id, pilot_name) DO UPDATE SET disconnected_at = NULL, seat = excluded.seat`
-  ).run(session.id, input.pilotName, input.seat);
+  await pool.query(
+    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES ($1, $2, $3)
+     ON CONFLICT(session_id, pilot_name) DO UPDATE SET disconnected_at = NULL, seat = excluded.seat`,
+    [session.id, input.pilotName, input.seat]
+  );
 
-  if (activeCount.n + 1 >= 2) {
-    db.prepare("UPDATE sessions SET status = 'active' WHERE id = ?").run(session.id);
+  if (activeCount + 1 >= 2) {
+    await pool.query("UPDATE sessions SET status = 'active' WHERE id = $1", [session.id]);
   }
 
-  return { ok: true as const, session: getSessionByCode(input.joinCode) };
+  return { ok: true as const, session: await getSessionByCode(input.joinCode) };
 }
 
-export function markDisconnected(joinCode: string, pilotName: string) {
-  const session: any = db.prepare("SELECT id FROM sessions WHERE join_code = ?").get(joinCode);
+export async function markDisconnected(joinCode: string, pilotName: string) {
+  await dbReady;
+  const { rows } = await pool.query("SELECT id FROM sessions WHERE join_code = $1", [joinCode]);
+  const session: any = rows[0];
   if (!session) return;
-  db.prepare(
-    `UPDATE session_participants SET disconnected_at = datetime('now')
-     WHERE session_id = ? AND pilot_name = ?`
-  ).run(session.id, pilotName);
+  await pool.query(
+    `UPDATE session_participants SET disconnected_at = now()
+     WHERE session_id = $1 AND pilot_name = $2`,
+    [session.id, pilotName]
+  );
 }

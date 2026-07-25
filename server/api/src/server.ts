@@ -2,13 +2,15 @@
  * Servidor real: REST para sesiones/perfiles, WebSocket para señalización en
  * vivo (lista de participantes, ping, ciclo de vida de sesión). No hay datos
  * de relleno — el catálogo de aeronaves viene de escanear aircraft-profiles/
- * y las sesiones viven en SQLite real (server/api/data/shared-cockpit.db).
+ * y las sesiones viven en PostgreSQL real y compartido (ver db.ts, requiere
+ * DATABASE_URL — no hay fallback local).
  */
 import express from "express";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { scanAircraftProfiles } from "./profiles.ts";
 import {
+  dbReady,
   syncAircraftProfiles,
   listAircraftProfiles,
   createSession,
@@ -18,10 +20,6 @@ import {
 } from "./db.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
-
-// Al arrancar, sincroniza el catálogo real desde disco — si se agrega o
-// cambia un perfil YAML, el próximo arranque lo refleja automáticamente.
-syncAircraftProfiles(scanAircraftProfiles());
 
 const app = express();
 app.use(express.json());
@@ -36,35 +34,35 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", uptimeSeconds: process.uptime() });
 });
 
-app.get("/api/aircraft-profiles", (_req, res) => {
-  res.json(listAircraftProfiles());
+app.get("/api/aircraft-profiles", async (_req, res) => {
+  res.json(await listAircraftProfiles());
 });
 
-app.post("/api/sessions", (req, res) => {
+app.post("/api/sessions", async (req, res) => {
   const { sessionName, aircraftProfileId, password, hostPilotName, hostSeat } = req.body ?? {};
   if (!sessionName || !aircraftProfileId || !hostPilotName || !hostSeat) {
     return res.status(400).json({ error: "missing required fields" });
   }
   try {
-    const session = createSession({ sessionName, aircraftProfileId, password, hostPilotName, hostSeat });
+    const session = await createSession({ sessionName, aircraftProfileId, password, hostPilotName, hostSeat });
     res.status(201).json(session);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
-app.get("/api/sessions/:code", (req, res) => {
-  const session = getSessionByCode(req.params.code.toUpperCase());
+app.get("/api/sessions/:code", async (req, res) => {
+  const session = await getSessionByCode(req.params.code.toUpperCase());
   if (!session) return res.status(404).json({ error: "session-not-found" });
   res.json(session);
 });
 
-app.post("/api/sessions/:code/join", (req, res) => {
+app.post("/api/sessions/:code/join", async (req, res) => {
   const { pilotName, seat, password } = req.body ?? {};
   if (!pilotName || !seat) {
     return res.status(400).json({ error: "missing required fields" });
   }
-  const result = joinSession({ joinCode: req.params.code.toUpperCase(), pilotName, seat, password });
+  const result = await joinSession({ joinCode: req.params.code.toUpperCase(), pilotName, seat, password });
   if (!result.ok) {
     const status = result.reason === "session-not-found" ? 404 : 409;
     return res.status(status).json({ error: result.reason });
@@ -176,8 +174,8 @@ function relayFlightMessage(senderWs: WebSocket, joinCode: string, msg: any) {
   }
 }
 
-function broadcastSessionState(joinCode: string) {
-  const session = getSessionByCode(joinCode);
+async function broadcastSessionState(joinCode: string) {
+  const session = await getSessionByCode(joinCode);
   if (!session) return;
   const payload = JSON.stringify({ type: "session.state", session });
   for (const [ws, meta] of connections) {
@@ -187,20 +185,20 @@ function broadcastSessionState(joinCode: string) {
   }
 }
 
-wss.on("connection", (ws, req) => {
+wss.on("connection", async (ws, req) => {
   const url = new URL(req.url ?? "", "http://localhost");
   const joinCode = (url.searchParams.get("code") ?? "").toUpperCase();
   const pilotName = url.searchParams.get("pilot") ?? "";
 
-  if (!joinCode || !pilotName || !getSessionByCode(joinCode)) {
+  if (!joinCode || !pilotName || !(await getSessionByCode(joinCode))) {
     ws.close(4000, "invalid session or pilot");
     return;
   }
 
   connections.set(ws, { joinCode, pilotName });
-  broadcastSessionState(joinCode);
+  await broadcastSessionState(joinCode);
 
-  ws.on("message", (raw) => {
+  ws.on("message", async (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
       // Ping real de ida y vuelta — el cliente mide su propio RTT con esto,
@@ -228,17 +226,27 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", async () => {
     const meta = connections.get(ws);
     connections.delete(ws);
     if (meta) {
-      markDisconnected(meta.joinCode, meta.pilotName);
-      broadcastSessionState(meta.joinCode);
+      await markDisconnected(meta.joinCode, meta.pilotName);
+      await broadcastSessionState(meta.joinCode);
     }
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Shared Cockpit API real corriendo en http://localhost:${PORT}`);
-  console.log(`WebSocket de sesión en ws://localhost:${PORT}/ws`);
+async function main() {
+  await dbReady;
+  await syncAircraftProfiles(scanAircraftProfiles());
+
+  httpServer.listen(PORT, () => {
+    console.log(`Shared Cockpit API real corriendo en http://localhost:${PORT}`);
+    console.log(`WebSocket de sesión en ws://localhost:${PORT}/ws`);
+  });
+}
+
+main().catch((err) => {
+  console.error("[server] fallo fatal al arrancar:", err.message ?? err);
+  process.exit(1);
 });

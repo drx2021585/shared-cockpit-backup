@@ -58,3 +58,23 @@ CREATE TABLE sync_reports (
 
 Redis se usa para estado efímero de sesiones activas y presencia (no persistente),
 no para el histórico — eso vive en PostgreSQL.
+
+## Estado actual de la implementación (server/api)
+
+`server/api/src/db.ts` implementa una versión simplificada de este esquema
+(sin tabla `users` todavía — las sesiones identifican pilotos por nombre, no
+por cuenta) contra **PostgreSQL real, vía `pg` y `DATABASE_URL`** (por ejemplo,
+una instancia de Supabase). No hay SQL Server, no hay SQLite y no hay mock en
+memoria: si `DATABASE_URL` no está definida, el servidor falla al arrancar con
+un error explícito en vez de degradar silenciosamente.
+
+Este cambio (antes usaba SQLite local vía `node:sqlite`, un archivo por
+máquina) fue necesario porque cada piloto corriendo su propio servidor local
+significaba que un amigo uniéndose con un código de sesión nunca veía la
+sesión creada en la máquina del host — SQLite es de un solo archivo/una sola
+máquina, no compartible entre dos redes distintas. En producción debe existir
+una única instancia del servidor (`server/api`) desplegada (por ejemplo, en
+Railway) apuntando a la misma base de datos compartida, para que ambos pilotos
+se conecten al mismo proceso y vean la misma sesión. Para desarrollo local
+individual sigue siendo válido apuntar `DATABASE_URL` a una base de datos
+Postgres local o a un proyecto de Supabase de pruebas.

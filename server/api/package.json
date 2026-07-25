@@ -4,16 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types --experimental-sqlite src/server.ts",
-    "test": "node --experimental-strip-types --experimental-sqlite --test test/*.test.ts"
+    "dev": "node --experimental-strip-types src/server.ts",
+    "start": "node --experimental-strip-types src/server.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
     "express": "^4.19.2",
+    "pg": "^8.13.0",
     "ws": "^8.18.0",
     "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/pg": "^8.11.10",
     "@types/ws": "^8.5.12",
     "@types/node": "^22.5.0"
   }

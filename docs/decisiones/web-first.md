@@ -50,19 +50,27 @@ producto esté funcionalmente completo. Si se necesita seguir iterando el
 `.exe` antes de eso, evaluar si conviene formalizar el cambio a Electron o
 volver a Tauri en ese momento.
 
-### El `.exe` es autocontenido: server/api embebido
+### Actualización 2026-07-25: el `.exe` habla con el backend compartido en Railway, no con un server local embebido
 
-Para que el instalador no dependa de que el usuario final tenga Node/npm
-instalados ni tenga que correr `server/api` a mano, `electron/main.cjs`
-levanta ese backend como proceso hijo al arrancar (y lo mata al cerrar la
-app), usando un Node portátil + el código de `server/api` + `aircraft-profiles/`
-copiados como `extraResources` (ver `build.extraResources` en
-`apps/desktop-ui/package.json`). El primer arranque puede tardar ~30s
-mientras Windows Defender escanea el binario de Node sin firmar por primera
-vez; arranques siguientes son casi instantáneos.
+Se probó embeber `server/api` (Node portátil + código + `aircraft-profiles/`
+como `extraResources`) para que el `.exe` no dependiera de Node/npm
+instalados. Funcionaba, pero no resolvía el problema real: dos pilotos en
+computadoras distintas no pueden verse si cada uno levanta su *propio*
+server/api local — el relay de WebSocket solo conecta sockets dentro del
+mismo proceso, y cada instancia local tenía su propia base de datos aislada.
 
-Requisito para compilar (`npm run dist` / `dist:publish`): copiar un
-`node.exe` real a `apps/desktop-ui/vendor/node/node.exe` antes de buildear —
-esa carpeta está en `.gitignore` (no se versiona un binario de ~90MB), así
-que no viene en el checkout. Cualquier Node 22+ de Windows x64 sirve (probado
-con el mismo binario que corre `server/api` en desarrollo).
+Se revirtió ese embebido (`electron/main.cjs` volvió a ser solo el visor de
+la ventana) y en su lugar `server/api` se desplegó como **una única
+instancia compartida** en Railway, con **Postgres/Supabase** como base de
+datos (ver `docs/decisiones/postgres-shared-backend.md`). El cliente
+(`apps/desktop-ui/src/lib/apiClient.ts`) apunta por defecto a esa URL
+pública en vez de `localhost:8787`; para desarrollo/pruebas solo-locales se
+puede sobreescribir con `VITE_API_BASE=http://localhost:8787` en un
+`.env.local` (gitignored) y correr `server/api` a mano contra Postgres o,
+si hace falta trabajar sin red, adaptarlo de nuevo a un modo local — no es
+el caso de uso principal hoy.
+
+Esto simplifica el `.exe` (ya no necesita `vendor/node/node.exe` ni copiar
+`server/api`/`aircraft-profiles` al paquete) y elimina la demora de ~30s del
+primer arranque por escaneo de Windows Defender sobre un binario de Node sin
+firmar.
