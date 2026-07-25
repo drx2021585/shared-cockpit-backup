@@ -1,6 +1,7 @@
 import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
+import { useSimulatorBridge } from "../lib/bridgeClient";
 import { useState } from "react";
 
 interface CockpitProps {
@@ -18,6 +19,7 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
   const { connected, session, pingMs } = useSessionSocket(joinCode, pilotName);
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles } = useAircraftProfiles();
+  const bridge = useSimulatorBridge();
   const [ipBlurred, setIpBlurred] = useState(true);
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
 
@@ -133,11 +135,67 @@ export function Cockpit({ joinCode, pilotName }: CockpitProps) {
         </div>
       </div>
 
-      <p style={{ fontSize: 12, color: "var(--text-35)", marginTop: 32 }}>
-        Session and ping are live from server/api. Aircraft telemetry (switches, controls,
-        autopilot) will appear here once apps/simulator-bridge connects to MSFS — that part
-        requires Windows and hasn't been built yet.
-      </p>
+      <div style={{ marginTop: 32 }}>
+        <div
+          className="divider-row"
+          style={{ marginBottom: 10, border: "none", display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <div className="mono-label">Aircraft telemetry</div>
+          {bridge.mode === "mock" && (
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                color: "#e2b64c",
+                border: "1px solid rgba(226,182,76,0.4)",
+                background: "rgba(226,182,76,0.08)",
+                padding: "1px 6px",
+                textTransform: "uppercase",
+              }}
+            >
+              Mock data
+            </span>
+          )}
+        </div>
+
+        {bridge.connectionState !== "connected" && (
+          <p style={{ fontSize: 12, color: "var(--text-35)" }}>
+            {bridge.connectionState === "connecting" &&
+              (bridge.mode === "mock"
+                ? "Connecting to mock simulator-bridge…"
+                : "Connecting to simulator-bridge (ws://localhost:7620)…")}
+            {bridge.connectionState === "no-bridge-running" &&
+              "Aircraft telemetry: no simulator-bridge connection — start apps/simulator-bridge with MSFS running to see live controls here."}
+            {bridge.connectionState === "disconnected" &&
+              "Aircraft telemetry: lost connection to simulator-bridge — retrying…"}
+          </p>
+        )}
+
+        {bridge.connectionState === "connected" && (
+          <>
+            <p style={{ fontSize: 12, color: "var(--text-35)", marginBottom: 10 }}>
+              {bridge.mode === "mock"
+                ? "Simulated control values for UI development — not connected to a real simulator."
+                : `Live from apps/simulator-bridge${bridge.snapshot ? ` — profile ${bridge.snapshot.profile}` : ""}.`}
+            </p>
+            {Object.keys(bridge.controls).length === 0 ? (
+              <div style={{ fontSize: 13, color: "var(--text-45)", padding: "10px 0" }}>
+                Connected — waiting for the first control value…
+              </div>
+            ) : (
+              Object.values(bridge.controls)
+                .sort((a, b) => a.controlId.localeCompare(b.controlId))
+                .map((c) => (
+                  <div className="net-row" key={c.controlId}>
+                    <div className="net-label">{c.controlId}</div>
+                    <div className="net-value">{String(c.value)}</div>
+                  </div>
+                ))
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

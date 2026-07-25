@@ -1,0 +1,291 @@
+import { useEffect, useRef, useState } from "react";
+import type {
+  AircraftSnapshot,
+  ControlAxis,
+  ControlEvent,
+  SharedCockpitMessage,
+} from "../../../../packages/protocol/types";
+
+/**
+ * Cliente hacia apps/simulator-bridge (agente simconnect-bridge-agent), el
+ * proceso local en C#/.NET que habla SimConnect y expone un WebSocket en
+ * ws://localhost:7620 con los mensajes de packages/protocol/types.ts
+ * (control.event, control.axis, aircraft.snapshot). Este archivo NO habla
+ * con SimConnect ni con la red externa directamente — solo consume ese
+ * WebSocket local, igual que useSessionSocket.ts consume server/api.
+ *
+ * Modo `mock`: no abre ningún socket. Genera cambios locales deterministas
+ * para poder diseñar/probar la pantalla de cabina sin MSFS ni el bridge real
+ * corriendo. Todo estado que salga de acá en modo mock queda marcado
+ * `mode: "mock"` — la UI está obligada a mostrarlo como tal (ver Cockpit.tsx).
+ * Nunca se debe presentar como telemetría real.
+ *
+ * Modo `real` (default): WebSocket real a ws://localhost:7620. Si no hay
+ * nada escuchando ahí (bridge no instalado/corriendo, o MSFS no abierto),
+ * el estado se refleja honestamente como desconectado — no se rellena con
+ * datos de ejemplo.
+ */
+
+export type BridgeMode = "mock" | "real";
+
+export type BridgeConnectionState =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "no-bridge-running";
+
+export interface BridgeControlValue {
+  controlId: string;
+  value: boolean | number | string;
+  channel: "event" | "axis";
+  updatedAt: number;
+}
+
+export interface SimulatorBridgeState {
+  mode: BridgeMode;
+  connectionState: BridgeConnectionState;
+  reconnecting: boolean;
+  /** Último aircraft.snapshot recibido (o generado en mock), si alguno. */
+  snapshot: AircraftSnapshot | null;
+  /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
+  controls: Record<string, BridgeControlValue>;
+  lastMessageAt: number | null;
+}
+
+const BRIDGE_WS_URL = "ws://localhost:7620";
+const RECONNECT_BASE_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 15000;
+// Si el socket nunca llega a abrir y se cierra antes de este umbral, se
+// interpreta como "no hay nada escuchando en ese puerto" (bridge no
+// corriendo) en vez de una desconexión intermitente normal.
+const NO_BRIDGE_CLOSE_THRESHOLD_MS = 400;
+
+export function resolveBridgeMode(): BridgeMode {
+  const raw = (import.meta.env.VITE_BRIDGE_MODE as string | undefined)?.toLowerCase();
+  return raw === "mock" ? "mock" : "real";
+}
+
+function emptyState(mode: BridgeMode): SimulatorBridgeState {
+  return {
+    mode,
+    connectionState: "connecting",
+    reconnecting: false,
+    snapshot: null,
+    controls: {},
+    lastMessageAt: null,
+  };
+}
+
+function applyMessage(
+  state: SimulatorBridgeState,
+  msg: SharedCockpitMessage
+): SimulatorBridgeState {
+  const now = Date.now();
+  if (msg.type === "control.event") {
+    const event = msg as ControlEvent;
+    return {
+      ...state,
+      lastMessageAt: now,
+      controls: {
+        ...state.controls,
+        [event.controlId]: {
+          controlId: event.controlId,
+          value: event.value,
+          channel: "event",
+          updatedAt: now,
+        },
+      },
+    };
+  }
+  if (msg.type === "control.axis") {
+    const axis = msg as ControlAxis;
+    return {
+      ...state,
+      lastMessageAt: now,
+      controls: {
+        ...state.controls,
+        [axis.controlId]: {
+          controlId: axis.controlId,
+          value: axis.value,
+          channel: "axis",
+          updatedAt: now,
+        },
+      },
+    };
+  }
+  if (msg.type === "aircraft.snapshot") {
+    return { ...state, lastMessageAt: now, snapshot: msg as AircraftSnapshot };
+  }
+  // authority.transfer / session.* no describen telemetría de aeronave; los
+  // ignoramos acá (le corresponden a otras pantallas/agentes).
+  return { ...state, lastMessageAt: now };
+}
+
+/**
+ * Hook principal. `mode` es opcional — por defecto usa VITE_BRIDGE_MODE
+ * (o "real" si no está definida), igual que el resto de los hooks de red
+ * de esta app.
+ */
+export function useSimulatorBridge(mode: BridgeMode = resolveBridgeMode()): SimulatorBridgeState {
+  const [state, setState] = useState<SimulatorBridgeState>(() => emptyState(mode));
+
+  useEffect(() => {
+    if (mode === "mock") {
+      return runMockBridge(setState);
+    }
+    return runRealBridge(setState);
+  }, [mode]);
+
+  return state;
+}
+
+// ---------------------------------------------------------------------------
+// Modo real
+// ---------------------------------------------------------------------------
+
+function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => SimulatorBridgeState) => void) {
+  let unmounted = false;
+  let ws: WebSocket | null = null;
+  let attempt = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let connectStartedAt = 0;
+
+  setState(() => emptyState("real"));
+
+  function clearReconnectTimer() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function scheduleReconnect() {
+    if (unmounted) return;
+    const currentAttempt = attempt;
+    attempt += 1;
+    const exp = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** currentAttempt, RECONNECT_MAX_DELAY_MS);
+    const jitter = exp * (0.5 + Math.random() * 0.5);
+    clearReconnectTimer();
+    reconnectTimer = setTimeout(() => {
+      if (!unmounted) connect();
+    }, jitter);
+  }
+
+  function connect() {
+    if (unmounted) return;
+    connectStartedAt = Date.now();
+    setState((s) => ({ ...s, connectionState: "connecting", reconnecting: attempt > 0 }));
+
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(BRIDGE_WS_URL);
+    } catch {
+      // Construcción del WebSocket falló (URL inválida, entorno sin soporte,
+      // etc.) — tratado igual que "no hay bridge" para no dejar la UI colgada.
+      setState((s) => ({ ...s, connectionState: "no-bridge-running", reconnecting: false }));
+      scheduleReconnect();
+      return;
+    }
+    ws = socket;
+
+    socket.onopen = () => {
+      attempt = 0;
+      setState((s) => ({ ...s, connectionState: "connected", reconnecting: false }));
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data) as SharedCockpitMessage;
+        setState((s) => applyMessage(s, msg));
+      } catch {
+        // Mensaje no parseable: se descarta, no se rompe la conexión.
+      }
+    };
+
+    socket.onerror = () => {
+      // El evento de error real llega también por onclose; no duplicamos
+      // el manejo de estado acá, solo evitamos que quede sin capturar.
+    };
+
+    socket.onclose = () => {
+      if (unmounted) return;
+      const elapsed = Date.now() - connectStartedAt;
+      const neverConnected = elapsed < NO_BRIDGE_CLOSE_THRESHOLD_MS;
+      setState((s) => ({
+        ...s,
+        connectionState: neverConnected ? "no-bridge-running" : "disconnected",
+      }));
+      scheduleReconnect();
+    };
+  }
+
+  connect();
+
+  return () => {
+    unmounted = true;
+    clearReconnectTimer();
+    ws?.close();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Modo mock — datos simulados, honestamente etiquetados en el estado (mode:
+// "mock"). La UI es responsable de mostrar ese tag; este archivo solo
+// garantiza que el campo exista y sea correcto.
+// ---------------------------------------------------------------------------
+
+const MOCK_CONTROLS: Array<{ controlId: string; channel: "event" | "axis"; values: (boolean | number | string)[] }> = [
+  { controlId: "nav_lights", channel: "event", values: [true, false] },
+  { controlId: "landing_lights", channel: "event", values: [false, true] },
+  { controlId: "parking_brake", channel: "event", values: [true, false] },
+  { controlId: "autopilot_master", channel: "event", values: [false, true] },
+  { controlId: "throttle_1", channel: "axis", values: [0, 0.35, 0.62, 0.81, 1] },
+  { controlId: "elevator_trim", channel: "axis", values: [-0.05, 0, 0.02, 0.06] },
+];
+
+function runMockBridge(setState: (updater: (s: SimulatorBridgeState) => SimulatorBridgeState) => void) {
+  let cancelled = false;
+  let sequence = 0;
+
+  setState(() => ({ ...emptyState("mock"), connectionState: "connecting" }));
+
+  // Simula el tiempo de "conexión" al bridge antes de empezar a emitir datos.
+  const connectTimer = setTimeout(() => {
+    if (cancelled) return;
+    setState((s) => ({
+      ...s,
+      connectionState: "connected",
+      snapshot: {
+        type: "aircraft.snapshot",
+        sessionId: "mock-session",
+        revision: 0,
+        profile: "mock-generic-aircraft",
+        systems: {},
+      },
+    }));
+  }, 400);
+
+  const tickTimer = setInterval(() => {
+    if (cancelled) return;
+    const control = MOCK_CONTROLS[sequence % MOCK_CONTROLS.length];
+    const value = control.values[Math.floor(sequence / MOCK_CONTROLS.length) % control.values.length];
+    sequence += 1;
+    setState((s) =>
+      applyMessage(s, {
+        type: control.channel === "event" ? "control.event" : "control.axis",
+        sessionId: "mock-session",
+        controlId: control.controlId,
+        value,
+        source: "mock",
+        sequence,
+        timestamp: Date.now(),
+      } as SharedCockpitMessage)
+    );
+  }, 1500);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(connectTimer);
+    clearInterval(tickTimer);
+  };
+}
