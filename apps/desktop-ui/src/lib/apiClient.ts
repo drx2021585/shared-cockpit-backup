@@ -48,6 +48,25 @@ export interface Session {
   /** Igual que `controlOwner`: `seat`, no pilotName. */
   controlRequestedBy: string | null;
   participants: SessionParticipant[];
+  /**
+   * Token de participante: solo viene en la respuesta de create/join (nunca
+   * en session.state ni en GET). Es la credencial con la que este cliente
+   * autentica todas las acciones de sesión y el WebSocket — ver
+   * getParticipantToken() abajo.
+   */
+  participantToken?: string;
+}
+
+// Credencial de la sesión activa. Vive solo en memoria (igual que el resto
+// del estado de sesión de la app) — nunca se persiste a disco ni se loguea.
+let participantToken: string | null = null;
+
+export function getParticipantToken(): string | null {
+  return participantToken;
+}
+
+function authHeaders(): Record<string, string> {
+  return participantToken ? { Authorization: `Bearer ${participantToken}` } : {};
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -75,7 +94,7 @@ export function fetchAircraftProfiles() {
   return request<AircraftProfile[]>("/api/aircraft-profiles");
 }
 
-export function createSession(input: {
+export async function createSession(input: {
   sessionName: string;
   aircraftProfileId: string;
   password?: string;
@@ -83,37 +102,51 @@ export function createSession(input: {
   hostSeat: "captain" | "first_officer";
   sim: "msfs2020" | "msfs2024";
 }) {
-  return request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(input) });
+  const session = await request<Session>("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  participantToken = session.participantToken ?? null;
+  return session;
 }
 
-export function joinSession(
+export async function joinSession(
   joinCode: string,
   input: { pilotName: string; seat: "captain" | "first_officer" | "observer"; password?: string }
 ) {
-  return request<Session>(`/api/sessions/${joinCode}/join`, { method: "POST", body: JSON.stringify(input) });
+  const session = await request<Session>(`/api/sessions/${joinCode}/join`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  participantToken = session.participantToken ?? null;
+  return session;
 }
 
 export function fetchSession(joinCode: string) {
   return request<Session>(`/api/sessions/${joinCode}`);
 }
 
-export async function closeSession(joinCode: string, pilotName: string) {
+// La identidad de todas las acciones de sesión sale del token (header
+// Authorization) — el backend ya no confía en un pilotName del body. El
+// parámetro pilotName se mantiene en las firmas para no romper a los
+// llamadores, pero no viaja.
+export async function closeSession(joinCode: string, _pilotName?: string) {
   const res = await fetch(`${API_BASE}/api/sessions/${joinCode}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pilotName }),
+    headers: { "Content-Type": "application/json", ...authHeaders() },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new ApiError(body?.error ?? "request-failed", res.status);
   }
+  participantToken = null;
 }
 
-async function postSessionAction(joinCode: string, action: string, pilotName: string) {
+async function postSessionAction(joinCode: string, action: string) {
   const res = await fetch(`${API_BASE}/api/sessions/${joinCode}/${action}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pilotName }),
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -121,16 +154,17 @@ async function postSessionAction(joinCode: string, action: string, pilotName: st
   }
 }
 
-export function leaveSession(joinCode: string, pilotName: string) {
-  return postSessionAction(joinCode, "leave", pilotName);
+export async function leaveSession(joinCode: string, _pilotName?: string) {
+  await postSessionAction(joinCode, "leave");
+  participantToken = null;
 }
 
-export function requestControls(joinCode: string, pilotName: string) {
-  return postSessionAction(joinCode, "request-controls", pilotName);
+export function requestControls(joinCode: string, _pilotName?: string) {
+  return postSessionAction(joinCode, "request-controls");
 }
 
-export function giveControls(joinCode: string, pilotName: string) {
-  return postSessionAction(joinCode, "give-controls", pilotName);
+export function giveControls(joinCode: string, _pilotName?: string) {
+  return postSessionAction(joinCode, "give-controls");
 }
 
 export function apiBaseUrl() {

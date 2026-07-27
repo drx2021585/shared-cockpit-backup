@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, session } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const net = require("node:net");
+const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 
@@ -238,6 +239,17 @@ const BRIDGE_PORT = 7620; // debe coincidir con Program.cs
 let bridgeProcess = null;
 let bridgeLogStream = null;
 
+// Secreto efímero compartido entre esta app y el bridge local: se genera al
+// lanzar el bridge, viaja como variable de entorno al proceso hijo y como
+// ?token= en el WebSocket del renderer (ver preload "bridge:get-token" +
+// bridgeClient.ts). Así, otro proceso local (o una página web apuntando a
+// ws://localhost:7620) no puede inyectar comandos al simulador. Si el bridge
+// ya estaba corriendo lanzado a mano (sin token), queda null y el bridge
+// acepta sin token — compatibilidad con el flujo manual de desarrollo.
+let bridgeToken = null;
+
+ipcMain.handle("bridge:get-token", () => bridgeToken);
+
 function getBridgeExecutablePath() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "bridge", "SharedCockpit.Bridge.exe");
@@ -288,6 +300,8 @@ async function launchBridgeIfNeeded() {
   const profilesDir = getBridgeProfilesDir();
   const env = { ...process.env };
   if (profilesDir) env.SHAREDCOCKPIT_PROFILES_DIR = profilesDir;
+  bridgeToken = crypto.randomBytes(32).toString("hex");
+  env.SHAREDCOCKPIT_BRIDGE_TOKEN = bridgeToken;
 
   try {
     bridgeLogStream = fs.createWriteStream(path.join(app.getPath("userData"), "bridge.log"), { flags: "a" });
@@ -358,7 +372,35 @@ function createWindow() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Endurecimiento del renderer: la UI es una SPA local que nunca navega a
+// otros documentos ni abre ventanas — cualquier intento de hacerlo (p.ej. un
+// enlace inyectado en un nombre de sesión) se bloquea; los https legítimos se
+// abren en el navegador del sistema, nunca dentro de la app.
+// ---------------------------------------------------------------------------
+
+function isAllowedNavigation(url) {
+  if (url.startsWith("file://")) return true;
+  const devServerUrl = process.env.ELECTRON_START_URL;
+  return Boolean(devServerUrl && url.startsWith(devServerUrl));
+}
+
+app.on("web-contents-created", (_event, contents) => {
+  contents.on("will-navigate", (event, url) => {
+    if (!isAllowedNavigation(url)) event.preventDefault();
+  });
+  contents.on("will-attach-webview", (event) => event.preventDefault());
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) shell.openExternal(url);
+    return { action: "deny" };
+  });
+});
+
 app.whenReady().then(() => {
+  // La app no usa cámara, micrófono, geolocalización, notificaciones ni
+  // ningún otro permiso del navegador — se niega todo por defecto.
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+
   createWindow();
   launchBridgeIfNeeded();
 

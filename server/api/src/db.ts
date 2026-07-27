@@ -13,6 +13,13 @@
  */
 import pg from "pg";
 import { randomBytes } from "node:crypto";
+import {
+  generateParticipantToken,
+  hashPassword,
+  hashToken,
+  isHashedPassword,
+  verifyPassword,
+} from "./auth.ts";
 import type { ScannedProfile } from "./profiles.ts";
 
 const { Pool } = pg;
@@ -81,6 +88,12 @@ async function init() {
   await pool.query("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS control_requested_by TEXT");
   await pool.query(
     "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS control_revision INTEGER NOT NULL DEFAULT 0"
+  );
+  // token_hash: SHA-256 del token de participante (ver src/auth.ts). El token
+  // en claro solo viaja una vez en la respuesta de create/join; la base nunca
+  // lo guarda. NULL = participante viejo sin token (deberá volver a unirse).
+  await pool.query(
+    "ALTER TABLE session_participants ADD COLUMN IF NOT EXISTS token_hash TEXT"
   );
   await pool.query(`
     UPDATE sessions s
@@ -202,19 +215,20 @@ export async function createSession(input: CreateSessionInput) {
       joinCode,
       input.sessionName,
       input.aircraftProfileId,
-      input.password ?? null,
+      input.password ? hashPassword(input.password) : null,
       input.sim,
       input.hostPilotName,
       input.hostSeat,
     ]
   );
 
+  const participantToken = generateParticipantToken();
   await pool.query(
-    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES ($1, $2, $3)`,
-    [id, input.hostPilotName, input.hostSeat]
+    `INSERT INTO session_participants (session_id, pilot_name, seat, token_hash) VALUES ($1, $2, $3, $4)`,
+    [id, input.hostPilotName, input.hostSeat, hashToken(participantToken)]
   );
 
-  return getSessionByCode(joinCode);
+  return { session: await getSessionByCode(joinCode), participantToken };
 }
 
 export async function getSessionByCode(joinCode: string) {
@@ -278,8 +292,19 @@ export async function joinSession(input: JoinSessionInput) {
   );
   const session: any = rows[0];
   if (!session) return { ok: false as const, reason: "session-not-found" };
-  if (session.password && session.password !== input.password) {
-    return { ok: false as const, reason: "invalid-password" };
+  if (session.password) {
+    if (!input.password || !verifyPassword(input.password, session.password)) {
+      return { ok: false as const, reason: "invalid-password" };
+    }
+    // Migración perezosa: si la fila todavía guarda la contraseña en texto
+    // plano (creada antes del hashing scrypt), se re-hashea en el primer
+    // login exitoso.
+    if (!isHashedPassword(session.password)) {
+      await pool.query("UPDATE sessions SET password = $2 WHERE id = $1", [
+        session.id,
+        hashPassword(input.password),
+      ]);
+    }
   }
 
   const { rows: countRows } = await pool.query(
@@ -292,17 +317,59 @@ export async function joinSession(input: JoinSessionInput) {
     return { ok: false as const, reason: "session-full" };
   }
 
+  // Cada join (incluida la re-unión del mismo pilotName) rota el token de
+  // participante: el anterior queda invalidado y el nuevo se devuelve UNA vez.
+  const participantToken = generateParticipantToken();
   await pool.query(
-    `INSERT INTO session_participants (session_id, pilot_name, seat) VALUES ($1, $2, $3)
-     ON CONFLICT(session_id, pilot_name) DO UPDATE SET disconnected_at = NULL, seat = excluded.seat`,
-    [session.id, input.pilotName, input.seat]
+    `INSERT INTO session_participants (session_id, pilot_name, seat, token_hash) VALUES ($1, $2, $3, $4)
+     ON CONFLICT(session_id, pilot_name) DO UPDATE
+       SET disconnected_at = NULL, seat = excluded.seat, token_hash = excluded.token_hash`,
+    [session.id, input.pilotName, input.seat, hashToken(participantToken)]
   );
 
   if (input.seat !== "observer" && activeCount + 1 >= 2) {
     await pool.query("UPDATE sessions SET status = 'active' WHERE id = $1", [session.id]);
   }
 
-  return { ok: true as const, session: await getSessionByCode(input.joinCode) };
+  return {
+    ok: true as const,
+    session: await getSessionByCode(input.joinCode),
+    participantToken,
+  };
+}
+
+/**
+ * Resuelve un token de participante (Authorization: Bearer ... en HTTP, o
+ * ?token= en el handshake WebSocket) a la identidad real de ese participante
+ * dentro de la sesión indicada. Es la ÚNICA fuente de identidad del backend:
+ * el pilotName que el cliente pueda mandar en el body ya no se usa para
+ * autorizar nada. Devuelve null si el token no corresponde a un participante
+ * de esa sesión activa.
+ */
+export async function authenticateParticipant(joinCode: string, token: string | null) {
+  await dbReady;
+  if (!token) return null;
+  const { rows } = await pool.query(
+    `SELECT sp.pilot_name, sp.seat
+     FROM sessions s
+     JOIN session_participants sp ON sp.session_id = s.id
+     WHERE s.join_code = $1 AND s.ended_at IS NULL AND sp.token_hash = $2`,
+    [joinCode, hashToken(token)]
+  );
+  if (rows.length === 0) return null;
+  return { pilotName: rows[0].pilot_name as string, seat: rows[0].seat as string };
+}
+
+/** Reconexión WebSocket autenticada: vuelve a marcar presente al participante. */
+export async function markReconnected(joinCode: string, pilotName: string) {
+  await dbReady;
+  await pool.query(
+    `UPDATE session_participants sp SET disconnected_at = NULL
+     FROM sessions s
+     WHERE s.id = sp.session_id AND s.join_code = $1 AND s.ended_at IS NULL
+       AND sp.pilot_name = $2`,
+    [joinCode, pilotName]
+  );
 }
 
 export async function leaveSession(joinCode: string, pilotName: string) {
@@ -345,6 +412,12 @@ export async function leaveSession(joinCode: string, pilotName: string) {
       [session.id, nextSeat]
     );
   }
+  // Salida explícita = fin de esa identidad: el token deja de valer. Para
+  // volver a entrar hay que pasar de nuevo por join (con contraseña si la hay).
+  await pool.query(
+    "UPDATE session_participants SET token_hash = NULL WHERE session_id = $1 AND pilot_name = $2",
+    [session.id, pilotName]
+  );
   return true;
 }
 

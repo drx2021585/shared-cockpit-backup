@@ -38,6 +38,9 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
   if (text.includes("ALTER TABLE sessions ADD COLUMN")) {
     return { rows: [] };
   }
+  if (text.includes("ALTER TABLE session_participants ADD COLUMN")) {
+    return { rows: [] };
+  }
   if (text.includes("SET creator_pilot_name = (")) {
     return { rows: [] };
   }
@@ -91,9 +94,14 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
     return { rows: [] };
   }
 
-  // --- INSERT INTO session_participants: dos formas distintas (plain vs upsert) ---
-  if (text.includes("INSERT INTO session_participants (session_id, pilot_name, seat) VALUES ($1, $2, $3)")) {
-    const [sessionId, pilotName, seat] = params;
+  // --- INSERT INTO session_participants: dos formas distintas (plain vs upsert),
+  // ambas con token_hash como cuarto parámetro (ver src/auth.ts) ---
+  if (
+    text.includes(
+      "INSERT INTO session_participants (session_id, pilot_name, seat, token_hash) VALUES ($1, $2, $3, $4)"
+    )
+  ) {
+    const [sessionId, pilotName, seat, tokenHash] = params;
     if (text.includes("ON CONFLICT")) {
       const existing = state.participants.find(
         (p) => p.session_id === sessionId && p.pilot_name === pilotName
@@ -101,11 +109,13 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
       if (existing) {
         existing.disconnected_at = null;
         existing.seat = seat;
+        existing.token_hash = tokenHash;
       } else {
         state.participants.push({
           session_id: sessionId,
           pilot_name: pilotName,
           seat,
+          token_hash: tokenHash,
           joined_at: new Date(),
           disconnected_at: null,
         });
@@ -115,10 +125,57 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
         session_id: sessionId,
         pilot_name: pilotName,
         seat,
+        token_hash: tokenHash,
         joined_at: new Date(),
         disconnected_at: null,
       });
     }
+    return { rows: [] };
+  }
+
+  // --- authenticateParticipant: token -> identidad ---
+  if (text.includes("sp.token_hash = $2")) {
+    const [joinCode, tokenHash] = params;
+    const session = [...state.sessions.values()].find(
+      (s) => s.join_code === joinCode && s.ended_at === null
+    );
+    if (!session) return { rows: [] };
+    const p = state.participants.find(
+      (x) => x.session_id === session.id && x.token_hash === tokenHash
+    );
+    return { rows: p ? [{ pilot_name: p.pilot_name, seat: p.seat }] : [] };
+  }
+
+  // --- markReconnected ---
+  if (text.includes("SET disconnected_at = NULL") && text.includes("FROM sessions s")) {
+    const [joinCode, pilotName] = params;
+    const session = [...state.sessions.values()].find(
+      (s) => s.join_code === joinCode && s.ended_at === null
+    );
+    if (session) {
+      const p = state.participants.find(
+        (x) => x.session_id === session.id && x.pilot_name === pilotName
+      );
+      if (p) p.disconnected_at = null;
+    }
+    return { rows: [] };
+  }
+
+  // --- leaveSession: invalidación del token ---
+  if (text.includes("SET token_hash = NULL WHERE session_id = $1 AND pilot_name = $2")) {
+    const [sessionId, pilotName] = params;
+    const p = state.participants.find(
+      (x) => x.session_id === sessionId && x.pilot_name === pilotName
+    );
+    if (p) p.token_hash = null;
+    return { rows: [] };
+  }
+
+  // --- joinSession: re-hash de contraseña legada en texto plano ---
+  if (text.includes("UPDATE sessions SET password = $2 WHERE id = $1")) {
+    const [sessionId, hashed] = params;
+    const session = state.sessions.get(sessionId);
+    if (session) session.password = hashed;
     return { rows: [] };
   }
 

@@ -44,7 +44,7 @@ test("createSession: control_owner arranca en el seat del creador", async (t) =>
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
 
-  const session = await db.createSession({
+  const { session } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -65,7 +65,7 @@ test("requestControls: un segundo jugador puede solicitar control si no es el du
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -89,7 +89,7 @@ test("requestControls: rechaza si quien pide ya es el dueño actual", async (t) 
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -107,7 +107,7 @@ test("giveControls: incrementa control_revision exactamente en 1 y devuelve prev
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -144,7 +144,7 @@ test("giveControls: retorna null si quien la ejecuta no es el dueño actual", as
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -169,7 +169,7 @@ test("giveControls: retorna null si no hay solicitud pendiente", async (t) => {
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -193,7 +193,7 @@ test("leaveSession: reasigna control_owner al otro asiento activo si el que se v
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -229,7 +229,7 @@ test("leaveSession limpia control_owner/control_requested_by cuando el dueño se
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo en solitario",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",
@@ -256,7 +256,7 @@ test("leaveSession: no toca control_owner si quien se va no era el dueño", asyn
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
     ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
   );
-  const created = await db.createSession({
+  const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
     aircraftProfileId: "cessna-172",
     hostPilotName: "Alice",

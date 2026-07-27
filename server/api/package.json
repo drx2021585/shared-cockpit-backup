@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --experimental-strip-types src/server.ts",
     "start": "node --experimental-strip-types src/server.ts",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --experimental-test-module-mocks --test test/*.test.ts"
   },
   "dependencies": {
     "express": "^4.19.2",

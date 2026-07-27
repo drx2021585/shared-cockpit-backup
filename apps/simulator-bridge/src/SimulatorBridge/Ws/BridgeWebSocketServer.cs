@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using SharedCockpit.Bridge.Logging;
@@ -34,12 +35,46 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
     private byte[]? _lastStatusBytes;
     private CancellationTokenSource? _cts;
     private Task? _acceptLoopTask;
+    // Token efímero opcional (SHAREDCOCKPIT_BRIDGE_TOKEN): cuando We Connect
+    // lanza este proceso, genera un secreto y lo exige como ?token= en el
+    // handshake — así ningún otro proceso local puede inyectar comandos al
+    // simulador. null = lanzado a mano sin token (flujo de desarrollo), se
+    // acepta cualquier cliente local como antes.
+    private readonly string? _authToken;
 
-    public BridgeWebSocketServer(int port, ILog log, Action<IncomingMessage> onIncoming)
+    public BridgeWebSocketServer(int port, ILog log, Action<IncomingMessage> onIncoming, string? authToken = null)
     {
         _log = log;
         _onIncoming = onIncoming;
+        _authToken = string.IsNullOrEmpty(authToken) ? null : authToken;
         _listener.Prefixes.Add($"http://localhost:{port}/");
+    }
+
+    /// <summary>
+    /// Defensa contra páginas web maliciosas: un navegador cualquiera puede
+    /// abrir un WebSocket a ws://localhost:7620 desde cualquier sitio https
+    /// (el mismo-origen no aplica a WebSocket), pero SIEMPRE manda la
+    /// cabecera Origin. Se aceptan solo orígenes de la propia app: file://
+    /// (Electron empaquetado), http://localhost / 127.0.0.1 (Vite dev) o
+    /// ausencia de Origin (clientes no-navegador, p.ej. herramientas locales).
+    /// </summary>
+    private static bool IsOriginAllowed(string? origin)
+    {
+        if (string.IsNullOrEmpty(origin)) return true;
+        return origin.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
+            || origin.Equals("null", StringComparison.OrdinalIgnoreCase)
+            || origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
+            || origin.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsAuthorized(HttpListenerContext context)
+    {
+        if (_authToken is null) return true;
+        var provided = context.Request.QueryString["token"];
+        if (string.IsNullOrEmpty(provided)) return false;
+        var expected = Encoding.UTF8.GetBytes(_authToken);
+        var actual = Encoding.UTF8.GetBytes(provided);
+        return expected.Length == actual.Length && CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
     public void Start()
@@ -76,6 +111,23 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
             if (!context.Request.IsWebSocketRequest)
             {
                 context.Response.StatusCode = 400;
+                context.Response.Close();
+                continue;
+            }
+
+            var origin = context.Request.Headers["Origin"];
+            if (!IsOriginAllowed(origin))
+            {
+                _log.Warn($"Conexión WebSocket rechazada por Origin no permitido: {origin}");
+                context.Response.StatusCode = 403;
+                context.Response.Close();
+                continue;
+            }
+
+            if (!IsAuthorized(context))
+            {
+                _log.Warn("Conexión WebSocket rechazada: token del bridge ausente o inválido.");
+                context.Response.StatusCode = 401;
                 context.Response.Close();
                 continue;
             }

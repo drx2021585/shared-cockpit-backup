@@ -1,0 +1,42 @@
+# Auditoría de dependencias en CI: falla si alguna dependencia de producción
+# tiene una vulnerabilidad de severidad alta o crítica conocida. Corre en cada
+# push/PR a master y semanalmente (para enterarse de CVEs nuevas sin commits).
+name: security-audit
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package-dir: ["server/api", "apps/desktop-ui", "packages/synchronization-core"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        working-directory: ${{ matrix.package-dir }}
+        run: npm install --package-lock-only --ignore-scripts
+      - name: npm audit (high+)
+        working-directory: ${{ matrix.package-dir }}
+        run: npm audit --audit-level=high
+
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run server/api tests (auth + rate limiting, sin base de datos)
+        working-directory: server/api
+        run: npm install --ignore-scripts && npm test

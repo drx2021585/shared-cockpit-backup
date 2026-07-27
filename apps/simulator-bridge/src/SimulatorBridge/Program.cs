@@ -68,7 +68,16 @@ var bridge = new BridgeService(
     pmdgClient: pmdgClient,
     sharedCockpitWasmClient: sharedCockpitWasmClient);
 
-server = new BridgeWebSocketServer(Port, log, bridge.HandleIncoming);
+// Token efímero opcional: We Connect (electron/main.cjs) lo genera al lanzar
+// este proceso y lo exige en el handshake WebSocket. Lanzado a mano sin la
+// variable, el bridge acepta clientes locales sin token, como siempre.
+var bridgeToken = Environment.GetEnvironmentVariable("SHAREDCOCKPIT_BRIDGE_TOKEN");
+if (!string.IsNullOrEmpty(bridgeToken))
+{
+    log.Info("Token de autenticación del bridge activo (SHAREDCOCKPIT_BRIDGE_TOKEN).");
+}
+
+server = new BridgeWebSocketServer(Port, log, bridge.HandleIncoming, bridgeToken);
 server.Start();
 
 using var cts = new CancellationTokenSource();

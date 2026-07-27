@@ -1,0 +1,33 @@
+# Actualizaciones automáticas de dependencias (seguridad + versiones).
+# Un PR por ecosistema/carpeta; los npm del monorepo no comparten lockfile,
+# así que cada paquete con package.json propio se lista por separado.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/server/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/apps/desktop-ui"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/packages/synchronization-core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "nuget"
+    directory: "/apps/simulator-bridge/src/SimulatorBridge"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

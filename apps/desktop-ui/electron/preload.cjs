@@ -45,6 +45,16 @@ contextBridge.exposeInMainWorld("weconnectWindow", {
   },
 });
 
+/**
+ * Token efímero del bridge local (ver main.cjs launchBridgeIfNeeded): el
+ * renderer lo anexa como ?token= al conectar a ws://localhost:7620, para que
+ * solo esta app pueda hablar con el bridge. null si el bridge corre lanzado
+ * a mano (flujo de desarrollo sin token).
+ */
+contextBridge.exposeInMainWorld("weconnectBridgeAuth", {
+  getToken: () => ipcRenderer.invoke("bridge:get-token"),
+});
+
 contextBridge.exposeInMainWorld("weconnectSetup", {
   getConfig: () => ipcRenderer.invoke("setup:get-config"),
   chooseFolder: () => ipcRenderer.invoke("setup:choose-folder"),

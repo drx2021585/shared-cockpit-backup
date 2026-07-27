@@ -173,6 +173,9 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
   let attempt = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let connectStartedAt = 0;
+  // Token efímero emitido por electron/main.cjs al lanzar el bridge (null en
+  // build web puro o si el bridge corre lanzado a mano) — ver preload.cjs.
+  let bridgeToken: string | null = null;
 
   function send(msg: ControlEvent | ControlAxis) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -209,7 +212,10 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
 
     let socket: WebSocket;
     try {
-      socket = new WebSocket(BRIDGE_WS_URL);
+      const url = bridgeToken
+        ? `${BRIDGE_WS_URL}/?token=${encodeURIComponent(bridgeToken)}`
+        : BRIDGE_WS_URL;
+      socket = new WebSocket(url);
     } catch {
       // Construcción del WebSocket falló (URL inválida, entorno sin soporte,
       // etc.) — tratado igual que "no hay bridge" para no dejar la UI colgada.
@@ -250,7 +256,18 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     };
   }
 
-  connect();
+  // Se resuelve el token del bridge (IPC a Electron) antes del primer
+  // connect. En build web puro no existe weconnectBridgeAuth y se conecta
+  // sin token, igual que antes.
+  const bridgeAuth = (window as unknown as {
+    weconnectBridgeAuth?: { getToken: () => Promise<string | null> };
+  }).weconnectBridgeAuth;
+  Promise.resolve(bridgeAuth?.getToken() ?? null)
+    .catch(() => null)
+    .then((token) => {
+      bridgeToken = token;
+      if (!unmounted) connect();
+    });
 
   return () => {
     unmounted = true;

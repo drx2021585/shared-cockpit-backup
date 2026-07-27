@@ -4,8 +4,17 @@
  * de relleno — el catálogo de aeronaves viene de escanear aircraft-profiles/
  * y las sesiones viven en PostgreSQL real y compartido (ver db.ts, requiere
  * DATABASE_URL — no hay fallback local).
+ *
+ * Seguridad (ver src/auth.ts y src/security.ts):
+ * - Toda acción sensible (cerrar/salir/pedir/ceder controles, y el propio
+ *   WebSocket) exige el token de participante emitido en create/join. El
+ *   pilotName del body ya NO se usa como identidad.
+ * - Contraseñas de sesión hasheadas (scrypt) en la base.
+ * - Rate limiting por IP en endpoints y handshake WS.
+ * - CORS con allowlist (nada de "*").
  */
 import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { scanAircraftProfiles } from "./profiles.ts";
@@ -17,148 +26,309 @@ import {
   getSessionByCode,
   joinSession,
   markDisconnected,
+  markReconnected,
   closeSession,
   leaveSession,
   requestControls,
   giveControls,
+  authenticateParticipant,
 } from "./db.ts";
+import {
+  audit,
+  checkRateLimit,
+  cleanText,
+  clientIp,
+  corsMiddleware,
+  JOIN_CODE_RE,
+  rateLimit,
+  securityHeaders,
+} from "./security.ts";
+import {
+  canRelayControlMessage,
+  clearSessionAuthority,
+  ensureSessionAuthority,
+  syncFlightControlsOwner,
+  FLIGHT_CONTROLS_GROUP_ID,
+} from "./authority.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 
 const app = express();
-app.use(express.json());
-app.use((_req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+// Render/Railway terminan TLS y ponen la IP real en X-Forwarded-For — sin
+// esto, req.ip sería la IP interna del proxy y el rate limiting por IP
+// castigaría a todos los clientes juntos.
+app.set("trust proxy", 1);
+// Límite de payload: ninguna petición legítima de esta API pasa de unos
+// cientos de bytes.
+app.use(express.json({ limit: "16kb" }));
+app.use(securityHeaders);
+app.use(corsMiddleware);
+
+/** Extrae el Bearer token del header Authorization (o null). */
+function bearerToken(req: Request): string | null {
+  const header = req.headers.authorization;
+  if (typeof header !== "string") return null;
+  const match = /^Bearer\s+([a-f0-9]{64})$/i.exec(header.trim());
+  return match ? match[1] : null;
+}
+
+/** Valida el formato del join code de la URL antes de tocar la base. */
+function validateCodeParam(req: Request, res: Response, next: NextFunction) {
+  const code = req.params.code?.toUpperCase() ?? "";
+  if (!JOIN_CODE_RE.test(code)) {
+    res.status(404).json({ error: "session-not-found" });
+    return;
+  }
   next();
-});
+}
+
+/**
+ * Autenticación por token de participante. Resuelve la identidad real
+ * (pilotName/seat) desde la base y la cuelga de res.locals — el body deja de
+ * ser fuente de identidad.
+ */
+function requireParticipant(req: Request, res: Response, next: NextFunction) {
+  const joinCode = req.params.code.toUpperCase();
+  const token = bearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: "missing-token" });
+    return;
+  }
+  authenticateParticipant(joinCode, token)
+    .then((auth) => {
+      if (!auth) {
+        audit("auth-failed", { joinCode, ip: req.ip, path: req.path });
+        res.status(401).json({ error: "invalid-token" });
+        return;
+      }
+      res.locals.pilotName = auth.pilotName;
+      res.locals.seat = auth.seat;
+      next();
+    })
+    .catch(next);
+}
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", uptimeSeconds: process.uptime() });
 });
 
-app.get("/api/aircraft-profiles", async (_req, res) => {
+app.get("/api/aircraft-profiles", rateLimit("profiles", 60, 60_000), async (_req, res) => {
   res.json(await listAircraftProfiles());
 });
 
-app.post("/api/sessions", async (req, res) => {
-  const { sessionName, aircraftProfileId, password, hostPilotName, hostSeat, sim } = req.body ?? {};
+app.post("/api/sessions", rateLimit("create-session", 10, 5 * 60_000), async (req, res) => {
+  const body = req.body ?? {};
+  const sessionName = cleanText(body.sessionName, 80);
+  const aircraftProfileId = cleanText(body.aircraftProfileId, 80);
+  const hostPilotName = cleanText(body.hostPilotName, 40);
+  const { hostSeat, sim, password } = body;
   if (!sessionName || !aircraftProfileId || !hostPilotName || !hostSeat || !sim) {
     return res.status(400).json({ error: "missing required fields" });
   }
   if (sim !== "msfs2020" && sim !== "msfs2024") {
     return res.status(400).json({ error: "invalid sim" });
   }
+  if (hostSeat !== "captain" && hostSeat !== "first_officer") {
+    return res.status(400).json({ error: "invalid seat" });
+  }
+  if (password !== undefined && password !== "" &&
+      (typeof password !== "string" || password.length > 128)) {
+    return res.status(400).json({ error: "invalid password" });
+  }
   try {
-    const session = await createSession({
+    const { session, participantToken } = await createSession({
       sessionName,
       aircraftProfileId,
-      password,
+      password: password || undefined,
       hostPilotName,
       hostSeat,
       sim,
     });
-    res.status(201).json(session);
+    if (session) {
+      // Siembra flight_controls con el owner real desde el momento en que la
+      // sesión existe, no solo cuando el primer socket se conecta (ver
+      // packages/protocol/README.md, "Cómo se siembra el dueño inicial").
+      ensureSessionAuthority(session.joinCode, session.controlOwner);
+    }
+    audit("session-created", { joinCode: session?.joinCode, ip: req.ip });
+    res.status(201).json({ ...session, participantToken });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
-app.get("/api/sessions/:code", async (req, res) => {
-  const session = await getSessionByCode(req.params.code.toUpperCase());
-  if (!session) return res.status(404).json({ error: "session-not-found" });
-  res.json(session);
-});
+app.get(
+  "/api/sessions/:code",
+  rateLimit("get-session", 60, 60_000),
+  validateCodeParam,
+  async (req, res) => {
+    const session = await getSessionByCode(req.params.code.toUpperCase());
+    if (!session) return res.status(404).json({ error: "session-not-found" });
+    res.json(session);
+  }
+);
 
-app.post("/api/sessions/:code/join", async (req, res) => {
-  const { pilotName, seat, password } = req.body ?? {};
-  if (!pilotName || !seat) {
-    return res.status(400).json({ error: "missing required fields" });
-  }
-  const result = await joinSession({ joinCode: req.params.code.toUpperCase(), pilotName, seat, password });
-  if (!result.ok) {
-    const status = result.reason === "session-not-found" ? 404 : 409;
-    return res.status(status).json({ error: result.reason });
-  }
-  res.json(result.session);
-});
-
-app.delete("/api/sessions/:code", async (req, res) => {
-  const joinCode = req.params.code.toUpperCase();
-  const { pilotName } = req.body ?? {};
-  if (!pilotName) {
-    return res.status(400).json({ error: "missing pilot name" });
-  }
-  if (!(await closeSession(joinCode, pilotName))) {
-    return res.status(404).json({ error: "session-not-found" });
-  }
-  for (const [ws, meta] of connections) {
-    if (meta.joinCode === joinCode) {
-      ws.close(4001, "session closed");
+app.post(
+  "/api/sessions/:code/join",
+  rateLimit("join-session", 15, 5 * 60_000),
+  validateCodeParam,
+  async (req, res) => {
+    const joinCode = req.params.code.toUpperCase();
+    // Freno adicional por joinCode: aunque un atacante rote de IP, una misma
+    // sesión no admite más de este puñado de intentos por ventana (anti
+    // brute-force de contraseñas cortas).
+    if (!checkRateLimit("join-by-code", joinCode, 20, 5 * 60_000)) {
+      audit("rate-limited", { route: "join-by-code", joinCode, ip: req.ip });
+      return res.status(429).json({ error: "too-many-requests" });
     }
+    const body = req.body ?? {};
+    const pilotName = cleanText(body.pilotName, 40);
+    const { seat, password } = body;
+    if (!pilotName || !seat) {
+      return res.status(400).json({ error: "missing required fields" });
+    }
+    if (seat !== "captain" && seat !== "first_officer" && seat !== "observer") {
+      return res.status(400).json({ error: "invalid seat" });
+    }
+    if (password !== undefined && (typeof password !== "string" || password.length > 128)) {
+      return res.status(400).json({ error: "invalid password" });
+    }
+    const result = await joinSession({ joinCode, pilotName, seat, password });
+    if (!result.ok) {
+      if (result.reason === "invalid-password") {
+        audit("join-invalid-password", { joinCode, ip: req.ip });
+      }
+      const status = result.reason === "session-not-found" ? 404 : 409;
+      return res.status(status).json({ error: result.reason });
+    }
+    audit("session-joined", { joinCode, ip: req.ip });
+    res.json({ ...result.session, participantToken: result.participantToken });
   }
-  res.status(204).end();
-});
+);
 
-app.post("/api/sessions/:code/leave", async (req, res) => {
-  const joinCode = req.params.code.toUpperCase();
-  const { pilotName } = req.body ?? {};
-  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
-  if (!(await leaveSession(joinCode, pilotName))) {
-    return res.status(404).json({ error: "session-not-found" });
+app.delete(
+  "/api/sessions/:code",
+  rateLimit("session-action", 60, 60_000),
+  validateCodeParam,
+  requireParticipant,
+  async (req, res) => {
+    const joinCode = req.params.code.toUpperCase();
+    const pilotName = res.locals.pilotName as string;
+    if (!(await closeSession(joinCode, pilotName))) {
+      // closeSession solo cierra si pilotName es el creador — para cualquier
+      // otro participante autenticado esto es un 403, no un 404.
+      return res.status(403).json({ error: "not-session-creator" });
+    }
+    audit("session-closed", { joinCode, ip: req.ip });
+    for (const [ws, meta] of connections) {
+      if (meta.joinCode === joinCode) {
+        ws.close(4001, "session closed");
+      }
+    }
+    clearSessionAuthority(joinCode);
+    res.status(204).end();
   }
-  await broadcastSessionState(joinCode);
-  res.status(204).end();
-});
+);
 
-app.post("/api/sessions/:code/request-controls", async (req, res) => {
-  const joinCode = req.params.code.toUpperCase();
-  const { pilotName } = req.body ?? {};
-  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
-  if (!(await requestControls(joinCode, pilotName))) {
-    return res.status(409).json({ error: "controls-request-not-allowed" });
+app.post(
+  "/api/sessions/:code/leave",
+  rateLimit("session-action", 60, 60_000),
+  validateCodeParam,
+  requireParticipant,
+  async (req, res) => {
+    const joinCode = req.params.code.toUpperCase();
+    const pilotName = res.locals.pilotName as string;
+    if (!(await leaveSession(joinCode, pilotName))) {
+      return res.status(404).json({ error: "session-not-found" });
+    }
+    audit("session-left", { joinCode, ip: req.ip });
+    await broadcastSessionState(joinCode);
+    res.status(204).end();
   }
-  await broadcastSessionState(joinCode);
-  res.status(204).end();
-});
+);
 
-app.post("/api/sessions/:code/give-controls", async (req, res) => {
-  const joinCode = req.params.code.toUpperCase();
-  const { pilotName } = req.body ?? {};
-  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
-  const transfer = await giveControls(joinCode, pilotName);
-  if (!transfer) {
-    return res.status(409).json({ error: "control-transfer-not-allowed" });
+app.post(
+  "/api/sessions/:code/request-controls",
+  rateLimit("session-action", 60, 60_000),
+  validateCodeParam,
+  requireParticipant,
+  async (req, res) => {
+    const joinCode = req.params.code.toUpperCase();
+    const pilotName = res.locals.pilotName as string;
+    if (!(await requestControls(joinCode, pilotName))) {
+      return res.status(409).json({ error: "controls-request-not-allowed" });
+    }
+    audit("controls-requested", { joinCode, ip: req.ip });
+    await broadcastSessionState(joinCode);
+    res.status(204).end();
   }
-  // Flujo autoritativo: server/api (Postgres) es la fuente de verdad
-  // PERSISTENTE de "quién es el dueño" a nivel de sesión (sobrevive a
-  // reconexión). Una vez que giveControls confirma el cambio en la base de
-  // datos, se emite un authority.transfer REAL por WebSocket con la forma
-  // exacta de packages/protocol — es este mensaje el que
-  // packages/synchronization-core (AuthorityManager/SyncEngine) debe tratar
-  // como autoritativo al sembrarse/resincronizarse, no el relay peer-to-peer
-  // de authority.transfer que los clientes puedan iniciar entre ellos (ver
-  // FLIGHT_MESSAGE_TYPES/relayFlightMessage más abajo). Ese relay sigue
-  // siendo válido para propagar cambios YA resueltos en memoria entre pares
-  // conectados directamente, pero no reemplaza este flujo request-controls
-  // -> give-controls vía HTTP+DB, que es el único que persiste y el que se
-  // usa para reconstruir el estado tras una reconexión. No son dos
-  // mecanismos redundantes compitiendo por la misma verdad.
-  broadcastAuthorityTransfer(joinCode, transfer);
-  await broadcastSessionState(joinCode);
-  res.status(204).end();
-});
+);
+
+app.post(
+  "/api/sessions/:code/give-controls",
+  rateLimit("session-action", 60, 60_000),
+  validateCodeParam,
+  requireParticipant,
+  async (req, res) => {
+    const joinCode = req.params.code.toUpperCase();
+    const pilotName = res.locals.pilotName as string;
+    const transfer = await giveControls(joinCode, pilotName);
+    if (!transfer) {
+      return res.status(409).json({ error: "control-transfer-not-allowed" });
+    }
+    audit("controls-transferred", {
+      joinCode,
+      previousOwner: transfer.previousOwner,
+      newOwner: transfer.newOwner,
+      ip: req.ip,
+    });
+    // Flujo autoritativo: server/api (Postgres) es la fuente de verdad
+    // PERSISTENTE de "quién es el dueño" a nivel de sesión (sobrevive a
+    // reconexión). Una vez que giveControls confirma el cambio en la base de
+    // datos, se emite un authority.transfer REAL por WebSocket con la forma
+    // exacta de packages/protocol — es este mensaje el que
+    // packages/synchronization-core (AuthorityManager/SyncEngine) debe tratar
+    // como autoritativo al sembrarse/resincronizarse, no el relay peer-to-peer
+    // de authority.transfer que los clientes puedan iniciar entre ellos (ver
+    // FLIGHT_MESSAGE_TYPES/relayFlightMessage más abajo). Ese relay sigue
+    // siendo válido para propagar cambios YA resueltos en memoria entre pares
+    // conectados directamente, pero no reemplaza este flujo request-controls
+    // -> give-controls vía HTTP+DB, que es el único que persiste y el que se
+    // usa para reconstruir el estado tras una reconexión. No son dos
+    // mecanismos redundantes compitiendo por la misma verdad.
+    //
+    // Refleja el nuevo owner en el AuthorityManager EN MEMORIA de esta
+    // sesión (ver authority.ts, syncFlightControlsOwner): sin esto, el gate
+    // de canRelayControlMessage seguiría rechazando al nuevo dueño real para
+    // flight.yoke.pitch/roll y flight.rudder indefinidamente.
+    syncFlightControlsOwner(joinCode, transfer.newOwner);
+    broadcastAuthorityTransfer(joinCode, transfer);
+    await broadcastSessionState(joinCode);
+    res.status(204).end();
+  }
+);
 
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+// maxPayload: ningún mensaje del protocolo (control.event/axis, snapshot)
+// legítimo se acerca a 64KB — corta payloads abusivos antes de parsearlos.
+const wss = new WebSocketServer({ server: httpServer, path: "/ws", maxPayload: 64 * 1024 });
 
 interface ConnMeta {
   joinCode: string;
   pilotName: string;
+  /** 'captain' | 'first_officer' | 'observer' — usado por el gate de authority.ts. */
+  seat: string;
+  /** Ventana simple de mensajes/segundo para frenar clientes abusivos. */
+  msgWindowStart: number;
+  msgCount: number;
 }
 
 const connections = new Map<WebSocket, ConnMeta>();
+
+// Tope generoso: el canal rápido (control.axis) legítimo corre a 20-60Hz por
+// eje; 300 msg/s por socket ya es varias veces eso. Por encima se descartan
+// mensajes (sin cerrar la conexión, para no castigar ráfagas transitorias).
+const WS_MAX_MESSAGES_PER_SECOND = 300;
 
 // Tipos de mensaje de vuelo que este servidor retransmite como relay puro
 // (sin lógica de autoridad ni anti-ciclo: eso vive en synchronization-core).
@@ -172,16 +342,21 @@ const FLIGHT_MESSAGE_TYPES = new Set([
 ]);
 
 /**
- * Validación mínima de forma contra messages.schema.json: solo confirma que
- * los campos requeridos están presentes y tienen el tipo básico correcto.
- * No es un validador de JSON Schema completo (no hay ajv en las deps de este
- * paquete); si se necesita validación estricta, es una decisión a nivel de
- * dependencias que le corresponde decidir al orchestrator.
+ * Validación mínima de forma contra messages.schema.json: confirma que los
+ * campos requeridos están presentes, tienen el tipo básico correcto y que los
+ * strings respetan topes de longitud sanos (nada del protocolo real se acerca
+ * a estos límites; solo cortan abuso). No es un validador de JSON Schema
+ * completo (no hay ajv en las deps de este paquete); si se necesita
+ * validación estricta, es una decisión a nivel de dependencias que le
+ * corresponde decidir al orchestrator.
  */
 function validateFlightMessage(msg: any): string | null {
   if (typeof msg !== "object" || msg === null) return "not-an-object";
   const type = msg.type;
   if (typeof type !== "string") return "missing-type";
+
+  const shortStr = (v: unknown, max = 128) => typeof v === "string" && v.length > 0 && v.length <= max;
+  const finiteNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
 
   switch (type) {
     case "control.event": {
@@ -189,12 +364,13 @@ function validateFlightMessage(msg: any): string | null {
       for (const field of required) {
         if (!(field in msg)) return `missing-field:${field}`;
       }
-      if (typeof msg.sessionId !== "string") return "invalid:sessionId";
-      if (typeof msg.controlId !== "string") return "invalid:controlId";
+      if (!shortStr(msg.sessionId)) return "invalid:sessionId";
+      if (!shortStr(msg.controlId)) return "invalid:controlId";
       if (!["boolean", "number", "string"].includes(typeof msg.value)) return "invalid:value";
-      if (typeof msg.source !== "string") return "invalid:source";
-      if (typeof msg.sequence !== "number") return "invalid:sequence";
-      if (typeof msg.timestamp !== "number") return "invalid:timestamp";
+      if (typeof msg.value === "string" && msg.value.length > 1024) return "invalid:value";
+      if (!shortStr(msg.source, 64)) return "invalid:source";
+      if (!finiteNum(msg.sequence)) return "invalid:sequence";
+      if (!finiteNum(msg.timestamp)) return "invalid:timestamp";
       return null;
     }
     case "control.axis": {
@@ -202,10 +378,10 @@ function validateFlightMessage(msg: any): string | null {
       for (const field of required) {
         if (!(field in msg)) return `missing-field:${field}`;
       }
-      if (typeof msg.controlId !== "string") return "invalid:controlId";
-      if (typeof msg.value !== "number") return "invalid:value";
-      if (typeof msg.sequence !== "number") return "invalid:sequence";
-      if (typeof msg.timestamp !== "number") return "invalid:timestamp";
+      if (!shortStr(msg.controlId)) return "invalid:controlId";
+      if (!finiteNum(msg.value)) return "invalid:value";
+      if (!finiteNum(msg.sequence)) return "invalid:sequence";
+      if (!finiteNum(msg.timestamp)) return "invalid:timestamp";
       return null;
     }
     case "aircraft.snapshot": {
@@ -213,8 +389,8 @@ function validateFlightMessage(msg: any): string | null {
       for (const field of required) {
         if (!(field in msg)) return `missing-field:${field}`;
       }
-      if (typeof msg.revision !== "number") return "invalid:revision";
-      if (typeof msg.profile !== "string") return "invalid:profile";
+      if (!finiteNum(msg.revision)) return "invalid:revision";
+      if (!shortStr(msg.profile)) return "invalid:profile";
       if (typeof msg.systems !== "object" || msg.systems === null) return "invalid:systems";
       return null;
     }
@@ -223,10 +399,10 @@ function validateFlightMessage(msg: any): string | null {
       for (const field of required) {
         if (!(field in msg)) return `missing-field:${field}`;
       }
-      if (typeof msg.group !== "string") return "invalid:group";
-      if (typeof msg.previousOwner !== "string") return "invalid:previousOwner";
-      if (typeof msg.newOwner !== "string") return "invalid:newOwner";
-      if (typeof msg.revision !== "number") return "invalid:revision";
+      if (!shortStr(msg.group)) return "invalid:group";
+      if (!shortStr(msg.previousOwner, 64)) return "invalid:previousOwner";
+      if (!shortStr(msg.newOwner, 64)) return "invalid:newOwner";
+      if (!finiteNum(msg.revision)) return "invalid:revision";
       return null;
     }
     default:
@@ -242,6 +418,8 @@ function validateFlightMessage(msg: any): string | null {
  * y nunca se reenvía como si fuera un cambio local. El campo `origin` ya
  * existe en el schema (ControlEvent) como "asignado por el receptor, nunca
  * enviado por red", así que aquí actuamos como el receptor que reenvía.
+ * `sourcePilot` sale de la identidad autenticada del socket (token), no de
+ * lo que el emisor haya puesto en el mensaje.
  */
 function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: string, msg: any) {
   const outgoing = { ...msg, origin: "remote", sourcePilot: pilotName };
@@ -254,11 +432,10 @@ function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: st
   }
 }
 
-// El MVP solo tiene un grupo de controles transferible ("flight_controls").
-// Si más adelante hace falta más de un grupo (luces, radios, etc.), el
-// groupId debería venir del perfil de aeronave activo de la sesión
-// (packages/profile-schema), no seguir hardcodeado aquí.
-const FLIGHT_CONTROLS_GROUP_ID = "flight_controls";
+// El MVP solo tiene un grupo de controles transferible ("flight_controls",
+// importado de ./authority.ts). Si más adelante hace falta más de un grupo
+// (luces, radios, etc.), el groupId debería venir del perfil de aeronave
+// activo de la sesión (packages/profile-schema), no seguir hardcodeado aquí.
 
 interface AuthorityTransferResult {
   previousOwner: string;
@@ -303,19 +480,58 @@ async function broadcastSessionState(joinCode: string) {
 }
 
 wss.on("connection", async (ws, req) => {
-  const url = new URL(req.url ?? "", "http://localhost");
-  const joinCode = (url.searchParams.get("code") ?? "").toUpperCase();
-  const pilotName = url.searchParams.get("pilot") ?? "";
-
-  if (!joinCode || !pilotName || !(await getSessionByCode(joinCode))) {
-    ws.close(4000, "invalid session or pilot");
+  const ip = clientIp(req);
+  if (!checkRateLimit("ws-handshake", ip, 30, 60_000)) {
+    audit("rate-limited", { route: "ws-handshake", ip });
+    ws.close(4000, "too many connection attempts");
     return;
   }
 
-  connections.set(ws, { joinCode, pilotName });
+  const url = new URL(req.url ?? "", "http://localhost");
+  const joinCode = (url.searchParams.get("code") ?? "").toUpperCase();
+  const token = url.searchParams.get("token");
+
+  // El socket queda ligado a la identidad AUTENTICADA (token emitido en
+  // create/join), no a un nombre elegido libremente en la query string.
+  const auth = JOIN_CODE_RE.test(joinCode) ? await authenticateParticipant(joinCode, token) : null;
+  if (!auth) {
+    audit("ws-auth-failed", { joinCode, ip });
+    ws.close(4000, "invalid session or token");
+    return;
+  }
+  const pilotName = auth.pilotName;
+  const seat = auth.seat;
+
+  connections.set(ws, { joinCode, pilotName, seat, msgWindowStart: Date.now(), msgCount: 0 });
+  await markReconnected(joinCode, pilotName);
+  // Siembra (si hace falta; ver ensureSessionAuthority) flight_controls en
+  // memoria con el control_owner real de esta sesión, cubriendo el caso de
+  // reconexión tras un reinicio del proceso donde el mapa en memoria se
+  // perdió pero Postgres sigue siendo la fuente de verdad.
+  const sessionForAuthority = await getSessionByCode(joinCode);
+  if (sessionForAuthority) {
+    ensureSessionAuthority(joinCode, sessionForAuthority.controlOwner);
+  }
   await broadcastSessionState(joinCode);
 
   ws.on("message", async (raw) => {
+    const meta = connections.get(ws);
+    if (!meta) return;
+
+    // Freno por socket: descarta el exceso sin cerrar la conexión.
+    const now = Date.now();
+    if (now - meta.msgWindowStart >= 1000) {
+      meta.msgWindowStart = now;
+      meta.msgCount = 0;
+    }
+    meta.msgCount += 1;
+    if (meta.msgCount > WS_MAX_MESSAGES_PER_SECOND) {
+      if (meta.msgCount === WS_MAX_MESSAGES_PER_SECOND + 1) {
+        audit("ws-flood-dropped", { joinCode: meta.joinCode, ip });
+      }
+      return;
+    }
+
     try {
       const msg = JSON.parse(raw.toString());
       // Ping real de ida y vuelta — el cliente mide su propio RTT con esto,
@@ -332,10 +548,30 @@ wss.on("connection", async (ws, req) => {
           console.warn(`[ws] mensaje de vuelo rechazado (${error}) de ${pilotName}@${joinCode}`);
           return;
         }
-        const meta = connections.get(ws);
-        if (meta) {
-          relayFlightMessage(ws, meta.joinCode, meta.pilotName, msg);
+        // Un socket solo puede inyectar mensajes de SU sesión: si el mensaje
+        // trae sessionId, tiene que coincidir con el joinCode autenticado.
+        if (typeof msg.sessionId === "string" && msg.sessionId !== meta.joinCode) {
+          console.warn(`[ws] sessionId ajeno rechazado de ${pilotName}@${joinCode}`);
+          return;
         }
+        // Gate de autoridad/anti-ciclo real (packages/synchronization-core)
+        // para control.event/control.axis: ver packages/protocol/README.md,
+        // "MVP de autoridad: grupo único flight_controls". aircraft.snapshot
+        // y authority.transfer (peer-to-peer, no el authoritativo de
+        // give-controls) siguen siendo relay puro, sin gate ni dedupe por
+        // secuencia de LoopGuard (no tienen controlId/sequence propios en el
+        // mismo sentido que un control individual).
+        if (msg.type === "control.event" || msg.type === "control.axis") {
+          const authorityState = ensureSessionAuthority(meta.joinCode, undefined);
+          const decision = canRelayControlMessage(authorityState, meta.seat, msg.controlId, msg.sequence);
+          if (!decision.ok) {
+            console.warn(
+              `[ws] control descartado (${decision.reason}) controlId=${msg.controlId} de ${pilotName}@${joinCode}`
+            );
+            return;
+          }
+        }
+        relayFlightMessage(ws, meta.joinCode, meta.pilotName, msg);
         return;
       }
     } catch {

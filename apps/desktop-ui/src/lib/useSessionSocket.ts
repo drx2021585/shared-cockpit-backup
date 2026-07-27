@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "./apiClient";
-import { apiBaseUrl } from "./apiClient";
+import { apiBaseUrl, getParticipantToken } from "./apiClient";
 import type { AuthorityTransfer, ControlAxis, ControlEvent } from "../../../../packages/protocol/types";
 
 export interface SessionSocketState {
@@ -100,8 +100,11 @@ export function useSessionSocket(
     function connect() {
       if (unmountedRef.current) return;
       const wsUrl = apiBaseUrl().replace(/^http/, "ws");
+      // La identidad la da el token de participante (emitido en create/join);
+      // el servidor deriva el piloto del token, no de un nombre en la query.
+      const token = getParticipantToken() ?? "";
       const ws = new WebSocket(
-        `${wsUrl}/ws?code=${encodeURIComponent(joinCode!)}&pilot=${encodeURIComponent(pilotName!)}`,
+        `${wsUrl}/ws?code=${encodeURIComponent(joinCode!)}&token=${encodeURIComponent(token)}`,
       );
       wsRef.current = ws;
 
