@@ -1,0 +1,23 @@
+# Blueprint de Render para server/api (reemplaza el deploy en Railway, que
+# quedó con el GitHub App desconectado y sirviendo un build viejo -- ver
+# docs/decisiones/postgres-shared-backend.md para el resto de la decisión de
+# backend compartido). La base de datos NO se mueve: sigue siendo el mismo
+# Postgres de Supabase, solo cambia dónde corre el proceso Express/WS.
+#
+# Uso: en el dashboard de Render, "New +" -> "Blueprint" -> conectar este
+# repo -> Render detecta este archivo solo. El único campo que hay que llenar
+# a mano es DATABASE_URL (marcado sync: false a propósito, para que Render lo
+# pida como secreto y nunca quede en este archivo versionado).
+services:
+  - type: web
+    name: shared-cockpit-api
+    runtime: node
+    rootDir: server/api
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: NODE_VERSION
+        value: 22.12.0
