@@ -330,6 +330,10 @@ function createWindow() {
     height: 800,
     backgroundColor: "#0a0a0a",
     autoHideMenuBar: true,
+    // Ícono de la ventana en ejecución (barra de tareas / Alt+Tab) -- el
+    // logo. Sin esto Windows muestra el ícono genérico de Electron ahí
+    // aunque el .exe instalado ya use el logo (ver build.win.icon abajo).
+    icon: path.join(__dirname, "..", "logos", "We Connect - Logo.png"),
     // Sin marco nativo de Windows (sin la X/cuadrado/guion de Windows) -- la
     // barra de título la dibuja la propia UI (ver src/components/TitleBar.tsx),
     // estilo macOS (3 puntos de color a la izquierda). Los botones de esa
