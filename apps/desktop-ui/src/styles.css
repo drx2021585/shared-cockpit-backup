@@ -61,6 +61,23 @@ body {
   color: var(--bg);
 }
 
+/*
+  Scroll invisible en toda la app: el contenido sigue siendo scrolleable
+  (rueda del mouse, trackpad, teclado, drag) -- solo se oculta la barra
+  visual. Chromium/Electron soporta ::-webkit-scrollbar directo; Firefox no
+  corre en Electron pero se cubre igual por si algún día se abre en un
+  navegador real (scrollbar-width/-ms-overflow-style).
+*/
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 a {
   color: var(--accent);
 }
