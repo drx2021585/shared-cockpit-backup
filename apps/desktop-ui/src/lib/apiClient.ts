@@ -4,12 +4,17 @@
  * todos del backend real (SQLite + escaneo de aircraft-profiles/).
  */
 
-// Backend compartido real (Railway + Postgres/Supabase) — necesario para que
+// Backend compartido real (Render + Postgres/Supabase) — necesario para que
 // dos pilotos en computadoras distintas puedan verse: un server/api local por
 // máquina no alcanza, porque el relay de WebSocket solo conecta sockets del
 // mismo proceso. Para desarrollo/pruebas solo-local, sobreescribir con
 // VITE_API_BASE=http://localhost:8787 en un .env.local (gitignored).
-const API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api-production.up.railway.app";
+//
+// Migrado de Railway a Render: el GitHub App de la integración con Railway
+// quedó desconectado y "Redeploy" seguía sirviendo un build viejo (nunca
+// recogía commits nuevos) — ver render.yaml en la raíz del repo. La base de
+// datos (Supabase) no cambió, solo dónde corre este proceso.
+const API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
 
 export interface AircraftProfile {
   id: string;
