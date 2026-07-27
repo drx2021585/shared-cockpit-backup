@@ -47,16 +47,16 @@ using var simClient = new SimConnectNativeClient();
 // este entorno de desarrollo, ver comentario de archivo en PmdgClientDataClient.cs.
 using var pmdgClient = new PmdgClientDataClient();
 
-// Cliente para el área propia "SharedCockpitBridge_LVars" expuesta por
-// simulator/wasm-bridge (módulo WASM propio del proyecto, ver README de esa
-// carpeta y la memoria "decision_wasm_bridge_pmdg_sync"). Mismo
-// comportamiento de fallback seguro que pmdgClient: si el módulo WASM no
-// está instalado en la carpeta Community, o no conecta, BridgeService omite
-// esos controles con un warning sin crashear el resto del bridge — NO
-// probado contra MSFS real todavía (el .wasm compila y enlaza limpio, ver
-// simulator/wasm-bridge/README.md, pero nadie lo instaló ni lo cargó en un
-// sim real en esta sesión).
-using var sharedCockpitWasmClient = new SharedCockpitWasmClient();
+// Cliente para el área "SharedCockpitBridge_LVars" -- hoy respaldado por
+// FSUIPC7 (FsuipcLVarClient, vía FSUIPCConnection.ReadLVar), no por el
+// módulo WASM propio (SharedCockpitWasmClient sigue en el repo, compilado y
+// documentado, pero nunca se probó cargando de verdad en MSFS). FSUIPC7 ya
+// está instalado y corriendo en la máquina de Darwin con su WAPI conectado
+// (confirmado en vivo: 4265 L-Vars disponibles), mucho menor riesgo que
+// confiar en un módulo WASM recién escrito. Mismo comportamiento de
+// fallback seguro que pmdgClient: si FSUIPC7 no está corriendo, BridgeService
+// omite esos controles con un warning sin crashear el resto del bridge.
+using var sharedCockpitWasmClient = new FsuipcLVarClient();
 
 BridgeWebSocketServer? server = null;
 var bridge = new BridgeService(
