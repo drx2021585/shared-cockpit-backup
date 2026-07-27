@@ -17,3 +17,39 @@ contextBridge.exposeInMainWorld("weconnectUpdater", {
     return () => ipcRenderer.removeListener("updater:event", listener);
   },
 });
+
+contextBridge.exposeInMainWorld("weconnectDesktop", {
+  openInstallFolder: () => ipcRenderer.invoke("app:open-install-folder"),
+  restartApp: () => ipcRenderer.invoke("app:restart"),
+});
+
+/**
+ * Asistente de primer inicio (carpeta Community de MSFS) — ver main.cjs para
+ * la implementación real de validación/copia/persistencia de config.
+ */
+/**
+ * Controles de la barra de título custom (frame: false en main.cjs, ver
+ * src/components/TitleBar.tsx). Reemplazan los botones nativos de Windows
+ * por los 3 puntos estilo macOS.
+ */
+contextBridge.exposeInMainWorld("weconnectWindow", {
+  isElectron: true,
+  minimize: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
+  close: () => ipcRenderer.invoke("window:close"),
+  isMaximized: () => ipcRenderer.invoke("window:is-maximized"),
+  onStateChange: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("window:state", listener);
+    return () => ipcRenderer.removeListener("window:state", listener);
+  },
+});
+
+contextBridge.exposeInMainWorld("weconnectSetup", {
+  getConfig: () => ipcRenderer.invoke("setup:get-config"),
+  chooseFolder: () => ipcRenderer.invoke("setup:choose-folder"),
+  validateFolder: (folderPath) => ipcRenderer.invoke("setup:validate-folder", folderPath),
+  installPackages: (folderPath) => ipcRenderer.invoke("setup:install-packages", folderPath),
+  markCompleted: (communityPath) => ipcRenderer.invoke("setup:mark-completed", communityPath),
+  reset: () => ipcRenderer.invoke("setup:reset"),
+});

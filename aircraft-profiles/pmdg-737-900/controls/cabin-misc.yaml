@@ -1,0 +1,470 @@
+# Miscelánea de cabina/anunciadores del PMDG 737-900/900ER que no encaja en
+# ningún otro archivo de controls/: PSEU, interphone, oxígeno, anunciadores de
+# tren en el panel superior, flight recorder, CVR, limpiaparabrisas, letreros
+# de cabina (no fumar/cinturones/llamada/PA) y puertas. Sin categoría propia
+# en packages/profile-schema/manifest.schema.json, documentado bajo una
+# sección "cabinMisc" nueva en capabilities.yaml.
+#
+# Todos los campos de abajo tienen offset REAL transcrito EN ORDEN, sin
+# huecos, en apps/simulator-bridge/.../PmdgNg3DataLayout.cs (mismo tramo del
+# struct PMDG_NG3_Data ya cubierto por electrical.yaml/hydraulics.yaml/
+# lights.yaml/fms.yaml/engine.yaml/fuel.yaml/air.yaml). No se agregó ningún
+# campo que no esté en esa tabla.
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header) confirma por escrito 6 Event IDs:
+# EVT_OH_SERVICE_INTERPHONE_SWITCH, EVT_OH_WIPER_LEFT_CONTROL/
+# WIPER_RIGHT_CONTROL, EVT_OH_NO_SMOKING_LIGHT_SWITCH/
+# FASTEN_BELTS_LIGHT_SWITCH, EVT_OH_FLTREC_SWITCH. Esos 6 controles
+# (comm.service_interphone_sw, overhead.wiper_l_selector/r_selector,
+# comm.no_smoking_selector/fasten_belts_selector, recorder.fltrec_sw_normal)
+# se convirtieron de readOnly a escribibles (write.type: clientDataEvent
+# contra PMDG_NG3_Control). CVR_annunTEST y OXY_SwNormal permanecen readOnly:
+# true -- el primero es un anunciador puro por convención de nombre ("annun"),
+# el segundo no tiene un candidato de Event ID confirmado con semántica clara
+# (EVT_OH_OXY_PASS_SWITCH parece ser el switch de oxígeno de PASAJEROS, no el
+# de tripulación que representa OXY_SwNormal -- no se asumió esa
+# equivalencia). El resto (anunciadores de puertas/tren/PSEU) permanece
+# readOnly: true. Sigue sin confirmación EN VIVO contra MSFS+PMDG real.
+
+- id: warnings.annun_pseu
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunPSEU"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: comm.service_interphone_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "COMM_ServiceInterphoneSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_SERVICE_INTERPHONE_SWITCH"
+    semantics: "sets the SERVICE INTERPHONE switch to the explicit boolean state being written (COMM_ServiceInterphoneSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: oxygen.needle
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "OXY_Needle"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: oxygen.sw_normal
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "OXY_SwNormal"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: oxygen.annun_pass_oxy_on
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "OXY_annunPASS_OXY_ON"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: gear.annun_ovhd_left
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "GEAR_annunOvhdLEFT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: gear.annun_ovhd_nose
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "GEAR_annunOvhdNOSE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: gear.annun_ovhd_right
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "GEAR_annunOvhdRIGHT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: recorder.fltrec_sw_normal
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FLTREC_SwNormal"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FLTREC_SWITCH"
+    semantics: "sets the FLIGHT RECORDER switch to the explicit boolean state being written (FLTREC_SwNormal: true NORMAL, false TEST, per PMDG_NG3_SDK.h comment); Parameter=1 NORMAL / Parameter=0 TEST"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: recorder.fltrec_annun_off
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FLTREC_annunOFF"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: recorder.cvr_annun_test
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "CVR_annunTEST"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: overhead.wiper_l_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "OH_WiperLSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_WIPER_LEFT_CONTROL"
+    semantics: "sets the LEFT WIPER control to the explicit numeric position being written (OH_WiperLSelector: 0 PARK, 1 INT, 2 LOW, 3 HIGH, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: overhead.wiper_r_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "OH_WiperRSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_WIPER_RIGHT_CONTROL"
+    semantics: "sets the RIGHT WIPER control to the explicit numeric position being written (OH_WiperRSelector: 0 PARK, 1 INT, 2 LOW, 3 HIGH); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: comm.no_smoking_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "COMM_NoSmokingSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NO_SMOKING_LIGHT_SWITCH"
+    semantics: "sets the NO SMOKING switch to the explicit numeric position being written (COMM_NoSmokingSelector: 0 OFF, 1 AUTO, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: comm.fasten_belts_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "COMM_FastenBeltsSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FASTEN_BELTS_LIGHT_SWITCH"
+    semantics: "sets the FASTEN BELTS switch to the explicit numeric position being written (COMM_FastenBeltsSelector: 0 OFF, 1 AUTO, 2 ON); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: comm.annun_call
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "COMM_annunCALL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: comm.annun_pa_in_use
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "COMM_annunPA_IN_USE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_fwd_entry
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunFWD_ENTRY"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_fwd_service
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunFWD_SERVICE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_airstair
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunAIRSTAIR"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_left_fwd_overwing
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunLEFT_FWD_OVERWING"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_right_fwd_overwing
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunRIGHT_FWD_OVERWING"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_fwd_cargo
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunFWD_CARGO"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_equip
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunEQUIP"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_left_aft_overwing
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunLEFT_AFT_OVERWING"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_right_aft_overwing
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunRIGHT_AFT_OVERWING"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_aft_cargo
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunAFT_CARGO"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_aft_entry
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunAFT_ENTRY"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: doors.annun_aft_service
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "DOOR_annunAFT_SERVICE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

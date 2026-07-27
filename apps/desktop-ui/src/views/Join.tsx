@@ -10,6 +10,7 @@ interface JoinProps {
 export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +28,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
     try {
       const session = await joinSession(code.trim().toUpperCase(), {
         pilotName: pilotName.trim(),
-        seat: "first_officer",
+        seat,
         password: password || undefined,
       });
       onSessionReady(session, pilotName);
@@ -79,6 +80,32 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
         <div className="field">
           <label>Password (if required)</label>
           <input type="password" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Your role</label>
+          <div className="seat-toggle">
+            <button
+              className={`seat-option ${seat === "captain" ? "active" : ""}`}
+              onClick={() => setSeat("captain")}
+              type="button"
+            >
+              Captain
+            </button>
+            <button
+              className={`seat-option ${seat === "first_officer" ? "active" : ""}`}
+              onClick={() => setSeat("first_officer")}
+              type="button"
+            >
+              First officer
+            </button>
+            <button
+              className={`seat-option ${seat === "observer" ? "active" : ""}`}
+              onClick={() => setSeat("observer")}
+              type="button"
+            >
+              Observer
+            </button>
+          </div>
         </div>
         {error && <div style={{ color: "#e24c4b", fontSize: 13 }}>{error}</div>}
         <div style={{ paddingTop: 6 }}>

@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shared-cockpit/profile-schema/screen.schema.json",
+  "title": "AircraftScreenDefinition",
+  "description": "Recurso de perfil para una pantalla de solo lectura de un SDK de terceros (ej. CDU/MCDU del PMDG NG3 SDK). Vive en aircraft-profiles/<id>/screens/*.yaml, fuera de controls/ (que es solo para controles discretos/ejes escalares). Esta primera versión es estrictamente de solo lectura: no hay campo de escritura de botones (ver docs/plan-737-fullsync-2026-07-25.md).",
+  "type": "object",
+  "required": ["id", "areaName", "rows", "cols", "sdkTier", "readOnly", "cell"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Identificador normalizado de la pantalla dentro del perfil, ej. \"cdu_captain\" / \"cdu_fo\". Debe coincidir con el 'screenId' usado en el mensaje de protocolo screen.snapshot."
+    },
+    "areaName": {
+      "type": "string",
+      "description": "Nombre del Client Data Area del SDK de terceros que contiene esta pantalla, ej. \"PMDG_NG3_CDU_0\" (capitán) / \"PMDG_NG3_CDU_1\" (primer oficial)."
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Número de filas de la grilla, confirmadas contra el header del SDK (ej. CDU_ROWS = 14 para PMDG NG3). No asumir/adivinar: leer la constante real del .h."
+    },
+    "cols": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Número de columnas de la grilla, confirmadas contra el header del SDK (ej. CDU_COLUMNS = 24 para PMDG NG3). No asumir/adivinar: leer la constante real del .h."
+    },
+    "sdkTier": {
+      "type": "string",
+      "const": "clientDataArea",
+      "description": "Obligatorio y fijo: no existe fallback estándar de SimConnect para una pantalla completa de un addon de terceros (a diferencia de controls/*.yaml, que sí puede usar sdkTier: standardSimConnect)."
+    },
+    "readOnly": {
+      "type": "boolean",
+      "const": true,
+      "description": "Obligatorio y fijo en 'true' en esta primera versión del recurso screens/*.yaml. Escritura de botones del CDU queda explícitamente fuera de alcance (Event IDs de botón no confirmados contra el SDK/sim real, alto riesgo de romper el FMC en vuelo) — ver docs/plan-737-fullsync-2026-07-25.md."
+    },
+    "poweredField": {
+      "type": "string",
+      "description": "OPCIONAL. Nombre del campo booleano del struct que indica si la pantalla está encendida (ej. \"Powered\" en PMDG_NG3_CDU_Screen). Si se omite, el bridge debe asumir 'powered: true' siempre."
+    },
+    "cell": {
+      "type": "object",
+      "description": "Describe cómo el bridge debe leer cada celda del struct de la pantalla (ej. PMDG_NG3_CDU_Cell: Symbol/Color/Flags).",
+      "required": ["charField", "colorField", "flagsField", "colorValues"],
+      "properties": {
+        "charField": { "type": "string", "description": "Nombre del campo C del carácter de la celda, ej. \"Symbol\"." },
+        "colorField": { "type": "string", "description": "Nombre del campo C del color de la celda, ej. \"Color\"." },
+        "flagsField": { "type": "string", "description": "Nombre del campo C de los flags de la celda, ej. \"Flags\"." },
+        "colorValues": {
+          "type": "integer",
+          "const": 6,
+          "description": "Número de valores de color posibles que define el SDK (ej. PMDG_NG3_CDU_COLOR_WHITE..RED = 0..5, 6 valores). Fijo en 6 porque es lo único confirmado hoy contra PMDG_NG3_SDK.h; si un futuro addon expone otra cantidad, este schema deberá revisarse vía orchestrator."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

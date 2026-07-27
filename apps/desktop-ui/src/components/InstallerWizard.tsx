@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import weConnectLogo from "../assets/we-connect-logo.png";
+import { currentVersion } from "../data";
 
 type Step = "welcome" | "license" | "installing" | "done";
 
@@ -104,7 +106,7 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
         ? "Install"
         : step === "installing"
           ? "Installing…"
-          : "Launch WeConnect";
+          : "Launch We Connect";
   const primaryEnabled =
     step === "welcome" || (step === "license" && agreed) || step === "done";
 
@@ -117,8 +119,12 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
       <div className="installer-side">
         <div className="installer-stripes" />
         <div>
-          <div className="installer-brand">WECONNECT</div>
-          <div className="installer-brand-sub">Shared Cockpit · Setup</div>
+          <div className="installer-brand">
+            <span className="brand-logo-crop brand-logo-crop-installer">
+              <img src={weConnectLogo} alt="We Connect" />
+            </span>
+          </div>
+          <div className="installer-brand-sub">We Connect · Setup</div>
         </div>
 
         <div className="installer-steps">
@@ -150,8 +156,8 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
         </div>
 
         <div>
-          <div className="installer-version">V0.0.1</div>
-          <div className="installer-copyright">© 2026 WeConnect</div>
+          <div className="installer-version">V{currentVersion}</div>
+          <div className="installer-copyright">© 2026 We Connect</div>
         </div>
       </div>
 
@@ -160,12 +166,12 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
           <div className="installer-panel">
             <div className="installer-eyebrow">Welcome</div>
             <h1 className="installer-title">
-              Install WeConnect
+              Install We Connect
               <br />
               <span className="dim">on this PC</span>
             </h1>
             <p className="installer-lead">
-              This will install the WeConnect shared-cockpit client and its Microsoft Flight
+              This will install the We Connect shared-cockpit client and its Microsoft Flight
               Simulator bridge. Close MSFS before continuing.
             </p>
             <div className="installer-meta-row">
@@ -186,15 +192,15 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
             <div className="installer-eyebrow">License agreement</div>
             <div className="installer-license-box">
               <p>
-                <strong>WeConnect End-User License Agreement</strong>
+                <strong>We Connect End-User License Agreement</strong>
               </p>
               <p>
                 This software is provided for private, non-commercial flight-simulation use. By
-                installing WeConnect you agree to run it only alongside a legally licensed copy of
+                installing We Connect you agree to run it only alongside a legally licensed copy of
                 Microsoft Flight Simulator 2020 or 2024.
               </p>
               <p>
-                WeConnect synchronizes cockpit state between two connected pilots over the
+                We Connect synchronizes cockpit state between two connected pilots over the
                 network. Session data (aircraft state, join codes, telemetry) is transmitted to
                 the connected peer for the duration of a flight and is not sold to third parties.
               </p>
@@ -204,7 +210,7 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
               </p>
               <p>
                 The SimConnect bridge component runs locally and requires MSFS to be installed.
-                You may uninstall WeConnect at any time from Windows Settings.
+                You may uninstall We Connect at any time from Windows Settings.
               </p>
             </div>
             <button
@@ -228,7 +234,7 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
         {step === "installing" && (
           <div className="installer-panel">
             <div className="installer-eyebrow">Installing</div>
-            <h2 className="installer-h2">Setting up WeConnect…</h2>
+            <h2 className="installer-h2">Setting up We Connect…</h2>
             <div className="installer-progress-row">
               <div className="installer-progress-task">{installTask}</div>
               <div className="installer-progress-pct">{progressRounded}%</div>
@@ -267,7 +273,7 @@ export function InstallerWizard({ onClose }: InstallerWizardProps) {
               <h2 className="installer-done-title">You're ready to fly</h2>
             </div>
             <p className="installer-lead" style={{ maxWidth: 360 }}>
-              WeConnect V0.0.1 has been installed. Launch the app, create a session, and share the
+              We Connect V{currentVersion} has been installed. Launch the app, create a session, and share the
               join code with your co-pilot.
             </p>
             <button

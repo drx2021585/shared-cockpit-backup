@@ -1,5 +1,5 @@
 /*
-  Sistema de diseño — WeConnect (Shared Cockpit)
+  Sistema de diseño — We Connect (Shared Cockpit)
   ================================================
   Fuente: handoff de Claude Design, "Diseño con paleta azul fluorescente".
   Reemplaza por completo el sistema anterior (ámbar/teal G1000).
@@ -35,6 +35,7 @@
   --green: #4ade80;
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --titlebar-h: 34px;
 }
 
 * {
@@ -76,6 +77,82 @@ button {
   outline-offset: 2px;
 }
 
+/* ---------- Title bar (Electron, frame: false — ver TitleBar.tsx) ---------- */
+
+.titlebar {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  background: #0a0a0a;
+  border-bottom: 1px solid var(--hairline-faint);
+  /* Toda la barra es arrastrable salvo los 3 puntos (ver .titlebar-dots) --
+     permite mover la ventana agarrando cualquier zona vacía, igual que una
+     barra de título nativa. */
+  -webkit-app-region: drag;
+}
+
+.titlebar-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.titlebar-dot-close {
+  background: #ff5f57;
+}
+
+.titlebar-dot-minimize {
+  background: #ffbd2e;
+}
+
+.titlebar-dot-maximize {
+  background: #28c840;
+}
+
+.titlebar-dot-glyph {
+  font-size: 8px;
+  color: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+/* Estilo macOS real: los símbolos (✕ − ⤢) solo aparecen al pasar el mouse
+   por encima del GRUPO de los 3 puntos, no solo del que se está hover-eando. */
+.titlebar-dots:hover .titlebar-dot-glyph {
+  opacity: 1;
+}
+
+.titlebar-drag-region {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+/* Cuando hay barra de título custom, el nav se pega justo debajo de ella en
+   vez de pegarse al borde superior real del viewport (ver App.tsx: la clase
+   "has-titlebar" solo se agrega dentro de Electron). */
+.has-titlebar .nav {
+  top: var(--titlebar-h);
+}
+
 /* ---------- Nav ---------- */
 
 .nav {
@@ -105,6 +182,30 @@ button {
   border: none;
   cursor: pointer;
   padding: 0;
+}
+
+.brand-logo-crop {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: none;
+}
+
+.brand-logo-crop img {
+  position: absolute;
+  display: block;
+  max-width: none;
+}
+
+.brand-logo-crop-nav {
+  width: 68px;
+  height: 26px;
+}
+
+.brand-logo-crop-nav img {
+  width: 93px;
+  left: -12px;
+  top: -25px;
 }
 
 .nav-links {
@@ -916,6 +1017,18 @@ button {
   position: relative;
 }
 
+.brand-logo-crop-installer {
+  width: 150px;
+  height: 92px;
+  margin-left: -12px;
+}
+
+.brand-logo-crop-installer img {
+  width: 205px;
+  left: -25px;
+  top: -55px;
+}
+
 .installer-brand-sub {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -1131,6 +1244,18 @@ button {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 300;
+}
+
+@keyframes fadeInTask {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+    color: var(--text-35);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .installer-done-head {

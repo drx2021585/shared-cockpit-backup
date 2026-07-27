@@ -307,8 +307,17 @@ public sealed class SimConnectNativeClient : ISimConnectClient
         }
 
         var eventId = _nextEventId++;
-        NativeMethods.SimConnect_MapClientEventToSimEvent(_handle, eventId, eventName);
-        NativeMethods.SimConnect_AddClientEventToNotificationGroup(_handle, NotificationGroupId, eventId, 0);
+        var hrMap = NativeMethods.SimConnect_MapClientEventToSimEvent(_handle, eventId, eventName);
+        if (hrMap != 0)
+        {
+            SimConnectException?.Invoke($"MapClientEventToSimEvent('{eventName}') falló, hr=0x{hrMap:X8}");
+        }
+
+        var hrGroup = NativeMethods.SimConnect_AddClientEventToNotificationGroup(_handle, NotificationGroupId, eventId, 0);
+        if (hrGroup != 0)
+        {
+            SimConnectException?.Invoke($"AddClientEventToNotificationGroup('{eventName}') falló, hr=0x{hrGroup:X8}");
+        }
 
         if (!_groupPrioritySet)
         {

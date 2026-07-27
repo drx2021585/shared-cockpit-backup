@@ -1,0 +1,3642 @@
+# Switches booleanos del PMDG 737NG portados desde la instalación real de
+# YourControls de Darwin (apps/desktop-ui/recurso/definitions/FS2020/aircraft/
+# "PMDG Simulations - Boeing 737NG Series.yaml"), mecanismo confirmado real:
+# el evento NATIVO de SimConnect "ROTOR_BRAKE" (no propietario de PMDG) se
+# reutiliza como bus genérico -- cada switch tiene su propio event_param fijo
+# (switchNumber*100+1). Validado contra MSFS real en vivo 2026-07-27: enviar
+# ROTOR_BRAKE con param 11701 (TAXI LIGHT, switch 117) prendió y apagó la luz
+# real de la cabina sin errores.
+#
+# 2026-07-27, misma sesión: cada control ahora también tiene 'read' contra el
+# Client Data Area propio "SharedCockpitBridge_LVars" que expone
+# simulator/wasm-bridge (módulo WASM propio del proyecto, NO probado aún
+# contra MSFS real -- compila y enlaza limpio, ver
+# simulator/wasm-bridge/README.md). Hasta que Darwin instale ese módulo en su
+# carpeta Community, estos controles seguirán funcionando solo de escritura
+# (el bridge C# reporta con gracia si el área no está disponible, no crashea).
+#
+# LIMITACIÓN HONESTA que sigue vigente: la escritura es un PULSO DE TOGGLE, no
+# un SET_ON/SET_OFF real -- es el único mecanismo que PMDG expone para estos
+# switches. Con el 'read' ya se puede al menos CONFIRMAR el estado resultante
+# (y a futuro, decidir si hace falta reenviar el toggle o no antes de escribir).
+# authority: 'shared' sigue siendo el valor por defecto del proyecto.
+
+- id: native_toggle.hud_stow_hide_switch
+  # HUD Stow Hide Switch (L:switch_979_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_979_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97901
+    semantics: "toggles PMDG NG3 switch (HUD Stow Hide Switch, L:switch_979_73X) via ROTOR_BRAKE carrier event, param=97901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_979_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.combiner_cover_ng3
+  # Combiner cover NG3 (L:switch_2006_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2006_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200601
+    semantics: "toggles PMDG NG3 switch (Combiner cover NG3, L:switch_2006_73X) via ROTOR_BRAKE carrier event, param=200601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2006_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.trim_air_switch
+  # TRIM AIR Switch (L:switch_311_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_311_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 31101
+    semantics: "toggles PMDG NG3 switch (TRIM AIR Switch, L:switch_311_73X) via ROTOR_BRAKE carrier event, param=31101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_311_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.parking_brake_lever
+  # PARKING BRAKE Lever (L:switch_693_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_693_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 69301
+    semantics: "toggles PMDG NG3 switch (PARKING BRAKE Lever, L:switch_693_73X) via ROTOR_BRAKE carrier event, param=69301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_693_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.logo_light_switch
+  # LOGO LIGHT Switch (L:switch_122_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_122_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 12201
+    semantics: "toggles PMDG NG3 switch (LOGO LIGHT Switch, L:switch_122_73X) via ROTOR_BRAKE carrier event, param=12201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_122_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_bleed_air_switch_2_switch
+  # ENGINE BLEED AIR SWITCH 2 Switch (L:switch_212_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_212_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 21201
+    semantics: "toggles PMDG NG3 switch (ENGINE BLEED AIR SWITCH 2 Switch, L:switch_212_73X) via ROTOR_BRAKE carrier event, param=21201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_212_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fwd_cargo_fire_arm_switch
+  # FWD Cargo Fire ARM Switch (L:switch_763_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_763_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 76301
+    semantics: "toggles PMDG NG3 switch (FWD Cargo Fire ARM Switch, L:switch_763_73X) via ROTOR_BRAKE carrier event, param=76301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_763_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.air_temp_source_selector
+  # AIR TEMP SOURCE Selector (L:switch_187_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_187_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 18701
+    semantics: "toggles PMDG NG3 switch (AIR TEMP SOURCE Selector, L:switch_187_73X) via ROTOR_BRAKE carrier event, param=18701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_187_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.alternate_flaps_master_switch
+  # ALTERNATE FLAPS Master Switch (L:switch_73_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_73_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 7301
+    semantics: "toggles PMDG NG3 switch (ALTERNATE FLAPS Master Switch, L:switch_73_73X) via ROTOR_BRAKE carrier event, param=7301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_73_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.identification_ident_switch
+  # Identification IDENT Switch (L:switch_806_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_806_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 80601
+    semantics: "toggles PMDG NG3 switch (Identification IDENT Switch, L:switch_806_73X) via ROTOR_BRAKE carrier event, param=80601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_806_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.passenger_oxygen_switch
+  # PASSENGER OXYGEN Switch (L:switch_264_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_264_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 26401
+    semantics: "toggles PMDG NG3 switch (PASSENGER OXYGEN Switch, L:switch_264_73X) via ROTOR_BRAKE carrier event, param=26401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_264_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_a_fwd
+  # AUX FUEL A FWD (L:switch_2009_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2009_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200901
+    semantics: "toggles PMDG NG3 switch (AUX FUEL A FWD, L:switch_2009_73X) via ROTOR_BRAKE carrier event, param=200901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2009_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf2_receiver_knobswitch
+  # ADF2 RECEIVER KnobSwitch (L:switch_283_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_283_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28301
+    semantics: "toggles PMDG NG3 switch (ADF2 RECEIVER KnobSwitch, L:switch_283_73X) via ROTOR_BRAKE carrier event, param=28301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_283_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.sin_comentario
+  # (sin comentario) (L:switch_2013_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2013_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201301
+    semantics: "toggles PMDG NG3 switch ((sin comentario), L:switch_2013_73X) via ROTOR_BRAKE carrier event, param=201301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2013_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.recirc_fan_switch_for_800_and_900
+  # RECIRC FAN Switch for 800 and 900 (L:switch_872_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_872_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 87201
+    semantics: "toggles PMDG NG3 switch (RECIRC FAN Switch for 800 and 900, L:switch_872_73X) via ROTOR_BRAKE carrier event, param=87201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_872_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.placeholder_switch_sw891
+  # PLACEHOLDER switch (L:switch_891_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_891_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 89101
+    semantics: "toggles PMDG NG3 switch (PLACEHOLDER switch, L:switch_891_73X) via ROTOR_BRAKE carrier event, param=89101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_891_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flight_director_f_d_right_switch_collins_honeywell
+  # FLIGHT DIRECTOR (F/D) Right Switch Collins/Honeywell (L:switch_407_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_407_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 40701
+    semantics: "toggles PMDG NG3 switch (FLIGHT DIRECTOR (F/D) Right Switch Collins/Honeywell, L:switch_407_73X) via ROTOR_BRAKE carrier event, param=40701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_407_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.jumpseat_ng3
+  # Jumpseat NG3 (L:switch_2001_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2001_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200101
+    semantics: "toggles PMDG NG3 switch (Jumpseat NG3, L:switch_2001_73X) via ROTOR_BRAKE carrier event, param=200101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2001_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf2_receiver_switch_sw856
+  # VHF2 Receiver Switch (L:switch_856_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_856_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 85601
+    semantics: "toggles PMDG NG3 switch (VHF2 Receiver Switch, L:switch_856_73X) via ROTOR_BRAKE carrier event, param=85601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_856_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_bleed_air_switch_1_switch
+  # ENGINE BLEED AIR SWITCH 1 Switch (L:switch_210_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_210_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 21001
+    semantics: "toggles PMDG NG3 switch (ENGINE BLEED AIR SWITCH 1 Switch, L:switch_210_73X) via ROTOR_BRAKE carrier event, param=21001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_210_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flight_director_f_d_switch_collins_honeywell
+  # FLIGHT DIRECTOR (F/D) Switch Collins/Honeywell (L:switch_378_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_378_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 37801
+    semantics: "toggles PMDG NG3 switch (FLIGHT DIRECTOR (F/D) Switch Collins/Honeywell, L:switch_378_73X) via ROTOR_BRAKE carrier event, param=37801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_378_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.autopilot_disengage_disengage_bar_collins_honeywell
+  # Autopilot Disengage (DISENGAGE) Bar Collins/Honeywell (L:switch_406_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_406_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 40601
+    semantics: "toggles PMDG NG3 switch (Autopilot Disengage (DISENGAGE) Bar Collins/Honeywell, L:switch_406_73X) via ROTOR_BRAKE carrier event, param=40601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_406_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fo_right_arm_rest
+  # FO Right Arm Rest (L:switch_1009_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_1009_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 100901
+    semantics: "toggles PMDG NG3 switch (FO Right Arm Rest, L:switch_1009_73X) via ROTOR_BRAKE carrier event, param=100901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_1009_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ca_left_arm_rest
+  # CA Left Arm Rest (L:switch_1006_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_1006_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 100601
+    semantics: "toggles PMDG NG3 switch (CA Left Arm Rest, L:switch_1006_73X) via ROTOR_BRAKE carrier event, param=100601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_1006_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.window_heat_left_side_switch
+  # WINDOW HEAT LEFT SIDE Switch (L:switch_135_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_135_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 13501
+    semantics: "toggles PMDG NG3 switch (WINDOW HEAT LEFT SIDE Switch, L:switch_135_73X) via ROTOR_BRAKE carrier event, param=13501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_135_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_a_aft
+  # AUX FUEL A AFT (L:switch_2011_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2011_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201101
+    semantics: "toggles PMDG NG3 switch (AUX FUEL A AFT, L:switch_2011_73X) via ROTOR_BRAKE carrier event, param=201101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2011_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf3_receiver_switch_sw741
+  # VHF3 Receiver Switch (L:switch_741_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_741_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74101
+    semantics: "toggles PMDG NG3 switch (VHF3 Receiver Switch, L:switch_741_73X) via ROTOR_BRAKE carrier event, param=74101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_741_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.standby_rmi_vor_adf_bearing_pointer_no_1_switch
+  # Standby RMI VOR/ADF Bearing Pointer No. 1 Switch (L:switch_497_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_497_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 49701
+    semantics: "toggles PMDG NG3 switch (Standby RMI VOR/ADF Bearing Pointer No. 1 Switch, L:switch_497_73X) via ROTOR_BRAKE carrier event, param=49701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_497_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_right_fwd_switch
+  # FUEL PUMP RIGHT FWD Switch (L:switch_39_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_39_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 3901
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP RIGHT FWD Switch, L:switch_39_73X) via ROTOR_BRAKE carrier event, param=3901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_39_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf2_receiver_switch_sw884
+  # HF2 Receiver Switch (L:switch_884_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_884_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 88401
+    semantics: "toggles PMDG NG3 switch (HF2 Receiver Switch, L:switch_884_73X) via ROTOR_BRAKE carrier event, param=88401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_884_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_1_fire_handle_lock_switch
+  # Engine 1 Fire Handle Lock Switch (L:switch_976_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_976_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97601
+    semantics: "toggles PMDG NG3 switch (Engine 1 Fire Handle Lock Switch, L:switch_976_73X) via ROTOR_BRAKE carrier event, param=97601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_976_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fixed_landing_light_left_switch
+  # FIXED LANDING LIGHT LEFT Switch (L:switch_113_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_113_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 11301
+    semantics: "toggles PMDG NG3 switch (FIXED LANDING LIGHT LEFT Switch, L:switch_113_73X) via ROTOR_BRAKE carrier event, param=11301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_113_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.electronic_engine_control_eec_1_switch
+  # ELECTRONIC ENGINE CONTROL (EEC) 1 Switch (L:switch_268_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_268_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 26801
+    semantics: "toggles PMDG NG3 switch (ELECTRONIC ENGINE CONTROL (EEC) 1 Switch, L:switch_268_73X) via ROTOR_BRAKE carrier event, param=26801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_268_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.galley_switch
+  # Galley Switch (L:switch_974_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_974_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97401
+    semantics: "toggles PMDG NG3 switch (Galley Switch, L:switch_974_73X) via ROTOR_BRAKE carrier event, param=97401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_974_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mkr_receiver_switch_sw866
+  # MKR Receiver Switch (L:switch_866_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_866_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86601
+    semantics: "toggles PMDG NG3 switch (MKR Receiver Switch, L:switch_866_73X) via ROTOR_BRAKE carrier event, param=86601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_866_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.placeholder_switch_sw886
+  # PLACEHOLDER Switch (L:switch_886_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_886_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 88601
+    semantics: "toggles PMDG NG3 switch (PLACEHOLDER Switch, L:switch_886_73X) via ROTOR_BRAKE carrier event, param=88601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_886_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_left_aft_switch
+  # FUEL PUMP LEFT AFT Switch (L:switch_37_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_37_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 3701
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP LEFT AFT Switch, L:switch_37_73X) via ROTOR_BRAKE carrier event, param=3701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_37_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf1_receiver_switch_sw742
+  # HF1 Receiver Switch (L:switch_742_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_742_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74201
+    semantics: "toggles PMDG NG3 switch (HF1 Receiver Switch, L:switch_742_73X) via ROTOR_BRAKE carrier event, param=74201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_742_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mask_boom_switch_sw277
+  # MASK BOOM Switch (L:switch_277_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_277_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 27701
+    semantics: "toggles PMDG NG3 switch (MASK BOOM Switch, L:switch_277_73X) via ROTOR_BRAKE carrier event, param=27701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_277_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.svc_receiver_knobswitch
+  # SVC RECEIVER KnobSwitch (L:switch_289_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_289_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28901
+    semantics: "toggles PMDG NG3 switch (SVC RECEIVER KnobSwitch, L:switch_289_73X) via ROTOR_BRAKE carrier event, param=28901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_289_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.recirc_fan_switch
+  # RECIRC FAN Switch (L:switch_196_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_196_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 19601
+    semantics: "toggles PMDG NG3 switch (RECIRC FAN Switch, L:switch_196_73X) via ROTOR_BRAKE carrier event, param=19601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_196_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.spoiler_a
+  # SPOILER A (L:switch_65_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_65_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 6501
+    semantics: "toggles PMDG NG3 switch (SPOILER A, L:switch_65_73X) via ROTOR_BRAKE carrier event, param=6501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_65_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_anti_ice_right_switch
+  # ENGINE ANTI ICE RIGHT Switch (L:switch_158_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_158_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 15801
+    semantics: "toggles PMDG NG3 switch (ENGINE ANTI ICE RIGHT Switch, L:switch_158_73X) via ROTOR_BRAKE carrier event, param=15801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_158_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.alt_norm_switch_sw871
+  # ALT NORM Switch (L:switch_871_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_871_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 87101
+    semantics: "toggles PMDG NG3 switch (ALT NORM Switch, L:switch_871_73X) via ROTOR_BRAKE carrier event, param=87101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_871_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.freighter_smoke_switch_guard
+  # FREIGHTER SMOKE Switch GUARD (L:switch_911_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_911_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 91101
+    semantics: "toggles PMDG NG3 switch (FREIGHTER SMOKE Switch GUARD, L:switch_911_73X) via ROTOR_BRAKE carrier event, param=91101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_911_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.transponder_test_switch
+  # Transponder TEST Switch (L:switch_801_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_801_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 80101
+    semantics: "toggles PMDG NG3 switch (Transponder TEST Switch, L:switch_801_73X) via ROTOR_BRAKE carrier event, param=80101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_801_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.anti_collision_light_switch
+  # ANTI COLLISION LIGHT Switch (L:switch_124_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_124_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 12401
+    semantics: "toggles PMDG NG3 switch (ANTI COLLISION LIGHT Switch, L:switch_124_73X) via ROTOR_BRAKE carrier event, param=12401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_124_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.tiller_switch
+  # Tiller Switch (L:switch_975_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_975_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97501
+    semantics: "toggles PMDG NG3 switch (Tiller Switch, L:switch_975_73X) via ROTOR_BRAKE carrier event, param=97501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_975_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.stabilizer_trim_main_electric_cutout_switch_guard
+  # Stabilizer Trim Main Electric Cutout Switch GUARD (L:switch_710_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_710_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 71001
+    semantics: "toggles PMDG NG3 switch (Stabilizer Trim Main Electric Cutout Switch GUARD, L:switch_710_73X) via ROTOR_BRAKE carrier event, param=71001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_710_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.stabilizer_trim_autopilot_cutout_switch_guard
+  # Stabilizer Trim AUTOPILOT Cutout Switch GUARD (L:switch_712_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_712_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 71201
+    semantics: "toggles PMDG NG3 switch (Stabilizer Trim AUTOPILOT Cutout Switch GUARD, L:switch_712_73X) via ROTOR_BRAKE carrier event, param=71201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_712_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.yoke_right_hide
+  # Yoke Right Hide (L:switch_2008_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2008_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200801
+    semantics: "toggles PMDG NG3 switch (Yoke Right Hide, L:switch_2008_73X) via ROTOR_BRAKE carrier event, param=200801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2008_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.placeholder_switch_sw892
+  # PLACEHOLDER switch (L:switch_892_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_892_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 89201
+    semantics: "toggles PMDG NG3 switch (PLACEHOLDER switch, L:switch_892_73X) via ROTOR_BRAKE carrier event, param=89201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_892_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.battery_switch
+  # Battery Switch (L:switch_01_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_01_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 101
+    semantics: "toggles PMDG NG3 switch (Battery Switch, L:switch_01_73X) via ROTOR_BRAKE carrier event, param=101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_01_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.spoiler_b
+  # SPOILER B (L:switch_67_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_67_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 6701
+    semantics: "toggles PMDG NG3 switch (SPOILER B, L:switch_67_73X) via ROTOR_BRAKE carrier event, param=6701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_67_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ground_proximity_flap_inhibit_switch
+  # GROUND PROXIMITY FLAP INHIBIT Switch (L:switch_501_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_501_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 50101
+    semantics: "toggles PMDG NG3 switch (GROUND PROXIMITY FLAP INHIBIT Switch, L:switch_501_73X) via ROTOR_BRAKE carrier event, param=50101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_501_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.alt_norm_switch_sw755
+  # ALT NORM Switch (L:switch_755_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_755_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 75501
+    semantics: "toggles PMDG NG3 switch (ALT NORM Switch, L:switch_755_73X) via ROTOR_BRAKE carrier event, param=75501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_755_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf2_receiver_switch_sw880
+  # HF2 Receiver Switch (L:switch_880_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_880_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 88001
+    semantics: "toggles PMDG NG3 switch (HF2 Receiver Switch, L:switch_880_73X) via ROTOR_BRAKE carrier event, param=88001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_880_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.pa_receiver_knobswitch
+  # PA RECEIVER KnobSwitch (L:switch_290_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_290_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 29001
+    semantics: "toggles PMDG NG3 switch (PA RECEIVER KnobSwitch, L:switch_290_73X) via ROTOR_BRAKE carrier event, param=29001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_290_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf3_receiver_switch_sw857
+  # VHF3 Receiver Switch (L:switch_857_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_857_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 85701
+    semantics: "toggles PMDG NG3 switch (VHF3 Receiver Switch, L:switch_857_73X) via ROTOR_BRAKE carrier event, param=85701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_857_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.irs_system_display_selector
+  # IRS SYSTEM DISPLAY Selector (L:switch_231_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_231_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 23101
+    semantics: "toggles PMDG NG3 switch (IRS SYSTEM DISPLAY Selector, L:switch_231_73X) via ROTOR_BRAKE carrier event, param=23101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_231_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav2_receiver_switch_sw863
+  # NAV2 Receiver Switch (L:switch_863_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_863_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86301
+    semantics: "toggles PMDG NG3 switch (NAV2 Receiver Switch, L:switch_863_73X) via ROTOR_BRAKE carrier event, param=86301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_863_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mkr_receiver_switch_sw750
+  # MKR Receiver Switch (L:switch_750_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_750_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 75001
+    semantics: "toggles PMDG NG3 switch (MKR Receiver Switch, L:switch_750_73X) via ROTOR_BRAKE carrier event, param=75001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_750_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fixed_landing_light_right_switch
+  # FIXED LANDING LIGHT RIGHT Switch (L:switch_114_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_114_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 11401
+    semantics: "toggles PMDG NG3 switch (FIXED LANDING LIGHT RIGHT Switch, L:switch_114_73X) via ROTOR_BRAKE carrier event, param=11401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_114_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf2_receiver_knobswitch
+  # VHF2 RECEIVER KnobSwitch (L:switch_287_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_287_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28701
+    semantics: "toggles PMDG NG3 switch (VHF2 RECEIVER KnobSwitch, L:switch_287_73X) via ROTOR_BRAKE carrier event, param=28701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_287_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.cargo_fire_discharge_switch
+  # Cargo Fire DISCHARGE Switch (L:switch_767_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_767_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 76701
+    semantics: "toggles PMDG NG3 switch (Cargo Fire DISCHARGE Switch, L:switch_767_73X) via ROTOR_BRAKE carrier event, param=76701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_767_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.leading_edge_annunciator_panel_test_switch
+  # LEADING EDGE ANNUNCIATOR PANEL TEST Switch (L:switch_224_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_224_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 22401
+    semantics: "toggles PMDG NG3 switch (LEADING EDGE ANNUNCIATOR PANEL TEST Switch, L:switch_224_73X) via ROTOR_BRAKE carrier event, param=22401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_224_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_center_right_switch
+  # FUEL PUMP CENTER RIGHT Switch (L:switch_46_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_46_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 4601
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP CENTER RIGHT Switch, L:switch_46_73X) via ROTOR_BRAKE carrier event, param=4601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_46_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.window_heat_right_side_switch
+  # WINDOW HEAT RIGHT SIDE Switch (L:switch_139_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_139_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 13901
+    semantics: "toggles PMDG NG3 switch (WINDOW HEAT RIGHT SIDE Switch, L:switch_139_73X) via ROTOR_BRAKE carrier event, param=13901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_139_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.equipment_cooling_supply_switch
+  # EQUIPMENT COOLING SUPPLY Switch (L:switch_96_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_96_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 9601
+    semantics: "toggles PMDG NG3 switch (EQUIPMENT COOLING SUPPLY Switch, L:switch_96_73X) via ROTOR_BRAKE carrier event, param=9601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_96_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.stabilizer_trim_main_electric_main_elect_cutout_switch
+  # Stabilizer Trim Main Electric MAIN ELECT Cutout Switch (L:switch_709_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_709_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 70901
+    semantics: "toggles PMDG NG3 switch (Stabilizer Trim Main Electric MAIN ELECT Cutout Switch, L:switch_709_73X) via ROTOR_BRAKE carrier event, param=70901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_709_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav1_receiver_knobswitch
+  # NAV1 RECEIVER KnobSwitch (L:switch_280_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_280_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28001
+    semantics: "toggles PMDG NG3 switch (NAV1 RECEIVER KnobSwitch, L:switch_280_73X) via ROTOR_BRAKE carrier event, param=28001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_280_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.stab_trim_switch
+  # STAB TRIM Switch (L:switch_830_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_830_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 83001
+    semantics: "toggles PMDG NG3 switch (STAB TRIM Switch, L:switch_830_73X) via ROTOR_BRAKE carrier event, param=83001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_830_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.pa_receiver_switch_sw861
+  # PA Receiver Switch (L:switch_861_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_861_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86101
+    semantics: "toggles PMDG NG3 switch (PA Receiver Switch, L:switch_861_73X) via ROTOR_BRAKE carrier event, param=86101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_861_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.right_engine_start_lever
+  # Right Engine Start Lever (L:switch_689_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_689_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 68901
+    semantics: "toggles PMDG NG3 switch (Right Engine Start Lever, L:switch_689_73X) via ROTOR_BRAKE carrier event, param=68901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_689_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hyd_pump_a_elec_2_switch
+  # HYD PUMP A ELEC 2 Switch (L:switch_167_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_167_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 16701
+    semantics: "toggles PMDG NG3 switch (HYD PUMP A ELEC 2 Switch, L:switch_167_73X) via ROTOR_BRAKE carrier event, param=16701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_167_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ap_disc_left
+  # AP DISC Left (L:switch_1015_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_1015_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 101501
+    semantics: "toggles PMDG NG3 switch (AP DISC Left, L:switch_1015_73X) via ROTOR_BRAKE carrier event, param=101501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_1015_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf_tone_switch
+  # ADF TONE Switch (L:switch_820_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_820_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 82001
+    semantics: "toggles PMDG NG3 switch (ADF TONE Switch, L:switch_820_73X) via ROTOR_BRAKE carrier event, param=82001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_820_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ground_proximity_terrain_inhibit_terr_inhibit_switch
+  # Ground Proximity Terrain Inhibit (TERR INHIBIT) Switch (L:switch_505_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_505_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 50501
+    semantics: "toggles PMDG NG3 switch (Ground Proximity Terrain Inhibit (TERR INHIBIT) Switch, L:switch_505_73X) via ROTOR_BRAKE carrier event, param=50501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_505_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.attendant_call_switch
+  # ATTENDANT CALL Switch (L:switch_105_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_105_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 10501
+    semantics: "toggles PMDG NG3 switch (ATTENDANT CALL Switch, L:switch_105_73X) via ROTOR_BRAKE carrier event, param=10501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_105_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.eng_1_reverse_thrust_lever
+  # ENG 1 Reverse Thrust Lever (L:switch_680_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_680_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 68001
+    semantics: "toggles PMDG NG3 switch (ENG 1 Reverse Thrust Lever, L:switch_680_73X) via ROTOR_BRAKE carrier event, param=68001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_680_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.bus_transfer_switch
+  # BUS TRANSFER Switch (L:switch_18_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_18_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 1801
+    semantics: "toggles PMDG NG3 switch (BUS TRANSFER Switch, L:switch_18_73X) via ROTOR_BRAKE carrier event, param=1801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_18_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.yoke_left_hide
+  # Yoke Left Hide (L:switch_2007_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2007_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200701
+    semantics: "toggles PMDG NG3 switch (Yoke Left Hide, L:switch_2007_73X) via ROTOR_BRAKE carrier event, param=200701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2007_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.wheel_well_light_switch
+  # WHEEL WELL LIGHT Switch (L:switch_126_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_126_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 12601
+    semantics: "toggles PMDG NG3 switch (WHEEL WELL LIGHT Switch, L:switch_126_73X) via ROTOR_BRAKE carrier event, param=12601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_126_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.alt_norm_switch_sw279
+  # ALT NORM Switch (L:switch_279_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_279_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 27901
+    semantics: "toggles PMDG NG3 switch (ALT NORM Switch, L:switch_279_73X) via ROTOR_BRAKE carrier event, param=27901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_279_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aft_cargo_fire_arm_switch
+  # AFT Cargo Fire ARM Switch (L:switch_765_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_765_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 76501
+    semantics: "toggles PMDG NG3 switch (AFT Cargo Fire ARM Switch, L:switch_765_73X) via ROTOR_BRAKE carrier event, param=76501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_765_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.minimums_mins_reference_selector_outer_sw356
+  # Minimums (MINS) Reference Selector (outer) (L:switch_356_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_356_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 35601
+    semantics: "toggles PMDG NG3 switch (Minimums (MINS) Reference Selector (outer), L:switch_356_73X) via ROTOR_BRAKE carrier event, param=35601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_356_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fs2crew
+  # FS2CREW (L:switch_2000_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2000_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200001
+    semantics: "toggles PMDG NG3 switch (FS2CREW, L:switch_2000_73X) via ROTOR_BRAKE carrier event, param=200001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2000_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf1_receiver_knobswitch
+  # HF1 RECEIVER KnobSwitch (L:switch_875_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_875_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 87501
+    semantics: "toggles PMDG NG3 switch (HF1 RECEIVER KnobSwitch, L:switch_875_73X) via ROTOR_BRAKE carrier event, param=87501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_875_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf1_receiver_switch_sw748
+  # ADF1 Receiver Switch (L:switch_748_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_748_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74801
+    semantics: "toggles PMDG NG3 switch (ADF1 Receiver Switch, L:switch_748_73X) via ROTOR_BRAKE carrier event, param=74801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_748_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_fire_warning_switch_2
+  # Engine Fire Warning Switch 2 (L:switch_6991_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_6991_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 699101
+    semantics: "toggles PMDG NG3 switch (Engine Fire Warning Switch 2, L:switch_6991_73X) via ROTOR_BRAKE carrier event, param=699101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_6991_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flight_recorder_test_switch
+  # FLIGHT RECORDER Test Switch (L:switch_298_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_298_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 29801
+    semantics: "toggles PMDG NG3 switch (FLIGHT RECORDER Test Switch, L:switch_298_73X) via ROTOR_BRAKE carrier event, param=29801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_298_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.no_smoking_switch
+  # NO SMOKING Switch (L:switch_103_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_103_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 10301
+    semantics: "toggles PMDG NG3 switch (NO SMOKING Switch, L:switch_103_73X) via ROTOR_BRAKE carrier event, param=10301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_103_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.standby_rmi_vor_adf_bearing_pointer_no_2_switch
+  # Standby RMI VOR/ADF Bearing Pointer No. 2 Switch (L:switch_498_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_498_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 49801
+    semantics: "toggles PMDG NG3 switch (Standby RMI VOR/ADF Bearing Pointer No. 2 Switch, L:switch_498_73X) via ROTOR_BRAKE carrier event, param=49801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_498_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_anti_ice_left_switch
+  # ENGINE ANTI ICE LEFT Switch (L:switch_157_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_157_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 15701
+    semantics: "toggles PMDG NG3 switch (ENGINE ANTI ICE LEFT Switch, L:switch_157_73X) via ROTOR_BRAKE carrier event, param=15701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_157_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf2_receiver_switch
+  # ADF2 Receiver Switch (L:switch_749_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_749_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74901
+    semantics: "toggles PMDG NG3 switch (ADF2 Receiver Switch, L:switch_749_73X) via ROTOR_BRAKE carrier event, param=74901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_749_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav1_receiver_switch_sw862
+  # NAV1 Receiver Switch (L:switch_862_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_862_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86201
+    semantics: "toggles PMDG NG3 switch (NAV1 Receiver Switch, L:switch_862_73X) via ROTOR_BRAKE carrier event, param=86201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_862_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf1_receiver_switch_sw739
+  # VHF1 Receiver Switch (L:switch_739_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_739_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 73901
+    semantics: "toggles PMDG NG3 switch (VHF1 Receiver Switch, L:switch_739_73X) via ROTOR_BRAKE carrier event, param=73901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_739_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf1_receiver_knobswitch
+  # ADF1 RECEIVER KnobSwitch (L:switch_282_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_282_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28201
+    semantics: "toggles PMDG NG3 switch (ADF1 RECEIVER KnobSwitch, L:switch_282_73X) via ROTOR_BRAKE carrier event, param=28201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_282_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hyd_pump_b_elec_1_switch
+  # HYD PUMP B ELEC 1 Switch (L:switch_168_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_168_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 16801
+    semantics: "toggles PMDG NG3 switch (HYD PUMP B ELEC 1 Switch, L:switch_168_73X) via ROTOR_BRAKE carrier event, param=16801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_168_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flt_receiver_switch_sw859
+  # FLT Receiver Switch (L:switch_859_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_859_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 85901
+    semantics: "toggles PMDG NG3 switch (FLT Receiver Switch, L:switch_859_73X) via ROTOR_BRAKE carrier event, param=85901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_859_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_b_fwd
+  # AUX FUEL B FWD (L:switch_2010_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2010_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201001
+    semantics: "toggles PMDG NG3 switch (AUX FUEL B FWD, L:switch_2010_73X) via ROTOR_BRAKE carrier event, param=201001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2010_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.runway_turnoff_light_left_switch
+  # RUNWAY TURNOFF LIGHT LEFT Switch (L:switch_115_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_115_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 11501
+    semantics: "toggles PMDG NG3 switch (RUNWAY TURNOFF LIGHT LEFT Switch, L:switch_115_73X) via ROTOR_BRAKE carrier event, param=11501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_115_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.probe_heat_b_switch
+  # PROBE HEAT B Switch (L:switch_141_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_141_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 14101
+    semantics: "toggles PMDG NG3 switch (PROBE HEAT B Switch, L:switch_141_73X) via ROTOR_BRAKE carrier event, param=14101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_141_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.wing_anti_ice_switch
+  # WING ANTI ICE Switch (L:switch_156_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_156_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 15601
+    semantics: "toggles PMDG NG3 switch (WING ANTI ICE Switch, L:switch_156_73X) via ROTOR_BRAKE carrier event, param=15601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_156_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hud_auto_manual_switch
+  # HUD Auto Manual Switch (L:switch_981_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_981_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 98101
+    semantics: "toggles PMDG NG3 switch (HUD Auto Manual Switch, L:switch_981_73X) via ROTOR_BRAKE carrier event, param=98101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_981_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.galley_switch_for_600_and_700
+  # GALLEY Switch for 600 and 700 (L:switch_887_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_887_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 88701
+    semantics: "toggles PMDG NG3 switch (GALLEY Switch for 600 and 700, L:switch_887_73X) via ROTOR_BRAKE carrier event, param=88701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_887_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf1_receiver_switch_sw858
+  # HF1 Receiver Switch (L:switch_858_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_858_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 85801
+    semantics: "toggles PMDG NG3 switch (HF1 Receiver Switch, L:switch_858_73X) via ROTOR_BRAKE carrier event, param=85801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_858_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mask_boom_switch_sw753
+  # MASK BOOM Switch (L:switch_753_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_753_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 75301
+    semantics: "toggles PMDG NG3 switch (MASK BOOM Switch, L:switch_753_73X) via ROTOR_BRAKE carrier event, param=75301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_753_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.landing_gear_lever_unlock
+  # LANDING GEAR Lever UNLOCK (L:switch_4552_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_4552_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 455201
+    semantics: "toggles PMDG NG3 switch (LANDING GEAR Lever UNLOCK, L:switch_4552_73X) via ROTOR_BRAKE carrier event, param=455201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_4552_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.pack_bleed_trip_reset_switch
+  # PACK BLEED TRIP RESET Switch (L:switch_209_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_209_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 20901
+    semantics: "toggles PMDG NG3 switch (PACK BLEED TRIP RESET Switch, L:switch_209_73X) via ROTOR_BRAKE carrier event, param=20901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_209_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.stabilizer_trim_autopilot_cutout_switch
+  # Stabilizer Trim AUTOPILOT Cutout Switch (L:switch_711_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_711_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 71101
+    semantics: "toggles PMDG NG3 switch (Stabilizer Trim AUTOPILOT Cutout Switch, L:switch_711_73X) via ROTOR_BRAKE carrier event, param=71101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_711_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.wlan_switch
+  # WLAN Switch (L:switch_888_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_888_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 88801
+    semantics: "toggles PMDG NG3 switch (WLAN Switch, L:switch_888_73X) via ROTOR_BRAKE carrier event, param=88801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_888_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.apu_fire_warning_lock_switch
+  # APU Fire Warning Lock Switch (L:switch_977_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_977_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97701
+    semantics: "toggles PMDG NG3 switch (APU Fire Warning Lock Switch, L:switch_977_73X) via ROTOR_BRAKE carrier event, param=97701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_977_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ground_proximity_gear_inhibit_switch
+  # Ground Proximity GEAR INHIBIT Switch (L:switch_503_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_503_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 50301
+    semantics: "toggles PMDG NG3 switch (Ground Proximity GEAR INHIBIT Switch, L:switch_503_73X) via ROTOR_BRAKE carrier event, param=50301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_503_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.minimums_mins_reference_selector_outer_sw412
+  # Minimums (MINS) Reference Selector (outer) (L:switch_412_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_412_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 41201
+    semantics: "toggles PMDG NG3 switch (Minimums (MINS) Reference Selector (outer), L:switch_412_73X) via ROTOR_BRAKE carrier event, param=41201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_412_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.autothrottle_a_t_arm_switch_collins_honeywell
+  # AUTOTHROTTLE (A/T) ARM Switch Collins/Honeywell (L:switch_380_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_380_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 38001
+    semantics: "toggles PMDG NG3 switch (AUTOTHROTTLE (A/T) ARM Switch Collins/Honeywell, L:switch_380_73X) via ROTOR_BRAKE carrier event, param=38001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_380_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.wing_light_switch
+  # WING LIGHT Switch (L:switch_125_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_125_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 12501
+    semantics: "toggles PMDG NG3 switch (WING LIGHT Switch, L:switch_125_73X) via ROTOR_BRAKE carrier event, param=12501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_125_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.taxi_light_switch
+  # TAXI LIGHT Switch (L:switch_117_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_117_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 11701
+    semantics: "toggles PMDG NG3 switch (TAXI LIGHT Switch, L:switch_117_73X) via ROTOR_BRAKE carrier event, param=11701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_117_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_center_left_switch
+  # FUEL PUMP CENTER LEFT Switch (L:switch_45_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_45_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 4501
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP CENTER LEFT Switch, L:switch_45_73X) via ROTOR_BRAKE carrier event, param=4501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_45_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.cpt_map_pull
+  # CPT Map Pull (L:switch_895_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_895_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 89501
+    semantics: "toggles PMDG NG3 switch (CPT Map Pull, L:switch_895_73X) via ROTOR_BRAKE carrier event, param=89501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_895_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ground_call_switch
+  # GROUND CALL Switch (L:switch_106_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_106_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 10601
+    semantics: "toggles PMDG NG3 switch (GROUND CALL Switch, L:switch_106_73X) via ROTOR_BRAKE carrier event, param=10601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_106_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.apu_fire_warning_switch
+  # APU Fire Warning Switch (L:switch_6981_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_6981_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 698101
+    semantics: "toggles PMDG NG3 switch (APU Fire Warning Switch, L:switch_6981_73X) via ROTOR_BRAKE carrier event, param=698101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_6981_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.transponder_xpndr_selector
+  # Transponder XPNDR Selector (L:switch_798_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_798_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 79801
+    semantics: "toggles PMDG NG3 switch (Transponder XPNDR Selector, L:switch_798_73X) via ROTOR_BRAKE carrier event, param=79801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_798_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hyd_pump_a_eng_1_switch
+  # HYD PUMP A ENG 1 Switch (L:switch_165_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_165_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 16501
+    semantics: "toggles PMDG NG3 switch (HYD PUMP A ENG 1 Switch, L:switch_165_73X) via ROTOR_BRAKE carrier event, param=16501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_165_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nose_wheel_steering_switch
+  # NOSE WHEEL STEERING Switch (L:switch_325_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_325_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 32501
+    semantics: "toggles PMDG NG3 switch (NOSE WHEEL STEERING Switch, L:switch_325_73X) via ROTOR_BRAKE carrier event, param=32501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_325_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.apu_bleed_air_switch
+  # APU BLEED AIR Switch (L:switch_211_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_211_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 21101
+    semantics: "toggles PMDG NG3 switch (APU BLEED AIR Switch, L:switch_211_73X) via ROTOR_BRAKE carrier event, param=21101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_211_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.elec_maint_switch
+  # ELEC MAINT Switch (L:switch_93_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_93_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 9301
+    semantics: "toggles PMDG NG3 switch (ELEC MAINT Switch, L:switch_93_73X) via ROTOR_BRAKE carrier event, param=9301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_93_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf_mode_selector_switch
+  # ADF MODE Selector Switch (L:switch_818_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_818_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 81801
+    semantics: "toggles PMDG NG3 switch (ADF MODE Selector Switch, L:switch_818_73X) via ROTOR_BRAKE carrier event, param=81801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_818_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf3_receiver_knobswitch
+  # VHF3 RECEIVER KnobSwitch (L:switch_874_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_874_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 87401
+    semantics: "toggles PMDG NG3 switch (VHF3 RECEIVER KnobSwitch, L:switch_874_73X) via ROTOR_BRAKE carrier event, param=87401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_874_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.gen_drive_disc_left_switch
+  # GEN DRIVE DISC Left Switch (L:switch_12_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_12_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 1201
+    semantics: "toggles PMDG NG3 switch (GEN DRIVE DISC Left Switch, L:switch_12_73X) via ROTOR_BRAKE carrier event, param=1201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_12_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.electronic_engine_control_eec_2_switch
+  # ELECTRONIC ENGINE CONTROL (EEC) 2 SWITCH (L:switch_271_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_271_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 27101
+    semantics: "toggles PMDG NG3 switch (ELECTRONIC ENGINE CONTROL (EEC) 2 SWITCH, L:switch_271_73X) via ROTOR_BRAKE carrier event, param=27101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_271_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mkr_receiver_knobswitch
+  # MKR RECEIVER KnobSwitch (L:switch_284_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_284_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28401
+    semantics: "toggles PMDG NG3 switch (MKR RECEIVER KnobSwitch, L:switch_284_73X) via ROTOR_BRAKE carrier event, param=28401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_284_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_left_fwd_switch
+  # FUEL PUMP LEFT FWD Switch (L:switch_38_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_38_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 3801
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP LEFT FWD Switch, L:switch_38_73X) via ROTOR_BRAKE carrier event, param=3801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_38_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.svc_receiver_switch_sw744
+  # SVC Receiver Switch (L:switch_744_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_744_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74401
+    semantics: "toggles PMDG NG3 switch (SVC Receiver Switch, L:switch_744_73X) via ROTOR_BRAKE carrier event, param=74401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_744_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.window_heat_right_fwd_switch
+  # WINDOW HEAT RIGHT FWD Switch (L:switch_138_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_138_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 13801
+    semantics: "toggles PMDG NG3 switch (WINDOW HEAT RIGHT FWD Switch, L:switch_138_73X) via ROTOR_BRAKE carrier event, param=13801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_138_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.pa_receiver_switch_sw745
+  # PA Receiver Switch (L:switch_745_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_745_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74501
+    semantics: "toggles PMDG NG3 switch (PA Receiver Switch, L:switch_745_73X) via ROTOR_BRAKE carrier event, param=74501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_745_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.grimes_light_ca
+  # GRIMES LIGHT CA (L:switch_2020_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2020_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 202001
+    semantics: "toggles PMDG NG3 switch (GRIMES LIGHT CA, L:switch_2020_73X) via ROTOR_BRAKE carrier event, param=202001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2020_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_fire_warning_switch_1
+  # Engine Fire Warning Switch 1 (L:switch_6971_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_6971_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 697101
+    semantics: "toggles PMDG NG3 switch (Engine Fire Warning Switch 1, L:switch_6971_73X) via ROTOR_BRAKE carrier event, param=697101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_6971_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.left_engine_start_lever
+  # Left Engine Start Lever (L:switch_688_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_688_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 68801
+    semantics: "toggles PMDG NG3 switch (Left Engine Start Lever, L:switch_688_73X) via ROTOR_BRAKE carrier event, param=68801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_688_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.service_interphone_switch
+  # SERVICE INTERPHONE Switch (L:switch_257_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_257_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 25701
+    semantics: "toggles PMDG NG3 switch (SERVICE INTERPHONE Switch, L:switch_257_73X) via ROTOR_BRAKE carrier event, param=25701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_257_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf1_receiver_knobswitch
+  # VHF1 RECEIVER KnobSwitch (L:switch_286_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_286_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28601
+    semantics: "toggles PMDG NG3 switch (VHF1 RECEIVER KnobSwitch, L:switch_286_73X) via ROTOR_BRAKE carrier event, param=28601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_286_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.barometric_baro_reference_selector_outer_sw422
+  # BAROMETRIC (BARO) REFERENCE SELECTOR (outer) (L:switch_422_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_422_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 42201
+    semantics: "toggles PMDG NG3 switch (BAROMETRIC (BARO) REFERENCE SELECTOR (outer), L:switch_422_73X) via ROTOR_BRAKE carrier event, param=42201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_422_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fuel_pump_right_aft_switch
+  # FUEL PUMP RIGHT AFT Switch (L:switch_40_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_40_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 4001
+    semantics: "toggles PMDG NG3 switch (FUEL PUMP RIGHT AFT Switch, L:switch_40_73X) via ROTOR_BRAKE carrier event, param=4001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_40_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.gen_drive_disc_right_switch
+  # GEN DRIVE DISC Right Switch (L:switch_14_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_14_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 1401
+    semantics: "toggles PMDG NG3 switch (GEN DRIVE DISC Right Switch, L:switch_14_73X) via ROTOR_BRAKE carrier event, param=1401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_14_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_gnd_switch
+  # AUX FUEL GND switch (L:switch_2019_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2019_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201901
+    semantics: "toggles PMDG NG3 switch (AUX FUEL GND switch, L:switch_2019_73X) via ROTOR_BRAKE carrier event, param=201901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2019_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.mask_boom_switch_sw869
+  # MASK BOOM Switch (L:switch_869_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_869_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86901
+    semantics: "toggles PMDG NG3 switch (MASK BOOM Switch, L:switch_869_73X) via ROTOR_BRAKE carrier event, param=86901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_869_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.wing_body_ovht_test_switch
+  # WING-BODY OVHT TEST Switch (L:switch_199_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_199_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 19901
+    semantics: "toggles PMDG NG3 switch (WING-BODY OVHT TEST Switch, L:switch_199_73X) via ROTOR_BRAKE carrier event, param=19901; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_199_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ife_pass_switch
+  # IFE/PASS Switch (L:switch_06_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_06_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 601
+    semantics: "toggles PMDG NG3 switch (IFE/PASS Switch, L:switch_06_73X) via ROTOR_BRAKE carrier event, param=601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_06_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hf2_receiver_knobswitch
+  # HF2 RECEIVER KnobSwitch (L:switch_876_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_876_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 87601
+    semantics: "toggles PMDG NG3 switch (HF2 RECEIVER KnobSwitch, L:switch_876_73X) via ROTOR_BRAKE carrier event, param=87601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_876_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.voice_recorder_switch
+  # VOICE RECORDER Switch (L:switch_2981_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2981_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 298101
+    semantics: "toggles PMDG NG3 switch (VOICE RECORDER Switch, L:switch_2981_73X) via ROTOR_BRAKE carrier event, param=298101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2981_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav1_receiver_switch_sw746
+  # NAV1 Receiver Switch (L:switch_746_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_746_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74601
+    semantics: "toggles PMDG NG3 switch (NAV1 Receiver Switch, L:switch_746_73X) via ROTOR_BRAKE carrier event, param=74601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_746_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.ca_right_arm_rest
+  # CA Right Arm Rest (L:switch_1007_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_1007_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 100701
+    semantics: "toggles PMDG NG3 switch (CA Right Arm Rest, L:switch_1007_73X) via ROTOR_BRAKE carrier event, param=100701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_1007_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fo_map_pull
+  # FO Map Pull (L:switch_896_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_896_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 89601
+    semantics: "toggles PMDG NG3 switch (FO Map Pull, L:switch_896_73X) via ROTOR_BRAKE carrier event, param=89601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_896_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.spkr_switch_sw751
+  # SPKR Switch (L:switch_751_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_751_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 75101
+    semantics: "toggles PMDG NG3 switch (SPKR Switch, L:switch_751_73X) via ROTOR_BRAKE carrier event, param=75101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_751_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.svc_receiver_switch_sw860
+  # SVC Receiver Switch (L:switch_860_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_860_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86001
+    semantics: "toggles PMDG NG3 switch (SVC Receiver Switch, L:switch_860_73X) via ROTOR_BRAKE carrier event, param=86001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_860_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.probe_heat_a_switch
+  # PROBE HEAT A Switch (L:switch_140_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_140_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 14001
+    semantics: "toggles PMDG NG3 switch (PROBE HEAT A Switch, L:switch_140_73X) via ROTOR_BRAKE carrier event, param=14001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_140_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf1_receiver_switch_sw855
+  # VHF1 Receiver Switch (L:switch_855_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_855_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 85501
+    semantics: "toggles PMDG NG3 switch (VHF1 Receiver Switch, L:switch_855_73X) via ROTOR_BRAKE carrier event, param=85501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_855_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.barometric_baro_reference_selector_outer_sw366
+  # BAROMETRIC (BARO) REFERENCE SELECTOR (outer) (L:switch_366_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_366_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 36601
+    semantics: "toggles PMDG NG3 switch (BAROMETRIC (BARO) REFERENCE SELECTOR (outer), L:switch_366_73X) via ROTOR_BRAKE carrier event, param=36601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_366_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_b_aft
+  # AUX FUEL B AFT (L:switch_2012_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2012_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201201
+    semantics: "toggles PMDG NG3 switch (AUX FUEL B AFT, L:switch_2012_73X) via ROTOR_BRAKE carrier event, param=201201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2012_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.yaw_damper_switch
+  # YAW DAMPER Switch (L:switch_63_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_63_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 6301
+    semantics: "toggles PMDG NG3 switch (YAW DAMPER Switch, L:switch_63_73X) via ROTOR_BRAKE carrier event, param=6301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_63_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.spkr_receiver_knobswitch
+  # SPKR RECEIVER KnobSwitch (L:switch_285_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_285_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28501
+    semantics: "toggles PMDG NG3 switch (SPKR RECEIVER KnobSwitch, L:switch_285_73X) via ROTOR_BRAKE carrier event, param=28501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_285_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.hyd_pump_b_eng_2_switch
+  # HYD PUMP B ENG 2 Switch (L:switch_166_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_166_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 16601
+    semantics: "toggles PMDG NG3 switch (HYD PUMP B ENG 2 Switch, L:switch_166_73X) via ROTOR_BRAKE carrier event, param=16601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_166_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav2_receiver_knobswitch
+  # NAV2 RECEIVER KnobSwitch (L:switch_281_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_281_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28101
+    semantics: "toggles PMDG NG3 switch (NAV2 RECEIVER KnobSwitch, L:switch_281_73X) via ROTOR_BRAKE carrier event, param=28101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_281_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.runway_turnoff_light_right_switch
+  # RUNWAY TURNOFF LIGHT RIGHT Switch (L:switch_116_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_116_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 11601
+    semantics: "toggles PMDG NG3 switch (RUNWAY TURNOFF LIGHT RIGHT Switch, L:switch_116_73X) via ROTOR_BRAKE carrier event, param=11601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_116_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.eng_2_reverse_thrust_lever
+  # ENG 2 Reverse Thrust Lever (L:switch_681_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_681_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 68101
+    semantics: "toggles PMDG NG3 switch (ENG 2 Reverse Thrust Lever, L:switch_681_73X) via ROTOR_BRAKE carrier event, param=68101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_681_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.equipment_cooling_exhaust_switch
+  # EQUIPMENT COOLING EXHAUST Switch (L:switch_97_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_97_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 9701
+    semantics: "toggles PMDG NG3 switch (EQUIPMENT COOLING EXHAUST Switch, L:switch_97_73X) via ROTOR_BRAKE carrier event, param=9701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_97_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fo_left_arm_rest
+  # FO Left Arm Rest (L:switch_1008_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_1008_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 100801
+    semantics: "toggles PMDG NG3 switch (FO Left Arm Rest, L:switch_1008_73X) via ROTOR_BRAKE carrier event, param=100801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_1008_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.alternate_gear_extension_door_ng3
+  # Alternate gear extension door NG3 (L:switch_2002_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2002_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 200201
+    semantics: "toggles PMDG NG3 switch (Alternate gear extension door NG3, L:switch_2002_73X) via ROTOR_BRAKE carrier event, param=200201; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2002_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.engine_2_fire_warning_lock_switch
+  # Engine 2 Fire Warning Lock Switch (L:switch_978_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_978_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 97801
+    semantics: "toggles PMDG NG3 switch (Engine 2 Fire Warning Lock Switch, L:switch_978_73X) via ROTOR_BRAKE carrier event, param=97801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_978_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.adf1_receiver_switch_sw864
+  # ADF1 Receiver Switch (L:switch_864_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_864_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86401
+    semantics: "toggles PMDG NG3 switch (ADF1 Receiver Switch, L:switch_864_73X) via ROTOR_BRAKE carrier event, param=86401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_864_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.window_heat_left_fwd_switch
+  # WINDOW HEAT LEFT FWD Switch (L:switch_136_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_136_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 13601
+    semantics: "toggles PMDG NG3 switch (WINDOW HEAT LEFT FWD Switch, L:switch_136_73X) via ROTOR_BRAKE carrier event, param=13601; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_136_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.spkr_switch_sw867
+  # SPKR Switch (L:switch_867_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_867_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86701
+    semantics: "toggles PMDG NG3 switch (SPKR Switch, L:switch_867_73X) via ROTOR_BRAKE carrier event, param=86701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_867_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flt_receiver_knobswitch
+  # FLT RECEIVER KnobSwitch (L:switch_288_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_288_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 28801
+    semantics: "toggles PMDG NG3 switch (FLT RECEIVER KnobSwitch, L:switch_288_73X) via ROTOR_BRAKE carrier event, param=28801; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_288_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.altitude_alt_source_selector
+  # Altitude ALT SOURCE Selector (L:switch_803_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_803_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 80301
+    semantics: "toggles PMDG NG3 switch (Altitude ALT SOURCE Selector, L:switch_803_73X) via ROTOR_BRAKE carrier event, param=80301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_803_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.aux_fuel_aft_bleed
+  # AUX FUEL AFT BLEED (L:switch_2014_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_2014_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 201401
+    semantics: "toggles PMDG NG3 switch (AUX FUEL AFT BLEED, L:switch_2014_73X) via ROTOR_BRAKE carrier event, param=201401; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_2014_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.cab_util_switch
+  # CAB UTIL Switch (L:switch_05_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_05_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 501
+    semantics: "toggles PMDG NG3 switch (CAB UTIL Switch, L:switch_05_73X) via ROTOR_BRAKE carrier event, param=501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_05_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.nav2_receiver_switch_sw747
+  # NAV2 Receiver Switch (L:switch_747_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_747_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74701
+    semantics: "toggles PMDG NG3 switch (NAV2 Receiver Switch, L:switch_747_73X) via ROTOR_BRAKE carrier event, param=74701; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_747_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.flt_receiver_switch_sw743
+  # FLT Receiver Switch (L:switch_743_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_743_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74301
+    semantics: "toggles PMDG NG3 switch (FLT Receiver Switch, L:switch_743_73X) via ROTOR_BRAKE carrier event, param=74301; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_743_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.vhf2_receiver_switch_sw740
+  # VHF2 Receiver Switch (L:switch_740_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_740_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 74001
+    semantics: "toggles PMDG NG3 switch (VHF2 Receiver Switch, L:switch_740_73X) via ROTOR_BRAKE carrier event, param=74001; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_740_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.fo_adf2_receiver_switch
+  # FO ADF2 Receiver Switch (L:switch_865_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_865_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 86501
+    semantics: "toggles PMDG NG3 switch (FO ADF2 Receiver Switch, L:switch_865_73X) via ROTOR_BRAKE carrier event, param=86501; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_865_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: native_toggle.main_cargo_fire_arm_switch
+  # MAIN Cargo Fire ARM Switch (L:switch_7651_73X)
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:switch_7651_73X"
+    nativeType: bool
+  write:
+    type: nativeEventValue
+    name: "ROTOR_BRAKE"
+    parameter: 765101
+    semantics: "toggles PMDG NG3 switch (MAIN Cargo Fire ARM Switch, L:switch_7651_73X) via ROTOR_BRAKE carrier event, param=765101; ported from YourControls' proven mapping. No absolute SET available -- PMDG only exposes a toggle pulse for this switch. Read confirmation now available via simulator/wasm-bridge (L:switch_7651_73X), pending install/validation against real MSFS."
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150

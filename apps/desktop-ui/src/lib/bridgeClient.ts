@@ -47,9 +47,18 @@ export interface SimulatorBridgeState {
   reconnecting: boolean;
   /** Último aircraft.snapshot recibido (o generado en mock), si alguno. */
   snapshot: AircraftSnapshot | null;
+  detectedProfileId: string | null;
+  simulatorVersion: "msfs2020" | "msfs2024" | null;
   /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
   controls: Record<string, BridgeControlValue>;
   lastMessageAt: number | null;
+  /**
+   * Envía un control.event/control.axis al bridge local (ej. un cambio que
+   * llegó del compañero de vuelo por la sesión de red, ver useSessionSocket +
+   * Cockpit.tsx). No-op en modo mock (no hay bridge real al que escribir) y
+   * si el WebSocket no está abierto todavía.
+   */
+  send: (msg: ControlEvent | ControlAxis) => void;
 }
 
 const BRIDGE_WS_URL = "ws://localhost:7620";
@@ -65,14 +74,17 @@ export function resolveBridgeMode(): BridgeMode {
   return raw === "mock" ? "mock" : "real";
 }
 
-function emptyState(mode: BridgeMode): SimulatorBridgeState {
+function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis) => void = () => {}): SimulatorBridgeState {
   return {
     mode,
     connectionState: "connecting",
     reconnecting: false,
     snapshot: null,
+    detectedProfileId: null,
+    simulatorVersion: null,
     controls: {},
     lastMessageAt: null,
+    send,
   };
 }
 
@@ -81,6 +93,18 @@ function applyMessage(
   msg: SharedCockpitMessage
 ): SimulatorBridgeState {
   const now = Date.now();
+  if ((msg as unknown as { type: string }).type === "bridge.status") {
+    const status = msg as unknown as {
+      matchedProfileId?: string | null;
+      simulatorVersion?: "msfs2020" | "msfs2024";
+    };
+    return {
+      ...state,
+      lastMessageAt: now,
+      detectedProfileId: status.matchedProfileId ?? null,
+      simulatorVersion: status.simulatorVersion ?? null,
+    };
+  }
   if (msg.type === "control.event") {
     const event = msg as ControlEvent;
     return {
@@ -150,7 +174,14 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let connectStartedAt = 0;
 
-  setState(() => emptyState("real"));
+  function send(msg: ControlEvent | ControlAxis) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    ws.send(JSON.stringify(msg));
+  }
+
+  setState(() => emptyState("real", send));
 
   function clearReconnectTimer() {
     if (reconnectTimer) {
@@ -262,6 +293,8 @@ function runMockBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
         profile: "mock-generic-aircraft",
         systems: {},
       },
+      detectedProfileId: "mock-generic-aircraft",
+      simulatorVersion: "msfs2020",
     }));
   }, 400);
 

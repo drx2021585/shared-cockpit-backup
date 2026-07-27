@@ -164,7 +164,7 @@ export const learnSteps = [
 export const requirements = [
   "Windows 10 or 11",
   "MSFS 2020 or 2024",
-  "The Shared Cockpit app installed",
+  "The We Connect app installed",
   "The same aircraft as your friend, plus an internet connection",
 ];
 

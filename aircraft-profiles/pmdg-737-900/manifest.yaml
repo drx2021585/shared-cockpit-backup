@@ -7,7 +7,7 @@ aircraft:
 
 compatibility:
   msfs2020: true
-  msfs2024: true
+  msfs2024: false
 
 versions:
   minimum: "1.0.0"
@@ -24,17 +24,79 @@ detection:
     - "PMDG 737-900"
     - "PMDG 737-900ER"
 
-# Nivel de cobertura por sistema. Este perfil usa únicamente SimConnect
+# Nivel de cobertura por sistema. Este perfil usa mayormente SimConnect
 # estándar (simvars/eventos K:), NO la Client Data Area / SDK oficial de PMDG
-# (bloqueado — ver docs/plan-maestro.md Fase 7). Por lo tanto ningún sistema
-# se declara "full": los mapeos estándar no reflejan fielmente la lógica
-# interna del FMC/EFIS de PMDG. Mantener conservador hasta validar en el sim
-# real y, si aplica, integrar el SDK oficial.
+# (bloqueado — ver docs/plan-maestro.md Fase 7), salvo un número creciente de
+# campos que ya usan sdkTier: clientDataArea (ver controls/electrical.yaml,
+# controls/hydraulics.yaml, controls/lights.yaml, controls/fms.yaml,
+# controls/engine.yaml, controls/fuel.yaml, controls/air.yaml,
+# controls/cabin-misc.yaml, más adiciones en controls/flight-controls.yaml,
+# controls/autopilot.yaml, controls/radios.yaml). De todos esos, solo DOS
+# controles eran escribibles vía el SDK real: lights.taxi
+# (EVT_OH_LIGHTS_TAXI=69749) y lights.logo (EVT_OH_LIGHTS_LOGO=69754,
+# agregado 2026-07-26, ver controls/lights.yaml).
+#
+# ACTUALIZACIÓN 2026-07-26 (misma fecha, sesión posterior) — con
+# apps/desktop-ui/Documentation/SDK/EVT_EVENT_IDS_FULL.txt (transcripción
+# completa del header, 842 #define con su comentario ORIGINAL, no solo
+# offsets calculados) se cruzaron sistemáticamente los EVT_OH_*/EVT_MCP_*/
+# EVT_IRU_* contra los campos ya leídos y se confirmaron por escrito ~100
+# Event IDs adicionales con semántica de SET explícito (booleano 0/1, o
+# selector con posiciones enumeradas documentadas en el comentario del campo
+# C, ej. "ELEC_BatSelector; // 0: OFF 1: BAT 2: ON"). Se convirtieron 96
+# controles de readOnly a read+write reales: electrical (14), hydraulics
+# (4), fuel (14), lights (12), fms (7), engine (2), cabin-misc (6), air (25),
+# más 7 controles NUEVOS writeOnly en autopilot (MCP_*_SET, heading/altitude/
+# course/speed/mach/VS con set absoluto documentado) y 140 controles NUEVOS
+# writeOnly en controls/mcdu.yaml (teclado completo del CDU, EVT_CDU_L_*/
+# EVT_CDU_R_*, patrón aprobado en packages/profile-schema/README.md). El
+# resto de campos ELEC_*/HYD_*/LTS_*/IRS_*/NAVDIS_*/ENG_*/APU_*/FUEL_*/AIR_*/
+# ICE_*/FCTL_*/AFS_*/ADF_*/WARN_*/COMM_*/OXY_*/GEAR_*/FLTREC_*/CVR_*/OH_*/
+# DOOR_* sigue readOnly: true (mayormente anunciadores/displays sin sentido
+# de escribir, o campos sin Event ID con semántica clara identificado). NADA
+# de esto fue confirmado EN VIVO contra MSFS+PMDG real todavía (nadie ha
+# abierto el sim en este entorno) -- ver EVENT_IDS_PENDIENTES.md para el
+# checklist de validación en vivo pendiente antes de un vuelo real. Campos
+# float/int del struct (needles, cantidades de combustible,
+# APU_EGTNeedle, ICE_WindowHeatTestSw) quedaron deliberadamente sin mapear:
+# packages/profile-schema/control.schema.json "nativeType" hoy solo admite
+# bool/uchar/uint/char_array -- ampliarlo requiere coordinar con el
+# orchestrator (contrato compartido). Por lo tanto ningún sistema se declara
+# "full": los mapeos estándar no reflejan fielmente la lógica interna del
+# FMC/EFIS de PMDG. Mantener conservador hasta validar en el sim real y, si
+# aplica, integrar el SDK oficial.
 capabilities:
   flightControls: partial
   autopilot: partial
+  # electrical: partial ya venía de los switches SimConnect estándar
+  # (battery/apu_master/avionics_master, escribibles). 2026-07-25 se agregó
+  # un tramo grande de solo-lectura (controls/electrical.yaml, campos ELEC_*
+  # vía Client Data Area PMDG_NG3_Data). 2026-07-26: 14 de esos 40 campos se
+  # confirmaron por escrito contra EVT_EVENT_IDS_FULL.txt y se convirtieron
+  # a escribibles (bat_selector, gen_sw_1/2, apu_gen_sw_1/2, etc, ver
+  # capabilities.yaml). Nivel se mantiene "partial" (no todo el sistema es
+  # escribible, y nada verificado EN VIVO todavía).
   electrical: partial
-  hydraulics: none
+  # hydraulics: subido de "none" a "partial" el 2026-07-25. controls/
+  # hydraulics.yaml agrega 10 controles (HYD_annunLOW_PRESS_eng/elec,
+  # HYD_annunOVERHEAT_elec, HYD_PumpSw_eng/elec) vía Client Data Area
+  # PMDG_NG3_Data. 2026-07-26: los 4 switches HYD_PumpSw_eng/elec se
+  # confirmaron por escrito (EVT_OH_HYD_ENG1/ENG2/ELEC1/ELEC2) y se
+  # convirtieron a escribibles; los 6 anunciadores siguen readOnly. Nivel se
+  # mantiene "partial" (4/10 escribibles, nada verificado EN VIVO).
+  hydraulics: partial
   radios: partial
-  mcdu: none
+  # mcdu: subido de "none" a "partial" el 2026-07-26 -- screens/cdu.yaml agrega
+  # las DOS pantallas del CDU (cdu_captain/PMDG_NG3_CDU_0, cdu_fo/
+  # PMDG_NG3_CDU_1, 14x24, Symbol/Color/Flags) vía Client Data Area, en modo
+  # ESTRICTAMENTE readOnly: true (ver packages/profile-schema/screen.schema.json
+  # y docs/plan-737-fullsync-2026-07-25.md). Misma fecha, sesión posterior:
+  # se agregó controls/mcdu.yaml con 140 controles writeOnly: true (uno por
+  # tecla física del teclado L/R, EVT_CDU_L_*/EVT_CDU_R_*, patrón aprobado en
+  # packages/profile-schema/README.md). Sigue siendo "partial" y no "full":
+  # ningún Event ID de botón fue confirmado EN VIVO contra MSFS+PMDG real
+  # (riesgo real de enviar la tecla equivocada al FMC si el mapeo resultara
+  # incorrecto), y las dimensiones/offsets de pantalla tampoco están
+  # confirmados en vivo.
+  mcdu: partial
   failures: none

@@ -3,30 +3,117 @@
   "$id": "https://shared-cockpit/profile-schema/control.schema.json",
   "title": "AircraftControlDefinition",
   "type": "object",
-  "required": ["id", "dataType", "authority", "read", "write", "synchronization"],
+  "required": ["id", "dataType", "authority", "synchronization"],
   "properties": {
     "id": { "type": "string", "description": "ej. overhead.beacon" },
     "dataType": { "type": "string", "enum": ["boolean", "number", "string"] },
     "authority": {
       "type": "string",
-      "enum": ["exclusive", "shared", "captain-only", "first-officer-only", "instructor-only", "local-only"]
+      "enum": ["exclusive", "shared", "captain-only", "first-officer-only", "instructor-only", "local-only"],
+      "description": "Para controles solo-lectura (readOnly: true, sin 'write') este campo se conserva por consistencia estructural pero es semánticamente irrelevante: no hay ninguna escritura cuya autoridad arbitrar, el valor simplemente refleja lo que reporta el simulador/addon para todos los jugadores por igual. Convención del proyecto: declarar 'shared' en ese caso salvo que exista una razón documentada para otro valor."
+    },
+    "readOnly": {
+      "type": "boolean",
+      "description": "Marca EXPLÍCITA de que este control es intencionalmente de solo lectura (ej. anunciadores/indicadores del PMDG NG3 SDK que no tienen Event ID de escritura porque no tiene sentido 'escribir' una luz de aviso). Debe ser 'true' si y solo si el control no declara 'write' — se exige explícito (en vez de inferirlo solo de la ausencia de 'write') para que un perfil incompleto por accidente (a alguien se le olvidó agregar 'write') falle la validación en vez de colarse silenciosamente como 'solo lectura'. Un control con 'write' presente no debe declarar 'readOnly: true' (contradicción)."
+    },
+    "writeOnly": {
+      "type": "boolean",
+      "description": "Marca EXPLÍCITA de que este control es intencionalmente de solo escritura (ej. botones momentáneos del teclado del CDU/MCDU del PMDG NG3 SDK: EVT_CDU_L_EXEC y similares, ver packages/profile-schema/README.md sección Botones momentáneos). Un press no deja un valor persistente con sentido de releer/confirmar, así que no declara 'read'. Debe ser 'true' si y solo si el control no declara 'read' — mismo patrón explícito-y-obligatorio que 'readOnly' (evita que a alguien se le olvide el bloque 'read' de un control que sí debería tenerlo). Un control con 'read' presente no debe declarar 'writeOnly: true' (contradicción). Un control 'writeOnly: true' DEBE declarar 'write' (no tiene sentido un control sin read ni write)."
+    },
+    "sdkTier": {
+      "type": "string",
+      "enum": ["standardSimConnect", "clientDataArea"],
+      "default": "standardSimConnect",
+      "description": "Si se omite se asume 'standardSimConnect' (retrocompatible). 'clientDataArea' declara que el control requiere un SDK de terceros (ej. PMDG_NG3_SDK.h) con EnableDataBroadcast=1 activo en el addon; el bridge debe poder hacer fallback si el usuario no lo tiene habilitado."
     },
     "read": {
       "type": "object",
-      "required": ["type", "name"],
-      "properties": {
-        "type": { "type": "string", "enum": ["simvar", "lvar", "hvar"] },
-        "name": { "type": "string" }
-      }
+      "description": "Unión: forma estándar (simvar/lvar/hvar + name) o forma clientDataArea (SDK de terceros, ej. PMDG_NG3_Data).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "type": "string", "enum": ["simvar", "lvar", "hvar"] },
+            "name": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "areaName", "field", "nativeType"],
+          "properties": {
+            "type": { "type": "string", "const": "clientDataArea" },
+            "areaName": { "type": "string", "description": "Nombre del Client Data Area del SDK de terceros, ej. \"PMDG_NG3_Data\"." },
+            "field": { "type": "string", "description": "Nombre del campo C del struct, ej. \"IRS_ModeSelector\"." },
+            "arrayIndex": { "type": "integer", "minimum": 0, "description": "Índice, si field es un array C (ej. IRS_ModeSelector[2])." },
+            "nativeType": {
+              "type": "string",
+              "enum": ["bool", "uchar", "uint", "char_array", "float", "int"],
+              "description": "Tipo nativo del campo C, usado por el bridge para calcular offset/tamaño dentro del struct binario."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "write": {
       "type": "object",
-      "required": ["type", "name"],
-      "properties": {
-        "type": { "type": "string", "enum": ["inputEvent", "hvar", "calculatorCode"] },
-        "name": { "type": "string" }
-      },
-      "description": "type NUNCA debe representar un pulso TOGGLE crudo para interruptores sincronizables; usar equivalentes SET_ON/SET_OFF/SET_VALUE."
+      "description": "OPCIONAL. Unión: forma estándar (inputEvent/hvar/calculatorCode + name) o forma clientDataEvent (SDK de terceros, ej. PMDG_NG3_Control). Si se omite, el control es de solo lectura y DEBE declarar 'readOnly: true' (ver descripción de esa propiedad). Cuando está presente, NUNCA debe representar un pulso TOGGLE crudo para interruptores sincronizables; usar equivalentes SET_ON/SET_OFF/SET_VALUE o, en clientDataEvent, un Event ID con efecto determinístico documentado en 'semantics'.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "type": "string", "enum": ["inputEvent", "hvar", "calculatorCode"] },
+            "name": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "name", "parameter", "semantics"],
+          "properties": {
+            "type": { "type": "string", "const": "nativeEventValue" },
+            "name": {
+              "type": "string",
+              "description": "Nombre de un evento NATIVO de SimConnect (ej. \"ROTOR_BRAKE\"), no propietario de un addon -- se transmite vía TransmitClientEvent estándar (sin Client Data Area). Algunos addons (ej. PMDG NG3) reutilizan un evento nativo genérico como \"bus\" de switches, codificando en 'parameter' cuál switch y qué acción."
+            },
+            "parameter": {
+              "type": "integer",
+              "description": "Valor numérico fijo (dwData) que se transmite junto al evento. A diferencia de un inputEvent simple (0/1 derivado del valor boolean en tiempo real), este valor es ESTÁTICO por control -- viene fijado aquí, documentado en 'semantics'."
+            },
+            "semantics": {
+              "type": "string",
+              "minLength": 1,
+              "description": "OBLIGATORIO. Descripción libre y auditable de qué hace este evento+parameter, igual que en clientDataEvent. Debe declarar explícitamente si es un TOGGLE crudo (permitido aquí solo cuando es la única vía de escritura documentada del addon, ej. PMDG NG3 vía ROTOR_BRAKE) -- nunca puede quedar como \"toggle\"/\"toggles\" a secas (ver tools/validate_profiles.py)."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "areaName", "event", "semantics"],
+          "properties": {
+            "type": { "type": "string", "const": "clientDataEvent" },
+            "areaName": { "type": "string", "description": "Nombre del Client Data Area de control del SDK de terceros, ej. \"PMDG_NG3_Control\"." },
+            "event": {
+              "description": "Valor numérico o nombre simbólico del campo Event del struct de control (ej. PMDG_NG3_Control.Event). Debe representar una acción con semántica de \"set\" explícita y determinística, nunca un TOGGLE genérico.",
+              "oneOf": [{ "type": "integer" }, { "type": "string" }]
+            },
+            "parameter": {
+              "description": "Valor o referencia opcional para el campo Parameter del struct de control.",
+              "oneOf": [{ "type": "integer" }, { "type": "string" }]
+            },
+            "semantics": {
+              "type": "string",
+              "minLength": 1,
+              "description": "OBLIGATORIO. Descripción libre y auditable de qué hace este Event, ej. \"sets IRS mode selector to NAV\". Existe para que un clientDataEvent quede tan auditable como un SET_ON/SET_OFF estándar y no se cuele un TOGGLE crudo disfrazado."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "synchronization": {
       "type": "object",
@@ -38,5 +125,59 @@
         "timeoutMs": { "type": "integer", "minimum": 0 }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "description": "Si no hay 'write', el control DEBE declarar 'readOnly: true' explícitamente (evita perfiles incompletos por accidente).",
+      "if": {
+        "not": { "required": ["write"] }
+      },
+      "then": {
+        "required": ["readOnly"],
+        "properties": {
+          "readOnly": { "const": true }
+        }
+      }
+    },
+    {
+      "description": "Si hay 'write', el control NO puede declarar 'readOnly: true' (sería contradictorio: un control escribible no es de solo lectura).",
+      "if": {
+        "required": ["write"]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "readOnly": { "const": true }
+          },
+          "required": ["readOnly"]
+        }
+      }
+    },
+    {
+      "description": "Si no hay 'read', el control DEBE declarar 'writeOnly: true' explícitamente (ej. botones momentáneos del CDU/MCDU sin estado persistente que leer; evita perfiles incompletos por accidente).",
+      "if": {
+        "not": { "required": ["read"] }
+      },
+      "then": {
+        "required": ["writeOnly", "write"],
+        "properties": {
+          "writeOnly": { "const": true }
+        }
+      }
+    },
+    {
+      "description": "Si hay 'read', el control NO puede declarar 'writeOnly: true' (sería contradictorio: un control legible no es de solo escritura).",
+      "if": {
+        "required": ["read"]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "writeOnly": { "const": true }
+          },
+          "required": ["writeOnly"]
+        }
+      }
+    }
+  ]
 }

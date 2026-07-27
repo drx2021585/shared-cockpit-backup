@@ -8,13 +8,10 @@ import {
   transferSteps,
   reliability,
   learnSteps,
+  currentVersion,
 } from "../data";
-import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 
 export function Home() {
-  const { profiles, loading } = useAircraftProfiles();
-  const featuredAircraft = profiles[0];
-
   return (
     <>
       {/* HERO */}
@@ -195,49 +192,24 @@ export function Home() {
           Each aircraft needs to be taught to the app once. You'll always see how well-supported a
           plane is before you fly it.
         </p>
-        <div className="grid-2">
-          <div>
-            <div className="mono-label" style={{ marginBottom: 24 }}>
-              Adding a new aircraft
+        <div style={{ maxWidth: 560 }}>
+          <div className="mono-label" style={{ marginBottom: 24 }}>
+            Adding a new aircraft
+          </div>
+          {learnSteps.map((step, i) => (
+            <div className="learn-step" key={step}>
+              <div className="learn-step-num">0{i + 1}</div>
+              <div className="learn-step-label">{step}</div>
             </div>
-            {learnSteps.map((step, i) => (
-              <div className="learn-step" key={step}>
-                <div className="learn-step-num">0{i + 1}</div>
-                <div className="learn-step-label">{step}</div>
-              </div>
-            ))}
-          </div>
-          <div>
-            {loading && <div className="aircraft-card-desc">Loading…</div>}
-            {!loading && featuredAircraft && (
-              <>
-                <div className="aircraft-card-head">
-                  <div className="aircraft-card-name">{featuredAircraft.name}</div>
-                  <div className="aircraft-card-pct">{featuredAircraft.coverage}%</div>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${featuredAircraft.coverage}%` }} />
-                </div>
-                <div className="aircraft-card-desc">
-                  {featuredAircraft.developer} · v{featuredAircraft.version} · MSFS{" "}
-                  {featuredAircraft.compatibility.msfs2020 && "2020"}
-                  {featuredAircraft.compatibility.msfs2020 && featuredAircraft.compatibility.msfs2024 && " & "}
-                  {featuredAircraft.compatibility.msfs2024 && "2024"}
-                </div>
-              </>
-            )}
-            {!loading && !featuredAircraft && (
-              <div className="aircraft-card-desc">No aircraft profile available yet.</div>
-            )}
-          </div>
+          ))}
         </div>
       </div>
 
       {/* CTA / v1 */}
       <div className="section">
         <div className="cta">
-          <div className="cta-version">First release · V0.0.1</div>
-          <div className="cta-copyright">© 2026 WeConnect. All rights reserved.</div>
+          <div className="cta-version">First release · V{currentVersion}</div>
+          <div className="cta-copyright">© 2026 We Connect. All rights reserved.</div>
         </div>
       </div>
     </>

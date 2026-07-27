@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const { autoUpdater } = require("electron-updater");
 
 // La app apunta al backend compartido en Railway por defecto (ver
@@ -53,6 +54,173 @@ ipcMain.handle("updater:check", () => {
 });
 ipcMain.handle("updater:download", () => autoUpdater.downloadUpdate());
 ipcMain.handle("updater:install", () => autoUpdater.quitAndInstall());
+ipcMain.handle("app:open-install-folder", () => shell.openPath(path.dirname(app.getPath("exe"))));
+
+// Reinicio real de la app (no solo cerrar el modal) -- usado por
+// FirstLaunchSetup.tsx tras "Launch We Connect", para que la app arranque de
+// nuevo limpia (relee config, reconecta bridge/sesión desde cero) en vez de
+// seguir corriendo con el estado que tenía mientras corría el asistente.
+ipcMain.handle("app:restart", () => {
+  app.relaunch();
+  app.exit(0);
+});
+
+// Controles de ventana propios (ver frame: false arriba) -- reemplazan los
+// botones nativos de minimizar/maximizar/cerrar de Windows por los 3 puntos
+// de la barra de título custom (TitleBar.tsx).
+ipcMain.handle("window:minimize", () => mainWindow?.minimize());
+ipcMain.handle("window:toggle-maximize", () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+});
+ipcMain.handle("window:close", () => mainWindow?.close());
+ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
+
+// ---------------------------------------------------------------------------
+// Asistente de primer inicio: pide la carpeta Community de MSFS e instala ahí
+// los paquetes reales que necesita We Connect (hoy: simulator/wasm-bridge,
+// ver ese README para qué hace y por qué existe). La config persiste en un
+// JSON simple en userData -- no hace falta una dependencia como
+// electron-store para dos campos.
+// ---------------------------------------------------------------------------
+
+const SETUP_CONFIG_FILENAME = "we-connect-setup.json";
+const INSTALLED_PACKAGE_FOLDER_NAME = "WeConnect";
+
+function getSetupConfigPath() {
+  return path.join(app.getPath("userData"), SETUP_CONFIG_FILENAME);
+}
+
+function readSetupConfig() {
+  try {
+    const raw = fs.readFileSync(getSetupConfigPath(), "utf-8");
+    const parsed = JSON.parse(raw);
+    return {
+      firstLaunchCompleted: parsed.firstLaunchCompleted === true,
+      communityPath: typeof parsed.communityPath === "string" ? parsed.communityPath : null,
+    };
+  } catch {
+    // No existe todavía (primer inicio real) o está corrupto -- se trata
+    // igual que "nunca configurado", nunca se crashea por esto.
+    return { firstLaunchCompleted: false, communityPath: null };
+  }
+}
+
+function writeSetupConfig(partial) {
+  const current = readSetupConfig();
+  const next = { ...current, ...partial };
+  fs.mkdirSync(app.getPath("userData"), { recursive: true });
+  fs.writeFileSync(getSetupConfigPath(), JSON.stringify(next, null, 2), "utf-8");
+  return next;
+}
+
+/**
+ * Carpeta de origen de los paquetes que se copian a Community. En desarrollo
+ * (no empaquetado) apunta directo al monorepo; empaquetado, a los
+ * extraResources declarados en package.json "build.extraResources".
+ */
+function getBundledCommunityPackagesDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "community-packages", "WeConnectBridge");
+  }
+  return path.join(__dirname, "..", "..", "..", "simulator", "wasm-bridge", "PackageSources");
+}
+
+/**
+ * Validación de la carpeta Community elegida por el usuario. No hay forma
+ * 100% confiable de confirmar "esto es Community de verdad" sin que MSFS
+ * exponga esa info -- el heurístico usado (nombre de carpeta "Community", o
+ * que ya contenga al menos un addon real con manifest.json) es el mismo tipo
+ * de señal que usan otros instaladores de addons de MSFS.
+ */
+function validateCommunityFolder(folderPath) {
+  if (!folderPath || typeof folderPath !== "string") {
+    return { ok: false, error: "No folder was provided." };
+  }
+
+  let stat;
+  try {
+    stat = fs.statSync(folderPath);
+  } catch {
+    return { ok: false, error: "That path does not exist." };
+  }
+
+  if (!stat.isDirectory()) {
+    return { ok: false, error: "That path is not a folder." };
+  }
+
+  try {
+    fs.accessSync(folderPath, fs.constants.W_OK);
+  } catch {
+    return { ok: false, error: "We Connect doesn't have write permission for that folder." };
+  }
+
+  const looksLikeCommunityByName = path.basename(folderPath).toLowerCase() === "community";
+  let containsAtLeastOnePackage = false;
+  try {
+    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+    containsAtLeastOnePackage = entries.some(
+      (entry) => entry.isDirectory() && fs.existsSync(path.join(folderPath, entry.name, "manifest.json")),
+    );
+  } catch {
+    containsAtLeastOnePackage = false;
+  }
+
+  if (!looksLikeCommunityByName && !containsAtLeastOnePackage) {
+    return {
+      ok: false,
+      error:
+        "This doesn't look like an MSFS Community folder. Pick the \"Community\" folder inside your " +
+        "Microsoft Flight Simulator Packages folder (it usually already contains other add-on folders).",
+    };
+  }
+
+  return { ok: true };
+}
+
+ipcMain.handle("setup:get-config", () => readSetupConfig());
+
+ipcMain.handle("setup:choose-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Select your MSFS Community folder",
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+
+ipcMain.handle("setup:validate-folder", (_event, folderPath) => validateCommunityFolder(folderPath));
+
+ipcMain.handle("setup:install-packages", (_event, folderPath) => {
+  const validation = validateCommunityFolder(folderPath);
+  if (!validation.ok) {
+    return { ok: false, error: validation.error };
+  }
+
+  const source = getBundledCommunityPackagesDir();
+  const destination = path.join(folderPath, INSTALLED_PACKAGE_FOLDER_NAME);
+
+  if (!fs.existsSync(source)) {
+    return { ok: false, error: `Bundled package not found at ${source}. Reinstall We Connect.` };
+  }
+
+  try {
+    fs.cpSync(source, destination, { recursive: true, force: true });
+  } catch (err) {
+    return { ok: false, error: `Could not copy files: ${err?.message ?? String(err)}` };
+  }
+
+  return { ok: true };
+});
+
+ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
+  writeSetupConfig({ firstLaunchCompleted: true, communityPath }),
+);
+
+ipcMain.handle("setup:reset", () => writeSetupConfig({ firstLaunchCompleted: false }));
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -60,12 +228,21 @@ function createWindow() {
     height: 800,
     backgroundColor: "#0a0a0a",
     autoHideMenuBar: true,
+    // Sin marco nativo de Windows (sin la X/cuadrado/guion de Windows) -- la
+    // barra de título la dibuja la propia UI (ver src/components/TitleBar.tsx),
+    // estilo macOS (3 puntos de color a la izquierda). Los botones de esa
+    // barra llaman a los handlers de abajo vía IPC para minimizar/maximizar/
+    // cerrar la ventana real.
+    frame: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.cjs"),
     },
   });
+
+  mainWindow.on("maximize", () => mainWindow?.webContents.send("window:state", { maximized: true }));
+  mainWindow.on("unmaximize", () => mainWindow?.webContents.send("window:state", { maximized: false }));
 
   const devServerUrl = process.env.ELECTRON_START_URL;
   if (devServerUrl) {

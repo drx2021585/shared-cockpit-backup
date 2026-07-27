@@ -6,8 +6,9 @@ systems:
     level: full
     controls: [yoke, rudder, trim, flaps]
   engine:
-    level: full
-    controls: [throttle, mixture, carb_heat, magnetos, starter]
+    level: partial
+    controls: [throttle, mixture]
+    missing: [carb_heat, magnetos, starter]
   electrical:
     level: partial
     controls: [master_battery, master_alternator, avionics_master]

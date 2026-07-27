@@ -116,7 +116,8 @@ public static class BridgeStatus
         bool simConnected,
         string? matchedProfileId,
         string? detectedTitle,
-        string? error)
+        string? error,
+        string simulatorVersion)
     {
         return new JsonObject
         {
@@ -124,6 +125,7 @@ public static class BridgeStatus
             ["simConnected"] = simConnected,
             ["matchedProfileId"] = matchedProfileId,
             ["detectedTitle"] = detectedTitle,
+            ["simulatorVersion"] = simulatorVersion,
             ["error"] = error,
             ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };

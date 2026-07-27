@@ -1,0 +1,2256 @@
+# Teclado del CDU/MCDU izquierdo (Captain) y derecho (First Officer) del PMDG
+# 737-900/900ER, generado programaticamente desde
+# apps/desktop-ui/Documentation/SDK/EVT_EVENT_IDS_FULL.txt (140 defines con
+# prefijo EVT_CDU_L_*/EVT_CDU_R_*, uno por tecla fisica: L1..L6, R1..R6,
+# digitos 0-9, letras A-Z, EXEC, CLR, DEL, y demas teclas del teclado alfa/
+# numerico + function keys). Patron writeOnly aprobado en
+# packages/profile-schema/README.md, seccion "Botones momentaneos" -- cada
+# tecla es un press momentaneo sin estado persistente que releer (writeOnly:
+# true, sin bloque read, parameter: 1 fijo, confirmAfterWrite: false).
+#
+# Todos los 140 Event IDs vienen literalmente de EVT_EVENT_IDS_FULL.txt (no
+# inventados). Convencion de id: "mcdu.captain.key_<tecla>" para EVT_CDU_L_*,
+# "mcdu.fo.key_<tecla>" para EVT_CDU_R_* (L=izquierdo=Captain,
+# R=derecho=First Officer, misma convencion L/R que el resto del perfil).
+# 2026-07-26.
+
+- id: mcdu.captain.key_l1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L1"
+    parameter: 1
+    semantics: "presses CDU L L1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L2"
+    parameter: 1
+    semantics: "presses CDU L L2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L3"
+    parameter: 1
+    semantics: "presses CDU L L3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L4"
+    parameter: 1
+    semantics: "presses CDU L L4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L5"
+    parameter: 1
+    semantics: "presses CDU L L5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L6"
+    parameter: 1
+    semantics: "presses CDU L L6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R1"
+    parameter: 1
+    semantics: "presses CDU L R1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R2"
+    parameter: 1
+    semantics: "presses CDU L R2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R3"
+    parameter: 1
+    semantics: "presses CDU L R3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R4"
+    parameter: 1
+    semantics: "presses CDU L R4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R5"
+    parameter: 1
+    semantics: "presses CDU L R5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R6"
+    parameter: 1
+    semantics: "presses CDU L R6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_init_ref
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_INIT_REF"
+    parameter: 1
+    semantics: "presses CDU L INIT REF key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_rte
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_RTE"
+    parameter: 1
+    semantics: "presses CDU L RTE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_clb
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_CLB"
+    parameter: 1
+    semantics: "presses CDU L CLB key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_crz
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_CRZ"
+    parameter: 1
+    semantics: "presses CDU L CRZ key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_des
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_DES"
+    parameter: 1
+    semantics: "presses CDU L DES key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_menu
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_MENU"
+    parameter: 1
+    semantics: "presses CDU L MENU key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_legs
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_LEGS"
+    parameter: 1
+    semantics: "presses CDU L LEGS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_dep_arr
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_DEP_ARR"
+    parameter: 1
+    semantics: "presses CDU L DEP ARR key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_hold
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_HOLD"
+    parameter: 1
+    semantics: "presses CDU L HOLD key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_prog
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_PROG"
+    parameter: 1
+    semantics: "presses CDU L PROG key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_exec
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_EXEC"
+    parameter: 1
+    semantics: "presses CDU L EXEC key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_n1_limit
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_N1_LIMIT"
+    parameter: 1
+    semantics: "presses CDU L N1 LIMIT key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_fix
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_FIX"
+    parameter: 1
+    semantics: "presses CDU L FIX key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_prev_page
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_PREV_PAGE"
+    parameter: 1
+    semantics: "presses CDU L PREV PAGE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_next_page
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_NEXT_PAGE"
+    parameter: 1
+    semantics: "presses CDU L NEXT PAGE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_1"
+    parameter: 1
+    semantics: "presses CDU L 1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_2"
+    parameter: 1
+    semantics: "presses CDU L 2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_3"
+    parameter: 1
+    semantics: "presses CDU L 3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_4"
+    parameter: 1
+    semantics: "presses CDU L 4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_5"
+    parameter: 1
+    semantics: "presses CDU L 5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_6"
+    parameter: 1
+    semantics: "presses CDU L 6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_7
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_7"
+    parameter: 1
+    semantics: "presses CDU L 7 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_8
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_8"
+    parameter: 1
+    semantics: "presses CDU L 8 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_9
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_9"
+    parameter: 1
+    semantics: "presses CDU L 9 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_dot
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_DOT"
+    parameter: 1
+    semantics: "presses CDU L DOT key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_0
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_0"
+    parameter: 1
+    semantics: "presses CDU L 0 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_plus_minus
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_PLUS_MINUS"
+    parameter: 1
+    semantics: "presses CDU L PLUS MINUS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_a
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_A"
+    parameter: 1
+    semantics: "presses CDU L A key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_b
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_B"
+    parameter: 1
+    semantics: "presses CDU L B key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_c
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_C"
+    parameter: 1
+    semantics: "presses CDU L C key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_d
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_D"
+    parameter: 1
+    semantics: "presses CDU L D key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_e
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_E"
+    parameter: 1
+    semantics: "presses CDU L E key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_f
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_F"
+    parameter: 1
+    semantics: "presses CDU L F key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_g
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_G"
+    parameter: 1
+    semantics: "presses CDU L G key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_h
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_H"
+    parameter: 1
+    semantics: "presses CDU L H key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_i
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_I"
+    parameter: 1
+    semantics: "presses CDU L I key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_j
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_J"
+    parameter: 1
+    semantics: "presses CDU L J key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_k
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_K"
+    parameter: 1
+    semantics: "presses CDU L K key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_l
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_L"
+    parameter: 1
+    semantics: "presses CDU L L key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_m
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_M"
+    parameter: 1
+    semantics: "presses CDU L M key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_n
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_N"
+    parameter: 1
+    semantics: "presses CDU L N key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_o
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_O"
+    parameter: 1
+    semantics: "presses CDU L O key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_p
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_P"
+    parameter: 1
+    semantics: "presses CDU L P key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_q
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_Q"
+    parameter: 1
+    semantics: "presses CDU L Q key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_r
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_R"
+    parameter: 1
+    semantics: "presses CDU L R key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_s
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_S"
+    parameter: 1
+    semantics: "presses CDU L S key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_t
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_T"
+    parameter: 1
+    semantics: "presses CDU L T key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_u
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_U"
+    parameter: 1
+    semantics: "presses CDU L U key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_v
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_V"
+    parameter: 1
+    semantics: "presses CDU L V key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_w
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_W"
+    parameter: 1
+    semantics: "presses CDU L W key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_x
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_X"
+    parameter: 1
+    semantics: "presses CDU L X key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_y
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_Y"
+    parameter: 1
+    semantics: "presses CDU L Y key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_z
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_Z"
+    parameter: 1
+    semantics: "presses CDU L Z key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_space
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_SPACE"
+    parameter: 1
+    semantics: "presses CDU L SPACE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_del
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_DEL"
+    parameter: 1
+    semantics: "presses CDU L DEL key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_slash
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_SLASH"
+    parameter: 1
+    semantics: "presses CDU L SLASH key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_clr
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_CLR"
+    parameter: 1
+    semantics: "presses CDU L CLR key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.captain.key_briteness
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_L_BRITENESS"
+    parameter: 1
+    semantics: "presses CDU L BRITENESS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L1"
+    parameter: 1
+    semantics: "presses CDU R L1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L2"
+    parameter: 1
+    semantics: "presses CDU R L2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L3"
+    parameter: 1
+    semantics: "presses CDU R L3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L4"
+    parameter: 1
+    semantics: "presses CDU R L4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L5"
+    parameter: 1
+    semantics: "presses CDU R L5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L6"
+    parameter: 1
+    semantics: "presses CDU R L6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R1"
+    parameter: 1
+    semantics: "presses CDU R R1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R2"
+    parameter: 1
+    semantics: "presses CDU R R2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R3"
+    parameter: 1
+    semantics: "presses CDU R R3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R4"
+    parameter: 1
+    semantics: "presses CDU R R4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R5"
+    parameter: 1
+    semantics: "presses CDU R R5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R6"
+    parameter: 1
+    semantics: "presses CDU R R6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_init_ref
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_INIT_REF"
+    parameter: 1
+    semantics: "presses CDU R INIT REF key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_rte
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_RTE"
+    parameter: 1
+    semantics: "presses CDU R RTE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_clb
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_CLB"
+    parameter: 1
+    semantics: "presses CDU R CLB key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_crz
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_CRZ"
+    parameter: 1
+    semantics: "presses CDU R CRZ key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_des
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_DES"
+    parameter: 1
+    semantics: "presses CDU R DES key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_menu
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_MENU"
+    parameter: 1
+    semantics: "presses CDU R MENU key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_legs
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_LEGS"
+    parameter: 1
+    semantics: "presses CDU R LEGS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_dep_arr
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_DEP_ARR"
+    parameter: 1
+    semantics: "presses CDU R DEP ARR key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_hold
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_HOLD"
+    parameter: 1
+    semantics: "presses CDU R HOLD key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_prog
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_PROG"
+    parameter: 1
+    semantics: "presses CDU R PROG key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_exec
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_EXEC"
+    parameter: 1
+    semantics: "presses CDU R EXEC key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_n1_limit
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_N1_LIMIT"
+    parameter: 1
+    semantics: "presses CDU R N1 LIMIT key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_fix
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_FIX"
+    parameter: 1
+    semantics: "presses CDU R FIX key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_prev_page
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_PREV_PAGE"
+    parameter: 1
+    semantics: "presses CDU R PREV PAGE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_next_page
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_NEXT_PAGE"
+    parameter: 1
+    semantics: "presses CDU R NEXT PAGE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_1"
+    parameter: 1
+    semantics: "presses CDU R 1 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_2"
+    parameter: 1
+    semantics: "presses CDU R 2 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_3"
+    parameter: 1
+    semantics: "presses CDU R 3 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_4"
+    parameter: 1
+    semantics: "presses CDU R 4 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_5
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_5"
+    parameter: 1
+    semantics: "presses CDU R 5 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_6
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_6"
+    parameter: 1
+    semantics: "presses CDU R 6 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_7
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_7"
+    parameter: 1
+    semantics: "presses CDU R 7 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_8
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_8"
+    parameter: 1
+    semantics: "presses CDU R 8 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_9
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_9"
+    parameter: 1
+    semantics: "presses CDU R 9 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_dot
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_DOT"
+    parameter: 1
+    semantics: "presses CDU R DOT key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_0
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_0"
+    parameter: 1
+    semantics: "presses CDU R 0 key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_plus_minus
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_PLUS_MINUS"
+    parameter: 1
+    semantics: "presses CDU R PLUS MINUS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_a
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_A"
+    parameter: 1
+    semantics: "presses CDU R A key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_b
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_B"
+    parameter: 1
+    semantics: "presses CDU R B key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_c
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_C"
+    parameter: 1
+    semantics: "presses CDU R C key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_d
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_D"
+    parameter: 1
+    semantics: "presses CDU R D key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_e
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_E"
+    parameter: 1
+    semantics: "presses CDU R E key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_f
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_F"
+    parameter: 1
+    semantics: "presses CDU R F key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_g
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_G"
+    parameter: 1
+    semantics: "presses CDU R G key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_h
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_H"
+    parameter: 1
+    semantics: "presses CDU R H key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_i
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_I"
+    parameter: 1
+    semantics: "presses CDU R I key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_j
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_J"
+    parameter: 1
+    semantics: "presses CDU R J key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_k
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_K"
+    parameter: 1
+    semantics: "presses CDU R K key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_l
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_L"
+    parameter: 1
+    semantics: "presses CDU R L key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_m
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_M"
+    parameter: 1
+    semantics: "presses CDU R M key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_n
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_N"
+    parameter: 1
+    semantics: "presses CDU R N key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_o
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_O"
+    parameter: 1
+    semantics: "presses CDU R O key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_p
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_P"
+    parameter: 1
+    semantics: "presses CDU R P key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_q
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_Q"
+    parameter: 1
+    semantics: "presses CDU R Q key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_r
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_R"
+    parameter: 1
+    semantics: "presses CDU R R key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_s
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_S"
+    parameter: 1
+    semantics: "presses CDU R S key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_t
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_T"
+    parameter: 1
+    semantics: "presses CDU R T key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_u
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_U"
+    parameter: 1
+    semantics: "presses CDU R U key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_v
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_V"
+    parameter: 1
+    semantics: "presses CDU R V key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_w
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_W"
+    parameter: 1
+    semantics: "presses CDU R W key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_x
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_X"
+    parameter: 1
+    semantics: "presses CDU R X key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_y
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_Y"
+    parameter: 1
+    semantics: "presses CDU R Y key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_z
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_Z"
+    parameter: 1
+    semantics: "presses CDU R Z key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_space
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_SPACE"
+    parameter: 1
+    semantics: "presses CDU R SPACE key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_del
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_DEL"
+    parameter: 1
+    semantics: "presses CDU R DEL key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_slash
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_SLASH"
+    parameter: 1
+    semantics: "presses CDU R SLASH key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_clr
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_CLR"
+    parameter: 1
+    semantics: "presses CDU R CLR key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+
+- id: mcdu.fo.key_briteness
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  writeOnly: true
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_CDU_R_BRITENESS"
+    parameter: 1
+    semantics: "presses CDU R BRITENESS key"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 150
+

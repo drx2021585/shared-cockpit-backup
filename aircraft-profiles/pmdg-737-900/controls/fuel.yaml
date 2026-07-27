@@ -1,0 +1,516 @@
+# Sistema de combustible del PMDG 737-900/900ER — capabilities.fuel:
+# capabilities.yaml lo tenía en "none"; este archivo lo sube a "partial de
+# solo lectura" (ver capabilities.yaml para el detalle honesto).
+#
+# Todos los campos "FUEL_*" de abajo tienen offset REAL transcrito EN ORDEN,
+# sin huecos, en apps/simulator-bridge/.../PmdgNg3DataLayout.cs (tramo
+# transcrito del struct PMDG_NG3_Data, entre ADF_StandbyFrequency y
+# ELEC_annunBAT_DISCHARGE). No se agregó ningún campo que no esté en esa
+# tabla.
+#
+# FUEL_FuelTempNeedle, FUEL_QtyCenter, FUEL_QtyLeft, FUEL_QtyRight (los 4
+# campos float del tramo) quedaron deliberadamente FUERA: nativeType hoy solo
+# admite bool/uchar/uint/char_array en control.schema.json -- no hay forma
+# honesta de declarar un campo float sin inventar un nativeType no soportado.
+# Ver EVENT_IDS_PENDIENTES.md, sección "Bloqueado por esquema".
+#
+# ACTUALIZACIÓN 2026-07-26 — con EVT_EVENT_IDS_FULL.txt (transcripción
+# completa del header, 842 #define con su comentario original) se
+# confirmaron por escrito 14 Event IDs EVT_OH_FUEL_* (bombas FWD/AFT/CTR,
+# crossfeed, AUX FWD/AFT A/B, FWD/AFT bleed, GND XFR) y se convirtieron esos
+# 14 controles de readOnly a escribibles (write.type: clientDataEvent contra
+# PMDG_NG3_Control). Los anunciadores (FUEL_annun*) permanecen readOnly: true
+# -- no tiene sentido escribir un anunciador. Sigue sin confirmación EN VIVO
+# contra MSFS+PMDG real -- ver EVENT_IDS_PENDIENTES.md.
+#
+# FUEL_PumpFwdSw[2]/FUEL_PumpAftSw[2]/FUEL_PumpCtrSw[2]/FUEL_AuxFwd[2]/
+# FUEL_AuxAft[2]/FUEL_annunENG_VALVE_CLOSED[2]/FUEL_annunSPAR_VALVE_CLOSED[2]/
+# FUEL_annunFILTER_BYPASS[2]/FUEL_annunLOWPRESS_Fwd[2]/
+# FUEL_annunLOWPRESS_Aft[2]/FUEL_annunLOWPRESS_Ctr[2]: convención de índice
+# neutral _1 (índice 0) / _2 (índice 1), SIN evidencia propia de a qué motor/
+# tanque físico corresponde cada índice -- misma convención que
+# electrical.yaml/hydraulics.yaml/engine.yaml.
+
+- id: fuel.crossfeed_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_CrossFeedSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_CROSSFEED"
+    semantics: "sets the CROSSFEED selector to the explicit boolean state being written (FUEL_CrossFeedSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_fwd_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpFwdSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_1_FORWARD"
+    semantics: "sets the LEFT FWD fuel pump switch to the explicit boolean state being written (FUEL_PumpFwdSw[0], header comment '38 - FUEL PUMP LEFT FWD Switch'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_fwd_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpFwdSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_2_FORWARD"
+    semantics: "sets the RIGHT FWD fuel pump switch to the explicit boolean state being written (FUEL_PumpFwdSw[1], header comment '39 - FUEL PUMP RIGHT FWD Switch'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_aft_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpAftSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_1_AFT"
+    semantics: "sets the LEFT AFT fuel pump switch to the explicit boolean state being written (FUEL_PumpAftSw[0], header comment '37 - FUEL PUMP LEFT AFT Switch'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_aft_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpAftSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_2_AFT"
+    semantics: "sets the RIGHT AFT fuel pump switch to the explicit boolean state being written (FUEL_PumpAftSw[1], header comment '40 - FUEL PUMP RIGHT AFT Switch'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_ctr_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpCtrSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_L_CENTER"
+    semantics: "sets the LEFT CENTER fuel pump switch to the explicit boolean state being written (FUEL_PumpCtrSw[0], header comment '45 - FUEL PUMP CENTER LEFT Switch'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.pump_ctr_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_PumpCtrSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_PUMP_R_CENTER"
+    semantics: "sets the RIGHT CENTER fuel pump switch to the explicit boolean state being written (FUEL_PumpCtrSw[1]); header comment for this define also literally reads '46 - FUEL PUMP CENTER LEFT Switch', which looks like a copy/paste typo in the PMDG header (should read RIGHT) -- matched by the event NAME (_R_CENTER) instead of the mislabeled comment; Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.aux_fwd_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_AuxFwd"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_AUX_FWD_A"
+    semantics: "sets the AUX FUEL A FWD switch to the explicit boolean state being written (FUEL_AuxFwd[0], header comment 'AUX FUEL A FWD'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.aux_fwd_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_AuxFwd"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_AUX_FWD_B"
+    semantics: "sets the AUX FUEL B FWD switch to the explicit boolean state being written (FUEL_AuxFwd[1], header comment 'AUX FUEL B FWD'); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.aux_aft_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_AuxAft"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_AUX_AFT_A"
+    semantics: "sets the AUX FUEL A AFT switch to the explicit boolean state being written (FUEL_AuxAft[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.aux_aft_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_AuxAft"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_AUX_AFT_B"
+    semantics: "sets the AUX FUEL B AFT switch to the explicit boolean state being written (FUEL_AuxAft[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.fwd_bleed
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_FWDBleed"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_FWD_BLD"
+    semantics: "sets the FWD AUX BLEED switch to the explicit boolean state being written (FUEL_FWDBleed); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.aft_bleed
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_AFTBleed"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_AFT_BLD"
+    semantics: "sets the AFT AUX BLEED switch to the explicit boolean state being written (FUEL_AFTBleed); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.gnd_xfr
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_GNDXfr"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_FUEL_GND_XFR_SW"
+    semantics: "sets the GND TRANSFER switch to the explicit boolean state being written (FUEL_GNDXfr); matched by NAME (the _SW suffix) despite the header's own comments for EVT_OH_FUEL_GND_XFR_GUARD/EVT_OH_FUEL_GND_XFR_SW looking swapped ('2018 - GND TRANSFER' / '2019 - GND TRANSFER GUARD') -- used the symbol name, not the possibly mislabeled comment; Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fuel.annun_eng_valve_closed_1
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunENG_VALVE_CLOSED"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_eng_valve_closed_2
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunENG_VALVE_CLOSED"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_spar_valve_closed_1
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunSPAR_VALVE_CLOSED"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_spar_valve_closed_2
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunSPAR_VALVE_CLOSED"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_filter_bypass_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunFILTER_BYPASS"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_filter_bypass_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunFILTER_BYPASS"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_xfeed_valve_open
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunXFEED_VALVE_OPEN"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_fwd_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Fwd"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_fwd_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Fwd"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_aft_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Aft"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_aft_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Aft"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_ctr_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Ctr"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.annun_lowpress_ctr_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FUEL_annunLOWPRESS_Ctr"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AuthorityManager } from "../src/authority.ts";
-import { SyncEngine, type IncomingControlEvent, type IncomingControlAxis } from "../src/engine.ts";
+import {
+  SyncEngine,
+  type IncomingControlEvent,
+  type IncomingControlAxis,
+  type IncomingScreenSnapshot,
+} from "../src/engine.ts";
 
 function makeAuthority() {
   const mgr = new AuthorityManager();
@@ -226,4 +231,75 @@ test("applyIncomingMessage: full A -> B -> A round trip never rebroadcasts and n
   if (mistakenLoopbackAtA.ok) {
     assert.equal(mistakenLoopbackAtA.rebroadcast, false);
   }
+});
+
+test("applyIncomingMessage: applies a screen.snapshot, stamps origin remote, and never rebroadcasts it", () => {
+  const engine = new SyncEngine({ authority: makeAuthority() });
+
+  const msg: IncomingScreenSnapshot = {
+    type: "screen.snapshot",
+    screenId: "cdu_captain",
+    rows: 14,
+    cols: 24,
+    cells: [],
+    powered: true,
+    revision: 1,
+    timestamp: 1000,
+  };
+
+  const result = engine.applyIncomingMessage(msg);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.message.origin, "remote");
+    assert.equal(result.rebroadcast, false, "un screen.snapshot remoto jamás debe reenviarse como cambio local");
+  }
+});
+
+test("applyIncomingMessage: discards a screen.snapshot whose revision is <= the last one seen", () => {
+  const engine = new SyncEngine({ authority: makeAuthority() });
+
+  const first: IncomingScreenSnapshot = {
+    type: "screen.snapshot",
+    screenId: "cdu_fo",
+    rows: 14,
+    cols: 24,
+    cells: [],
+    revision: 5,
+  };
+  assert.equal(engine.applyIncomingMessage(first).ok, true);
+
+  // Misma revisión (duplicado / eco fuera de orden) -> se descarta.
+  const duplicate = { ...first, revision: 5, powered: true };
+  const dupResult = engine.applyIncomingMessage(duplicate);
+  assert.equal(dupResult.ok, false);
+  if (!dupResult.ok) assert.equal(dupResult.reason, "duplicate-or-out-of-order");
+
+  // Revisión vieja (llegó tarde / fuera de orden) -> se descarta también.
+  const stale = { ...first, revision: 3 };
+  const staleResult = engine.applyIncomingMessage(stale);
+  assert.equal(staleResult.ok, false);
+  if (!staleResult.ok) assert.equal(staleResult.reason, "duplicate-or-out-of-order");
+
+  // Una revisión mayor sí debe aplicarse.
+  const next = { ...first, revision: 6 };
+  assert.equal(engine.applyIncomingMessage(next).ok, true);
+});
+
+test("applyIncomingMessage: screen.snapshot dedup is scoped per screenId (captain vs first officer CDU)", () => {
+  const engine = new SyncEngine({ authority: makeAuthority() });
+
+  const captainCdu: IncomingScreenSnapshot = {
+    type: "screen.snapshot",
+    screenId: "cdu_captain",
+    rows: 14,
+    cols: 24,
+    cells: [],
+    revision: 1,
+  };
+  const foCdu: IncomingScreenSnapshot = { ...captainCdu, screenId: "cdu_fo", revision: 1 };
+
+  assert.equal(engine.applyIncomingMessage(captainCdu).ok, true);
+  // Misma revisión pero screenId distinto: no debe verse afectado por el
+  // estado del otro CDU.
+  assert.equal(engine.applyIncomingMessage(foCdu).ok, true);
 });

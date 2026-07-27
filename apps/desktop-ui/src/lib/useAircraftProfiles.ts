@@ -9,9 +9,11 @@ export interface AircraftProfilesState {
 
 /**
  * Trae el catálogo real de aeronaves desde server/api, que a su vez lo lee
- * de aircraft-profiles (manifest.yaml y capabilities.yaml de cada subcarpeta)
- * en disco. Si el backend no está corriendo, se refleja el error real — no
- * se rellena con datos de ejemplo.
+ * de aircraft-profiles (el bloque `capabilities` de manifest.yaml de cada
+ * subcarpeta, ver server/api/src/profiles.ts — capabilities.yaml NO se lee
+ * todavía, solo es documentación expandida para humanos/QA) en disco. Si el
+ * backend no está corriendo, se refleja el error real — no se rellena con
+ * datos de ejemplo.
  */
 export function useAircraftProfiles(): AircraftProfilesState {
   const [state, setState] = useState<AircraftProfilesState>({

@@ -12,3 +12,14 @@ __pycache__/
 *.pyc
 bin/
 obj/
+
+# Material de referencia de terceros (instalaciones propias de Darwin: SDK de
+# PMDG, YourControls) -- con derechos de autor de sus respectivos dueños, no
+# es código de este proyecto y no debe vivir en un repo público.
+apps/desktop-ui/recurso/
+apps/desktop-ui/Documentation/
+
+# Artefactos de build intermedios del módulo WASM (Module.obj y la copia de
+# trabajo del .wasm) -- el binario final que de verdad se distribuye vive en
+# simulator/wasm-bridge/PackageSources/modules/, ese sí se versiona.
+simulator/wasm-bridge/build/

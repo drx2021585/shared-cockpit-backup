@@ -1,7 +1,16 @@
 /**
  * Escanea el directorio aircraft-profiles (uno por subcarpeta) y calcula una
- * cobertura real a partir de capabilities.yaml — nada de porcentajes
- * inventados. Este es el mismo directorio que valida tools/validate_profiles.py.
+ * cobertura real a partir del bloque `capabilities` de manifest.yaml — nada
+ * de porcentajes inventados. Este es el mismo directorio que valida
+ * tools/validate_profiles.py.
+ *
+ * Nota: cada perfil también puede tener un capabilities.yaml con detalle
+ * expandido (controles concretos por sistema, qué falta) para uso humano/QA,
+ * pero ese archivo NO se lee aquí — la cobertura mostrada en la UI sale
+ * únicamente de manifest.yaml. Si capabilities.yaml y manifest.yaml
+ * divergen (ej. se agrega un sistema en uno y no en el otro), la UI no lo
+ * reflejará. Mantenerlos sincronizados es responsabilidad de
+ * aircraft-profiles-agent hasta que exista una única fuente de verdad.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";

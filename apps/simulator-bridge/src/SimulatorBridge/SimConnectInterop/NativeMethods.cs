@@ -107,4 +107,47 @@ internal static class NativeMethods
         IntPtr hSimConnect,
         uint requestId,
         string state);
+
+    // --- Client Data Area API (usada por PmdgClientDataClient para leer/escribir
+    // el SDK de terceros de PMDG NG3, ver PMDG_NG3_ConnectionTest.cpp de referencia).
+    // Firmas reproducidas del SimConnect.h público de la SDK de MSFS (estables
+    // desde FSX), NO específicas de PMDG: cualquier addon que publique un Client
+    // Data Area usa esta misma API.
+
+    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+    public static extern int SimConnect_MapClientDataNameToID(
+        IntPtr hSimConnect,
+        string szClientDataName,
+        uint clientDataId);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
+    public static extern int SimConnect_AddToClientDataDefinition(
+        IntPtr hSimConnect,
+        uint defineId,
+        uint dwOffset,
+        uint dwSizeOrType,
+        float fEpsilon,
+        uint datumId);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
+    public static extern int SimConnect_RequestClientData(
+        IntPtr hSimConnect,
+        uint clientDataId,
+        uint requestId,
+        uint defineId,
+        uint period,
+        uint flags,
+        uint origin,
+        uint interval,
+        uint limit);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
+    public static extern int SimConnect_SetClientData(
+        IntPtr hSimConnect,
+        uint clientDataId,
+        uint defineId,
+        uint flags,
+        uint dwReserved,
+        uint cbUnitSize,
+        IntPtr pDataSet);
 }

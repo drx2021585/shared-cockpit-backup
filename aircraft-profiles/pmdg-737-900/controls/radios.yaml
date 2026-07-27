@@ -62,3 +62,24 @@
     debounceMs: 100
     confirmAfterWrite: true
     timeoutMs: 500
+
+# --- Client Data Area de PMDG (PMDG_NG3_Data), campo ADF_StandbyFrequency --
+# solo lectura, 2026-07-26. Offset REAL transcrito en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs (entre NAVDIS_ControlPaneSelector
+# y FUEL_FuelTempNeedle). UInt (nativeType: uint, soportado por
+# control.schema.json), a diferencia de los floats de FUEL_Qty*/needles que
+# quedaron bloqueados por esquema (ver fuel.yaml/air.yaml). Sin Event ID de
+# escritura confirmado -- readOnly.
+- id: radios.adf_standby_frequency
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ADF_StandbyFrequency"
+    nativeType: uint
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

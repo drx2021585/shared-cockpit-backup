@@ -11,7 +11,7 @@ export function Download() {
         <h2 className="h2-sm">Download the app</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560 }}>
-        WeConnect isn't packaged as an installable app yet — you're using the web build
+        We Connect isn't packaged as an installable app yet — you're using the web build
         (<code style={{ fontFamily: "var(--font-mono)" }}>apps/desktop-ui</code>) directly. See{" "}
         <code style={{ fontFamily: "var(--font-mono)" }}>docs/decisiones/web-first.md</code> for
         the plan to wrap it with Tauri once the simulator bridge is real.

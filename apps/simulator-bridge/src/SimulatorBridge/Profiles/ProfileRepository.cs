@@ -169,20 +169,12 @@ public sealed class ProfileRepository
 
             if (over.Read is not null)
             {
-                target.Read = new ControlReadDefinition
-                {
-                    Type = ProfileEnumMapper.ReadType(over.Read.Type),
-                    Name = over.Read.Name,
-                };
+                target.Read = ToReadDefinition(over.Read);
             }
 
             if (over.Write is not null)
             {
-                target.Write = new ControlWriteDefinition
-                {
-                    Type = ProfileEnumMapper.WriteType(over.Write.Type),
-                    Name = over.Write.Name,
-                };
+                target.Write = ToWriteDefinition(over.Write);
             }
         }
     }
@@ -192,16 +184,18 @@ public sealed class ProfileRepository
         Id = dto.Id,
         DataType = ProfileEnumMapper.DataType(dto.DataType),
         Authority = ProfileEnumMapper.Authority(dto.Authority),
-        Read = new ControlReadDefinition
-        {
-            Type = ProfileEnumMapper.ReadType(dto.Read.Type),
-            Name = dto.Read.Name,
-        },
-        Write = new ControlWriteDefinition
-        {
-            Type = ProfileEnumMapper.WriteType(dto.Write.Type),
-            Name = dto.Write.Name,
-        },
+        SdkTier = ProfileEnumMapper.SdkTier(dto.SdkTier),
+        ReadOnly = dto.ReadOnly,
+        WriteOnly = dto.WriteOnly,
+        // dto.Read es null cuando el control declara writeOnly: true sin bloque
+        // 'read' (ej. los 140 botones momentáneos del CDU en controls/mcdu.yaml).
+        // No hay nada que convertir en ese caso -- el bridge nunca debe intentar
+        // suscribir/leerlo (ver BridgeService.SubscribeControls).
+        Read = dto.Read is null ? null : ToReadDefinition(dto.Read),
+        // dto.Write es null cuando el control declara readOnly: true sin bloque
+        // 'write' (ver control.schema.json). No hay nada que convertir en ese
+        // caso -- el bridge nunca debe intentar escribirlo (ver BridgeService).
+        Write = dto.Write is null ? null : ToWriteDefinition(dto.Write),
         Synchronization = new ControlSynchronization
         {
             Mode = ProfileEnumMapper.SyncMode(dto.Synchronization.Mode),
@@ -210,6 +204,72 @@ public sealed class ProfileRepository
             TimeoutMs = dto.Synchronization.TimeoutMs,
         },
     };
+
+    /// <summary>
+    /// Convierte la forma cruda del YAML a ControlReadDefinition, cubriendo tanto la
+    /// forma estándar (simvar/lvar/hvar + name) como clientDataArea (areaName/field/
+    /// arrayIndex/nativeType). Perfiles existentes sin los campos nuevos siguen
+    /// deserializando exactamente igual que antes (los campos nuevos quedan null).
+    /// </summary>
+    private static ControlReadDefinition ToReadDefinition(ControlReadDto dto)
+    {
+        var type = ProfileEnumMapper.ReadType(dto.Type);
+        if (type == ReadType.ClientDataArea)
+        {
+            return new ControlReadDefinition
+            {
+                Type = type,
+                AreaName = dto.AreaName,
+                Field = dto.Field,
+                ArrayIndex = dto.ArrayIndex,
+                NativeType = dto.NativeType is null ? null : ProfileEnumMapper.NativeType(dto.NativeType),
+            };
+        }
+
+        return new ControlReadDefinition
+        {
+            Type = type,
+            Name = dto.Name,
+        };
+    }
+
+    /// <summary>
+    /// Convierte la forma cruda del YAML a ControlWriteDefinition, cubriendo tanto la
+    /// forma estándar (inputEvent/hvar/calculatorCode + name) como clientDataEvent
+    /// (areaName/event/parameter/semantics).
+    /// </summary>
+    private static ControlWriteDefinition ToWriteDefinition(ControlWriteDto dto)
+    {
+        var type = ProfileEnumMapper.WriteType(dto.Type);
+        if (type == WriteType.ClientDataEvent)
+        {
+            return new ControlWriteDefinition
+            {
+                Type = type,
+                AreaName = dto.AreaName,
+                Event = dto.Event,
+                Parameter = dto.Parameter,
+                Semantics = dto.Semantics,
+            };
+        }
+
+        if (type == WriteType.NativeEventValue)
+        {
+            return new ControlWriteDefinition
+            {
+                Type = type,
+                Name = dto.Name,
+                Parameter = dto.Parameter,
+                Semantics = dto.Semantics,
+            };
+        }
+
+        return new ControlWriteDefinition
+        {
+            Type = type,
+            Name = dto.Name,
+        };
+    }
 
     private T Deserialize<T>(string path) where T : new()
     {

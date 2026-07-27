@@ -2,8 +2,27 @@ import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { useSimulatorBridge } from "../lib/bridgeClient";
-import { useEffect, useState } from "react";
-import { closeSession, type Session } from "../lib/apiClient";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  closeSession,
+  leaveSession,
+  requestControls,
+  giveControls,
+  type Session,
+  type SessionParticipant,
+} from "../lib/apiClient";
+import type { ControlAxis, ControlEvent } from "../../../../packages/protocol/types";
+
+/**
+ * Cuánto tiempo se suprime el reenvío de un valor que acabamos de aplicar
+ * porque llegó del compañero de vuelo -- evita el loop control.axis/event
+ * peer→bridge local→(se relee igual)→session→peer otra vez. 3s es generoso
+ * para el canal confiable (control.event, ~150ms de debounce en el bridge);
+ * para el canal rápido (control.axis, 20-60Hz) el valor exacto rara vez se
+ * repite dos veces seguidas de todos modos (ejes continuos), así que el
+ * riesgo real de este guard es solo para switches booleanos.
+ */
+const ECHO_SUPPRESSION_MS = 3000;
 
 interface CockpitProps {
   joinCode: string | null;
@@ -18,24 +37,91 @@ const SEAT_LABEL: Record<string, string> = {
   observer: "Observer",
 };
 
+/**
+ * `controlOwner`/`controlRequestedBy` en `Session` son un `seat`
+ * ("captain" | "first_officer"), no un `pilotName` (server/api los cambió a
+ * seat para poder resolver autoridad sin depender de nombres). Para mostrar
+ * algo útil en la UI, se resuelve el nombre del piloto sentado en ese seat;
+ * si nadie ocupa ese seat todavía, se cae al label genérico del seat.
+ */
+function seatOwnerLabel(seat: string | null, participants: SessionParticipant[]): string {
+  if (!seat) return "—";
+  const owner = participants.find((p) => p.seat === seat);
+  return owner ? owner.pilot_name : (SEAT_LABEL[seat] ?? seat);
+}
+
 export function Cockpit({
   joinCode,
   pilotName,
   initialSession = null,
   onSessionClosed,
 }: CockpitProps) {
-  const { connected, session, pingMs, sessionClosed } = useSessionSocket(
+  const bridge = useSimulatorBridge();
+  const localProfileId = bridge.detectedProfileId ?? bridge.snapshot?.profile ?? null;
+
+  // Valores (controlId -> {value, until}) que acabamos de escribir en el
+  // bridge local PORQUE llegaron del compañero de vuelo -- si el bridge los
+  // relee y los vuelve a emitir (mismo valor), no hay que reenviarlos a la
+  // sesión de red, o se generaría un eco infinito peer→yo→peer→yo...
+  const suppressEchoRef = useRef<Map<string, { value: unknown; until: number }>>(new Map());
+
+  const handlePeerControl = useCallback(
+    (msg: ControlEvent | ControlAxis) => {
+      suppressEchoRef.current.set(msg.controlId, { value: msg.value, until: Date.now() + ECHO_SUPPRESSION_MS });
+      bridge.send(msg);
+    },
+    [bridge],
+  );
+
+  const { connected, session, pingMs, sessionClosed, peerAircraft, send: sendToSession } = useSessionSocket(
     joinCode,
     pilotName,
     initialSession,
+    localProfileId,
+    bridge.simulatorVersion,
+    handlePeerControl,
   );
+
+  // Reenvía a la sesión de red cada valor NUEVO que aparece en el bridge
+  // local (un switch/eje que este piloto tocó, o que el propio simulador
+  // reportó) -- salvo que sea el eco de algo que acabamos de aplicar porque
+  // vino del compañero (ver suppressEchoRef arriba).
+  const prevControlsRef = useRef(bridge.controls);
+  useEffect(() => {
+    const prev = prevControlsRef.current;
+    prevControlsRef.current = bridge.controls;
+    if (!connected || !joinCode || !pilotName) return;
+
+    for (const [controlId, entry] of Object.entries(bridge.controls)) {
+      if (prev[controlId]?.updatedAt === entry.updatedAt) continue; // sin cambios desde el último render
+
+      const suppressed = suppressEchoRef.current.get(controlId);
+      if (suppressed && suppressed.value === entry.value) {
+        if (Date.now() < suppressed.until) {
+          continue; // eco del compañero, no reenviar
+        }
+        suppressEchoRef.current.delete(controlId); // expiró, ya no aplica
+      }
+
+      sendToSession({
+        type: entry.channel === "event" ? "control.event" : "control.axis",
+        sessionId: joinCode,
+        controlId,
+        value: entry.value,
+        source: pilotName,
+        sequence: Date.now(),
+        timestamp: Date.now(),
+      } as ControlEvent | ControlAxis);
+    }
+  }, [bridge.controls, connected, joinCode, pilotName, sendToSession]);
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles } = useAircraftProfiles();
-  const bridge = useSimulatorBridge();
   const [ipBlurred, setIpBlurred] = useState(true);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [sessionActionBusy, setSessionActionBusy] = useState(false);
+  const [sessionActionError, setSessionActionError] = useState<string | null>(null);
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
 
   useEffect(() => {
@@ -57,6 +143,34 @@ export function Cockpit({
     }
   }
 
+  async function handleLeaveSession() {
+    if (!joinCode || !pilotName) return;
+    setSessionActionBusy(true);
+    setSessionActionError(null);
+    try {
+      await leaveSession(joinCode, pilotName);
+      onSessionClosed?.();
+    } catch {
+      setSessionActionError("Could not leave the session. Please try again.");
+    } finally {
+      setSessionActionBusy(false);
+    }
+  }
+
+  async function handleControlAction(action: "request" | "give") {
+    if (!joinCode || !pilotName) return;
+    setSessionActionBusy(true);
+    setSessionActionError(null);
+    try {
+      if (action === "request") await requestControls(joinCode, pilotName);
+      else await giveControls(joinCode, pilotName);
+    } catch {
+      setSessionActionError("The control transfer could not be completed.");
+    } finally {
+      setSessionActionBusy(false);
+    }
+  }
+
   if (!joinCode || !pilotName) {
     return (
       <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
@@ -71,6 +185,28 @@ export function Cockpit({
   }
 
   const aircraft = session ? profiles.find((p) => p.id === session.aircraftProfileId) : undefined;
+  const isCreator = session?.creatorPilotName === pilotName;
+  const localParticipant = session?.participants.find((p) => p.pilot_name === pilotName);
+  const isObserver = localParticipant?.seat === "observer";
+  const hasControls = !!localParticipant && session?.controlOwner === localParticipant.seat;
+  const remotePilotNames = new Set(
+    session?.participants
+      .filter((participant) => participant.pilot_name !== pilotName && participant.seat !== "observer")
+      .map((participant) => participant.pilot_name) ?? []
+  );
+  const remotePilotAircraft = Object.entries(peerAircraft).find(([name]) =>
+    remotePilotNames.has(name)
+  )?.[1];
+  const aircraftMismatch =
+    !!localProfileId &&
+    (!!remotePilotAircraft
+      ? remotePilotAircraft.profileId !== localProfileId
+      : localProfileId !== session?.aircraftProfileId);
+  const simulatorMismatch =
+    !!bridge.simulatorVersion &&
+    (!!remotePilotAircraft?.simulatorVersion
+      ? remotePilotAircraft.simulatorVersion !== bridge.simulatorVersion
+      : bridge.simulatorVersion !== session?.sim);
 
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
@@ -78,8 +214,8 @@ export function Cockpit({
         <h2 className="h2-modal">In cockpit</h2>
         <button
           className="btn"
-          onClick={() => setConfirmCloseOpen(true)}
-          disabled={closingSession}
+          onClick={isCreator ? () => setConfirmCloseOpen(true) : handleLeaveSession}
+          disabled={closingSession || sessionActionBusy}
           style={{
             marginLeft: "auto",
             background: "#e24c4b",
@@ -87,7 +223,9 @@ export function Cockpit({
             padding: "7px 14px",
           }}
         >
-          {closingSession ? "Cerrando…" : "Cerrar la sesión"}
+          {isCreator
+            ? closingSession ? "Closing…" : "Close party"
+            : sessionActionBusy ? "Leaving…" : "Leave session"}
         </button>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
@@ -108,6 +246,39 @@ export function Cockpit({
             : "Reconnecting to the session server…"}
         </span>
       </div>
+
+      {(aircraftMismatch || simulatorMismatch) && (
+        <div
+          className="connected-banner"
+          style={{
+            borderColor: "rgba(226,182,76,0.45)",
+            background: "rgba(226,182,76,0.08)",
+            marginTop: 12,
+          }}
+        >
+          <span className="connected-dot" style={{ background: "#e2b64c" }} />
+          <span className="connected-label" style={{ color: "#e2b64c" }}>Setup mismatch</span>
+          <span className="connected-desc">
+            {aircraftMismatch && simulatorMismatch
+              ? "The pilots are using different aircraft and simulator versions. Match both before continuing."
+              : aircraftMismatch
+                ? "The pilots are using different aircraft. Match them before continuing."
+                : "The pilots are using different simulator versions. Match them before continuing."}
+          </span>
+        </div>
+      )}
+
+      {!aircraftMismatch && !simulatorMismatch && localProfileId && remotePilotAircraft && (
+        <div className="connected-banner" style={{ marginTop: 12 }}>
+          <span className="connected-dot" />
+          <span className="connected-label">Aircraft matched</span>
+          <span className="connected-desc">Both pilots are using the same aircraft and simulator version.</span>
+        </div>
+      )}
+
+      {sessionActionError && (
+        <div style={{ color: "#e24c4b", fontSize: 13, marginTop: 12 }}>{sessionActionError}</div>
+      )}
 
       <div className="grid-2">
         <div>
@@ -138,6 +309,42 @@ export function Cockpit({
               Waiting for a second pilot to join with code {session.joinCode}…
             </div>
           )}
+          <div style={{ marginTop: 22 }}>
+            <div className="mono-label" style={{ marginBottom: 10 }}>Flight controls</div>
+            <div className="net-row">
+              <div className="net-label">Currently flying</div>
+              <div className="net-value" style={{ color: "var(--accent)" }}>
+                {seatOwnerLabel(session?.controlOwner ?? null, session?.participants ?? [])}
+              </div>
+            </div>
+            {!isObserver && hasControls && session?.controlRequestedBy && (
+              <button
+                className="btn"
+                onClick={() => handleControlAction("give")}
+                disabled={sessionActionBusy || aircraftMismatch || simulatorMismatch}
+                style={{ marginTop: 12 }}
+              >
+                Give controls to {seatOwnerLabel(session.controlRequestedBy, session.participants)}
+              </button>
+            )}
+            {!isObserver && !hasControls && (
+              <button
+                className="btn"
+                onClick={() => handleControlAction("request")}
+                disabled={
+                  sessionActionBusy ||
+                  aircraftMismatch ||
+                  simulatorMismatch ||
+                  (!!localParticipant && session?.controlRequestedBy === localParticipant.seat)
+                }
+                style={{ marginTop: 12 }}
+              >
+                {!!localParticipant && session?.controlRequestedBy === localParticipant.seat
+                  ? "Controls requested"
+                  : "Request controls"}
+              </button>
+            )}
+          </div>
         </div>
 
         <div>

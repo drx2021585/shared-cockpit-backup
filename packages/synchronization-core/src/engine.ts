@@ -2,8 +2,9 @@
  * SyncEngine — punto de integración único para mensajes que llegan de red.
  *
  * `applyIncomingMessage` es la función que networking-agent (o quien conecte
- * el WebSocket al motor) debe llamar por cada `control.event`, `control.axis`
- * o `authority.transfer` recibido de un peer. Combina en un solo lugar:
+ * el WebSocket al motor) debe llamar por cada `control.event`, `control.axis`,
+ * `authority.transfer` o `screen.snapshot` recibido de un peer. Combina en un
+ * solo lugar:
  *
  *   1. Regla anti-TOGGLE (no negociable #1): rechaza escrituras de booleanos
  *      que serían un TOGGLE crudo antes que nada más — no debe ni consumir
@@ -60,10 +61,27 @@ export interface IncomingAuthorityTransfer {
   revision: number;
 }
 
+/** Forma alineada con packages/protocol/types.ts ScreenSnapshot. Solo lectura
+ *  (ej. CDU del PMDG 737 vía Client Data Area): no hay conflicto de autoridad
+ *  que arbitrar, el capitán "posee" la pantalla real y el primer oficial solo
+ *  la refleja. El único mecanismo que aplica es anti-ciclo + descarte de
+ *  snapshots viejos por `revision`, igual que `authority.transfer`. */
+export interface IncomingScreenSnapshot {
+  type: "screen.snapshot";
+  screenId: string;
+  rows: number;
+  cols: number;
+  cells: unknown[];
+  powered?: boolean;
+  revision: number;
+  timestamp?: number;
+}
+
 export type IncomingSyncMessage =
   | IncomingControlEvent
   | IncomingControlAxis
-  | IncomingAuthorityTransfer;
+  | IncomingAuthorityTransfer
+  | IncomingScreenSnapshot;
 
 export type StampedMessage<T extends IncomingSyncMessage> = T & { origin: "remote" };
 
@@ -115,6 +133,8 @@ export class SyncEngine {
         return this.applyControlAxis(raw);
       case "authority.transfer":
         return this.applyAuthorityTransfer(raw);
+      case "screen.snapshot":
+        return this.applyScreenSnapshot(raw);
     }
   }
 
@@ -180,6 +200,23 @@ export class SyncEngine {
     const result = this.authority.transfer(raw.group, raw.previousOwner, raw.newOwner);
     if (!result.ok) {
       return { ok: false, reason: "transfer-owner-mismatch" };
+    }
+
+    return this.finalize(raw, loopMsg);
+  }
+
+  private applyScreenSnapshot(raw: IncomingScreenSnapshot): ApplyResult<IncomingScreenSnapshot> {
+    // Solo lectura, sin dueño que arbitrar (regla no negociable #5 no aplica
+    // aquí: no hay "forzar estado", solo reflejar lo que el capitán ya ve).
+    // Se deduplica por screenId+revision, igual patrón que authority.transfer
+    // por group+revision: descarta snapshots viejos o fuera de orden.
+    const loopMsg: IncomingMessage = {
+      controlId: `screen.snapshot:${raw.screenId}`,
+      sequence: raw.revision,
+      origin: "remote",
+    };
+    if (!this.loopGuard.shouldApply(loopMsg)) {
+      return { ok: false, reason: "duplicate-or-out-of-order" };
     }
 
     return this.finalize(raw, loopMsg);

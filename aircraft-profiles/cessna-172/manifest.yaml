@@ -7,7 +7,7 @@ aircraft:
 
 compatibility:
   msfs2020: true
-  msfs2024: true
+  msfs2024: false
 
 versions:
   minimum: "1.0.0"

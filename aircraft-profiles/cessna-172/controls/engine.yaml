@@ -1,0 +1,44 @@
+# Motor — controles requeridos explícitamente por el MVP (docs/plan-maestro.md,
+# "Alcance del MVP": throttle). Antes de este archivo, capabilities.yaml
+# declaraba engine.level=full con [throttle, mixture, carb_heat, magnetos,
+# starter] pero NINGUNO de esos controles existía en controls/*.yaml — hueco
+# real, no solo de cobertura "partial" declarada.
+#
+# Solo se agregan aquí throttle y mixture: ambos tienen simvar de lectura y
+# evento K: de escritura explícito (SET), bien documentados y sin ambigüedad.
+# carb_heat, magnetos y starter se dejan pendientes (ver capabilities.yaml
+# "missing") porque el C172 usa un switch combinado de 5 posiciones
+# (OFF/R/L/BOTH/START) sin una variable de lectura simvar estándar simple y
+# confirmada — requiere validación real contra el sim (wasm-agent /
+# simconnect-bridge-agent) antes de declarar read/write, para no adivinar
+# nombres que rompan silenciosamente en vuelo real.
+
+- id: engine.throttle
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG THROTTLE LEVER POSITION:1"
+  write:
+    type: inputEvent
+    name: "THROTTLE1_SET"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 500
+
+- id: engine.mixture
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG MIXTURE LEVER POSITION:1"
+  write:
+    type: inputEvent
+    name: "MIXTURE1_SET"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 500

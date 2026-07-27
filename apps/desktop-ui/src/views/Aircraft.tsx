@@ -13,16 +13,21 @@ function statusFor(coverage: number): { label: string; color: string } {
 }
 
 function describeCapabilities(profile: AircraftProfile): string {
-  const full = Object.entries(profile.capabilities)
-    .filter(([, level]) => level === "full")
-    .map(([system]) => system);
-  const partial = Object.entries(profile.capabilities)
-    .filter(([, level]) => level === "partial")
-    .map(([system]) => system);
+  const levels = Object.values(profile.capabilities);
+  const hasFullSync = levels.includes("full");
+  const hasPartialSync = levels.includes("partial");
 
   const parts: string[] = [];
-  if (full.length) parts.push(`Full sync: ${full.join(", ")}.`);
-  if (partial.length) parts.push(`Partial sync: ${partial.join(", ")}.`);
+  if (hasFullSync) {
+    parts.push(
+      "Full sync: All supported controls and switches synchronize with your co-pilot and function as expected."
+    );
+  }
+  if (hasPartialSync) {
+    parts.push(
+      "Partial sync: Some controls and switches may not synchronize reliably yet. Full synchronization is coming in a future update."
+    );
+  }
   return parts.join(" ") || "No systems mapped yet.";
 }
 

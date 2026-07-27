@@ -28,6 +28,7 @@ public static class ProfileEnumMapper
         "simvar" => Profiles.ReadType.Simvar,
         "lvar" => Profiles.ReadType.Lvar,
         "hvar" => Profiles.ReadType.Hvar,
+        "clientDataArea" => Profiles.ReadType.ClientDataArea,
         _ => throw new NotSupportedException($"read.type desconocido en perfil: '{value}'"),
     };
 
@@ -36,6 +37,8 @@ public static class ProfileEnumMapper
         "inputEvent" => Profiles.WriteType.InputEvent,
         "hvar" => Profiles.WriteType.Hvar,
         "calculatorCode" => Profiles.WriteType.CalculatorCode,
+        "clientDataEvent" => Profiles.WriteType.ClientDataEvent,
+        "nativeEventValue" => Profiles.WriteType.NativeEventValue,
         _ => throw new NotSupportedException($"write.type desconocido en perfil: '{value}'"),
     };
 
@@ -44,5 +47,24 @@ public static class ProfileEnumMapper
         "event" => Profiles.SyncMode.Event,
         "polled" => Profiles.SyncMode.Polled,
         _ => throw new NotSupportedException($"synchronization.mode desconocido en perfil: '{value}'"),
+    };
+
+    /// <summary>Solo aplica a read.type=clientDataArea. Ver control.schema.json read.nativeType.</summary>
+    public static ClientDataNativeType NativeType(string value) => value switch
+    {
+        "bool" => ClientDataNativeType.Bool,
+        "uchar" => ClientDataNativeType.UChar,
+        "uint" => ClientDataNativeType.UInt,
+        "char_array" => ClientDataNativeType.CharArray,
+        _ => throw new NotSupportedException($"read.nativeType desconocido en perfil: '{value}'"),
+    };
+
+    /// <summary>Default StandardSimConnect si el control no declara sdkTier (retrocompatible).</summary>
+    public static ControlSdkTier SdkTier(string? value) => value switch
+    {
+        null => ControlSdkTier.StandardSimConnect,
+        "standardSimConnect" => ControlSdkTier.StandardSimConnect,
+        "clientDataArea" => ControlSdkTier.ClientDataArea,
+        _ => throw new NotSupportedException($"sdkTier desconocido en perfil: '{value}'"),
     };
 }

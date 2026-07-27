@@ -135,10 +135,10 @@ function ElectronUpdateModal({
             </h3>
             <p className="update-desc">
               {status === "checking" && "Talking to GitHub Releases."}
-              {status === "available" && `WeConnect v${event.version} is available — you're on v${currentVersion}.`}
-              {status === "not-available" && `WeConnect v${currentVersion} is the latest published version.`}
+              {status === "available" && `We Connect v${event.version} is available — you're on v${currentVersion}.`}
+              {status === "not-available" && `We Connect v${currentVersion} is the latest published version.`}
               {status === "downloading" && "Keep this window open — it'll install automatically when done."}
-              {status === "downloaded" && `WeConnect v${event.version} downloaded. Restart to finish installing.`}
+              {status === "downloaded" && `We Connect v${event.version} downloaded. Restart to finish installing.`}
               {status === "error" && event.message}
             </p>
           </div>
@@ -173,7 +173,7 @@ function ElectronUpdateModal({
           <div className="update-success-box">
             <span className="update-success-dot" />
             <p className="update-success-text">
-              <strong>WeConnect v{event.version}</strong> is installed. Restart to start flying on the newest build.
+              <strong>We Connect v{event.version}</strong> is installed. Restart to start flying on the newest build.
             </p>
           </div>
         )}
@@ -280,8 +280,8 @@ function WebUpdateModal({ open, onClose }: { open: boolean; onClose: () => void 
               {check.status === "error" && "No version or download information could be verified."}
               {check.status === "ready" &&
                 (upToDate
-                  ? `WeConnect v${currentVersion} is the latest published version.`
-                  : `DCS Interactive - We Connect div. has published WeConnect v${latestVersion}. The web build can't update itself — download the desktop app to get in-app auto-updates.`)}
+                  ? `We Connect v${currentVersion} is the latest published version.`
+                  : `DCS Interactive - We Connect div. has published We Connect v${latestVersion}. The web build can't update itself — download the desktop app to get in-app auto-updates.`)}
             </p>
           </div>
         </div>

@@ -7,31 +7,286 @@ systems:
   flightControls:
     level: partial
     controls: [yoke, rudder, trim, flaps, gear, spoilers]
-    missing: [flight_control_law_feedback]
+    # NOTA 2026-07-26: además de los controles SimConnect estándar de arriba,
+    # controls/flight-controls.yaml agrega 15 controles readOnly: true vía
+    # Client Data Area PMDG_NG3_Data (FCTL_FltControl_Sw[2]/Spoiler_Sw[2],
+    # FCTL_YawDamper_Sw, FCTL_AltnFlaps_Sw_ARM/Control_Sw,
+    # FCTL_annunFC_LOW_PRESSURE[2], FCTL_annunYAW_DAMPER/LOW_QUANTITY/
+    # LOW_PRESSURE/LOW_STBY_RUD_ON/FEEL_DIFF_PRESS/SPEED_TRIM_FAIL/
+    # MACH_TRIM_FAIL/AUTO_SLAT_FAIL -- offset real confirmado en
+    # PmdgNg3DataLayout.cs).
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito 4
+    # Event IDs -- se convirtieron fctl_spoiler_sw_1/2, fctl_yaw_damper_sw,
+    # fctl_altn_flaps_sw_arm, fctl_altn_flaps_control_sw (5 controles) de
+    # readOnly a escribibles. fctl_flt_control_sw_1/2 se dejaron pendientes a
+    # propósito (candidato con comentario "...Decrease", posible pulso
+    # relativo, ver EVENT_IDS_PENDIENTES.md). Sigue sin confirmación EN VIVO
+    # -- nivel se mantiene "partial" (5/15 escribibles del tramo FCTL_*).
+    missing: [flight_control_law_feedback, fctl_writes_not_verified_live]
   engine:
     level: partial
     controls: [throttle_lever, fuel_control_switches, engine_start_selector]
-    missing: [pmdg_fmc_engine_logic]
+    # NOTA 2026-07-26: además de los switches SimConnect estándar de arriba,
+    # controls/engine.yaml agrega 16 controles readOnly: true vía Client Data
+    # Area PMDG_NG3_Data (campos ENG_EECSwitch/annunREVERSER/
+    # annunENGINE_CONTROL/annunALTN/StartValve[2 cada uno],
+    # ENG_StartSelector[2], ENG_IgnitionSelector, APU_annunMAINT/
+    # annunLOW_OIL_PRESSURE/annunFAULT/annunOVERSPEED, APU_Selector — offset
+    # real confirmado en PmdgNg3DataLayout.cs). APU_EGTNeedle (float) quedó
+    # fuera: bloqueado por esquema, ver missing abajo.
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito
+    # EVT_OH_EEC_L_SWITCH/EVT_OH_EEC_R_SWITCH ("EEC" coincide literalmente
+    # con ENG_EECSwitch[2]) -- se convirtieron eec_switch_1/2 de readOnly a
+    # escribibles. ENG_StartValve/StartSelector/IgnitionSelector y todos los
+    # campos APU_* siguen readOnly: no se encontró un candidato con semántica
+    # suficientemente clara (EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/
+    # R_ENGINE_START podrían ser los switches reales pese al prefijo
+    # "LIGHTS", pero es solo una hipótesis por posición en el header, no
+    # confirmada -- ver EVENT_IDS_PENDIENTES.md). Sigue sin confirmación EN
+    # VIVO -- nivel se mantiene "partial" (2/16 escribibles).
+    missing: [pmdg_fmc_engine_logic, apu_egt_needle_blocked_by_schema_float, eng_start_selector_candidate_unconfirmed]
   electrical:
     level: partial
     controls: [battery, apu_master, apu_generator, external_power]
-    missing: [circuit_breakers_individual, pmdg_electrical_synoptics]
+    # NOTA 2026-07-25: además de los switches SimConnect estándar de arriba,
+    # controls/electrical.yaml agregó 40 controles vía Client Data Area
+    # PMDG_NG3_Data (campos ELEC_*, offset real confirmado en
+    # PmdgNg3DataLayout.cs) — anunciadores, meter selectors, generator/IDG/
+    # APU-gen switches, bus transfer, ground power, standby power, meter
+    # displays y ELEC_BusPowered[16].
+    # ACTUALIZACIÓN 2026-07-26: con EVT_EVENT_IDS_FULL.txt (header completo
+    # con comentario original de cada #define) se confirmaron por escrito 14
+    # Event IDs y se convirtieron esos 14 controles de readOnly a
+    # escribibles (dc_meter_selector, ac_meter_selector, bat_selector,
+    # cab_util_sw, ife_pass_seat_sw, idg_disconnect_sw_1/2,
+    # standby_power_selector, grd_pwr_sw, bus_trans_sw_auto, gen_sw_1/2,
+    # apu_gen_sw_1/2). Los otros 26 (anunciadores, meter displays,
+    # bus_powered[16]) siguen readOnly (no tiene sentido escribirlos). Sigue
+    # sin confirmación EN VIVO contra MSFS+PMDG real -- nivel se mantiene
+    # "partial" honesto (14/40 escribibles, no "full").
+    missing: [circuit_breakers_individual, pmdg_electrical_synoptics, elec_writes_not_verified_live]
   lights:
     level: partial
-    controls: [beacon, nav_lights, landing_lights, taxi_light, strobe, logo_light]
-  fuel:
-    level: none
+    controls: [beacon, nav_lights, landing_lights, taxi_light, logo_light, strobe]
+    # NOTA 2026-07-25: de esta lista, taxi_light (controls/lights.yaml, id
+    # "lights.taxi") tiene evidencia real (offset de PmdgNg3DataLayout +
+    # Event ID EVT_OH_LIGHTS_TAXI=69749 confirmados en el header/ejemplo
+    # oficial de PMDG, sdkTier: clientDataArea).
+    # NOTA 2026-07-26: logo_light (id "lights.logo") se agregó como SEGUNDO
+    # control escribible del perfil -- se encontró un segundo Event ID
+    # confirmado en PMDG_NG3_ConnectionTest.cpp (EVT_OH_LIGHTS_LOGO=69754,
+    # toggleLogoLightsSwitch()), esta vez vía el mecanismo estándar de
+    # SimConnect (MapClientEventToSimEvent + TransmitClientEvent con
+    # Parameter=0/1 explícito), representado en el perfil como write.type:
+    # inputEvent, name: "#69754" (no clientDataEvent -- no usa
+    # PMDG_NG3_Control). Además se agregaron 16 controles LTS_* readOnly más
+    # (dome_white_sw, circuit_breaker_knob, overhead_panel_knob,
+    # annun_emer_not_armed, emer_exit_selector, landing_lt_retractable_sw[2],
+    # landing_lt_fixed_sw[2], runway_turnoff_sw[2], position_sw,
+    # anti_collision_sw, wing_sw, wheel_well_sw) -- offset real confirmado en
+    # PmdgNg3DataLayout.cs.
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito
+    # Event IDs para 12 de esos 16 controles LTS_*, convertidos de readOnly a
+    # escribibles (dome_white_sw, emer_exit_selector,
+    # landing_lt_retractable_sw_1/2, landing_lt_fixed_sw_1/2,
+    # runway_turnoff_sw_1/2, position_sw, anti_collision_sw, wing_sw,
+    # wheel_well_sw). circuit_breaker_knob/overhead_panel_knob siguen
+    # readOnly (candidato descartado por prudencia, comentario "...Decrease"
+    # sugiere pulso relativo, ver EVENT_IDS_PENDIENTES.md). Con taxi/logo ya
+    # confirmados antes, este archivo tiene ahora 14 controles escribibles en
+    # total. beacon/nav_lights/landing_lights/strobe (controls/overhead.yaml)
+    # siguen siendo placeholders SimConnect estándar. No existe categoría
+    # "lights" en
+    # packages/profile-schema/manifest.schema.json (capabilities.<enum> solo
+    # admite flightControls/autopilot/electrical/hydraulics/radios/mcdu/
+    # failures) -- por eso este nivel "partial" solo vive aquí (documentación
+    # expandida, no validada por JSON Schema) y NO en manifest.yaml.
+  hydraulics:
+    level: partial
     controls: []
-    missing: [fuel_panel_full, crossfeed]
+    # NOTA 2026-07-25: subido de "none" a "partial" -- controls/hydraulics.yaml
+    # agrega 10 controles vía Client Data Area PMDG_NG3_Data (campos
+    # HYD_annunLOW_PRESS_eng/elec, HYD_annunOVERHEAT_elec, HYD_PumpSw_eng/elec,
+    # offset real confirmado en PmdgNg3DataLayout.cs).
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito
+    # EVT_OH_HYD_ENG1/ENG2/ELEC1/ELEC2 -- los 4 switches HYD_PumpSw_eng[2]/
+    # HYD_PumpSw_elec[2] se convirtieron de readOnly a escribibles. Los 6
+    # anunciadores siguen readOnly. "controls" arriba queda vacío
+    # deliberadamente (esa lista históricamente representa controles del
+    # SimConnect estándar, ver electrical/lights arriba). Sigue sin
+    # confirmación EN VIVO -- nivel se mantiene "partial" (4/10 escribibles).
+    missing: [hyd_writes_not_verified_live, hyd_quantity_pressure_gauges, reservoir_air_pressure]
+  fuel:
+    level: partial
+    controls: []
+    # NOTA 2026-07-26: subido de "none" a "partial" -- SOLO de lectura.
+    # controls/fuel.yaml agrega 27 controles readOnly: true vía Client Data
+    # Area PMDG_NG3_Data (FUEL_CrossFeedSw, FUEL_PumpFwdSw/PumpAftSw/
+    # PumpCtrSw/AuxFwd/AuxAft[2 cada uno], FUEL_FWDBleed/AFTBleed/GNDXfr,
+    # FUEL_annunENG_VALVE_CLOSED/annunSPAR_VALVE_CLOSED/annunFILTER_BYPASS[2
+    # cada uno], FUEL_annunXFEED_VALVE_OPEN, FUEL_annunLOWPRESS_Fwd/Aft/Ctr[2
+    # cada uno] -- offset real confirmado en PmdgNg3DataLayout.cs).
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito 14
+    # Event IDs EVT_OH_FUEL_* (crossfeed, bombas FWD/AFT/CTR L/R, AUX FWD/AFT
+    # A/B, FWD/AFT bleed, GND XFR) -- esos 14 se convirtieron de readOnly a
+    # escribibles. Los 13 anunciadores restantes siguen readOnly. "controls"
+    # arriba queda vacío deliberadamente (ver electrical/lights). Sigue sin
+    # confirmación EN VIVO -- nivel se mantiene "partial" (14/27 escribibles).
+    # FUEL_FuelTempNeedle/QtyCenter/QtyLeft/QtyRight (float) quedaron fuera:
+    # bloqueados por esquema. No existe categoría "fuel" en
+    # packages/profile-schema/manifest.schema.json -- mismo caso que "lights",
+    # solo vive aquí, NO en manifest.yaml.
+    missing: [fuel_writes_not_verified_live, fuel_quantity_needles_blocked_by_schema_float]
   autopilot:
     level: partial
     controls: [ap_master, mcp_heading_bug, mcp_altitude_bug, mcp_nav_source]
-    missing: [pmdg_fmc_cdu, vnav, lnav, approach_coupling]
+    # NOTA 2026-07-26: controls/autopilot.yaml agrega 3 controles readOnly:
+    # true vía Client Data Area PMDG_NG3_Data (AFS_AutothrottleServosConnected,
+    # AFS_ControlsPitch, AFS_ControlsRoll -- anunciadores/status reales del
+    # Autopilot Flight System de PMDG, offset real confirmado en
+    # PmdgNg3DataLayout.cs). Se revisó PMDG_NG3_ConnectionTest.cpp y se
+    # encontraron 2 Event IDs más (EVT_MCP_FD_SWITCH_L=70010,
+    # EVT_MCP_HEADING_SELECTOR=70022) pero NO se usaron: ambos se transmiten
+    # en el ejemplo oficial vía simulación de mouse (MOUSE_FLAG_LEFTSINGLE/
+    # RELEASE, MOUSE_FLAG_WHEEL_UP) -- sin Parameter explícito, violarían la
+    # regla anti-TOGGLE.
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt reveló un grupo
+    # DISTINTO de Event IDs (offset 14500+, EVT_MCP_CRS_L/R_SET, IAS_SET,
+    # MACH_SET, HDG_SET, ALT_SET, VS_SET) con comentario original que SÍ
+    # documenta una semántica de set absoluto ("Sets new heading...",
+    # "parameter-10000 (e.g. send 8200 for -1800fpm)", etc.) -- opuesto a los
+    # selectores de mouse descartados arriba. Se agregaron 7 controles NUEVOS
+    # writeOnly: true (autopilot.mcp_crs_l_set/crs_r_set/ias_set/mach_set/
+    # hdg_set/alt_set/vs_set) vía write.type: inputEvent "#<id>" (mismo
+    # mecanismo que lights.logo). writeOnly porque MCP_Course/IASMach/
+    # Heading/Altitude/VertSpeed existen en el header pero su offset NO está
+    # transcrito en PmdgNg3DataLayout.cs todavía (no hay lectura posible sin
+    # inventar un offset). No cambia el nivel "partial" (siguen siendo los
+    # switches simvar estándar de arriba los únicos con read+write pareado);
+    # los 7 nuevos son escritura pura, sin confirmación EN VIVO.
+    missing: [pmdg_fmc_cdu, vnav, lnav, approach_coupling, mcp_set_events_writeonly_no_read_offset]
   radios:
     level: partial
     controls: [com1_freq, com2_freq, nav1_freq, transponder_code]
-    missing: [pmdg_cdu_radio_tuning, gps_flightplan_sync]
+    # NOTA 2026-07-26: controls/radios.yaml agrega 1 control readOnly: true
+    # vía Client Data Area PMDG_NG3_Data (ADF_StandbyFrequency, UInt, offset
+    # real confirmado en PmdgNg3DataLayout.cs).
+    # REVISIÓN 2026-07-26: se revisaron los ~130 Event IDs EVT_ACP_*/
+    # EVT_COM1-3_*/EVT_NAV1-2_*/EVT_ADF_*/EVT_SELCAL_* de
+    # EVT_EVENT_IDS_FULL.txt buscando un candidato seguro para
+    # ADF_StandbyFrequency u otro campo con read confirmado -- ninguno tiene
+    # semántica de SET absoluto documentada en el comentario original (los
+    # únicos con pista de "rotación" están marcados "1000 added for volume
+    # rotation event", es decir relativo, no absoluto) ni offset de lectura
+    # transcrito en PmdgNg3DataLayout.cs para los structs ACP_/COM_/NAV_/
+    # ADF_/SELCAL_. No se convirtió ningún control -- queda pendiente,
+    # documentado en EVENT_IDS_PENDIENTES.md. No cambia el nivel "partial".
+    missing: [pmdg_cdu_radio_tuning, gps_flightplan_sync, radio_panel_writes_no_safe_candidate]
   groundControls:
     level: partial
     controls: [parking_brake, gear_static]
     missing: [ground_equipment_sync]
+  mcdu:
+    level: partial
+    controls: []
+    # NOTA 2026-07-26: subido de "none" a "partial" -- espejo de pantalla,
+    # sin botones al momento.
+    # ACTUALIZACIÓN 2026-07-26 (misma sesión, más tarde): se agregó
+    # controls/mcdu.yaml con 140 controles writeOnly: true, uno por cada
+    # EVT_CDU_L_*/EVT_CDU_R_* de EVT_EVENT_IDS_FULL.txt (teclado completo del
+    # CDU izquierdo=Captain y derecho=First Officer: L1-L6/R1-R6, dígitos,
+    # letras, EXEC, y demás teclas). Sigue el patrón writeOnly aprobado en
+    # packages/profile-schema/README.md ("Botones momentáneos"): sin bloque
+    # read, parameter: 1 fijo, confirmAfterWrite: false. "controls" arriba
+    # queda vacío deliberadamente (convención de este archivo: esa lista es
+    # para controles read+write pareados tipo switch, no para el patrón
+    # writeOnly de botones -- ver mismo patrón "controls: []" en hydraulics/
+    # fuel arriba antes de sus conversiones). Nivel se mantiene "partial": hay
+    # 140 botones escribibles + espejo de pantalla de solo lectura, pero
+    # ningún Event ID de botón fue confirmado EN VIVO contra MSFS+PMDG real
+    # (riesgo de enviar la tecla equivocada al FMC en pleno vuelo si el
+    # mapeo resultara incorrecto, ver docs/plan-737-fullsync-2026-07-25.md).
+    # screens/cdu.yaml (packages/profile-schema/screen.schema.json)
+    # declara las DOS pantallas del CDU vía Client Data Area PMDG_NG3_Data
+    # (cdu_captain = PMDG_NG3_CDU_0, cdu_fo = PMDG_NG3_CDU_1, 14 filas x 24
+    # columnas, celda Symbol/Color/Flags, colorValues 0-5), con readOnly: true
+    # fijo por diseño (decisión intencional, ver
+    # docs/plan-737-fullsync-2026-07-25.md: los Event IDs de botón/LSK del CDU
+    # no están confirmados en vivo y el riesgo de romper el FMC en vuelo con un
+    # evento equivocado es alto). "controls" queda vacío deliberadamente (esa
+    # lista representa históricamente controles ESCRIBIBLES tipo control.yaml,
+    # y las pantallas viven en screens/, un recurso distinto). Las dimensiones
+    # y nombres de área vienen del header oficial
+    # apps/desktop-ui/Documentation/SDK/PMDG_NG3_SDK.h, NO de verificación en
+    # vivo -- pendiente de validar contra MSFS+PMDG real antes de confiar en
+    # el offset de memoria/orden de bytes.
+    missing: [cdu_button_writes_not_verified_live, fmc_navigation, cdu_live_verification]
+
+  # --- Secciones nuevas 2026-07-26, sin categoría propia en
+  # packages/profile-schema/manifest.schema.json (mismo caso que "lights"
+  # arriba: capabilities.<enum> del manifest solo admite flightControls/
+  # autopilot/electrical/hydraulics/radios/mcdu/failures) -- documentación
+  # expandida honesta, solo vive aquí, NO en manifest.yaml. Todas
+  # "partial de solo lectura": ningún control es escribible (sin Event ID de
+  # PMDG_NG3_Control confirmado en vivo para ninguno de estos campos).
+  fms:
+    level: partial
+    controls: []
+    # controls/fms.yaml agrega 22 controles readOnly: true (IRS_* completo
+    # del tramo transcrito -- DisplaySelector, SysDisplay_R, annunGPS,
+    # annunALIGN/annunON_DC/annunFAULT/annunDC_FAIL/ModeSelector[2 cada uno],
+    # aligned, DisplayLeft, DisplayRight, DisplayShowsDots -- más
+    # NAVDIS_VHFNavSelector/IRSSelector/FMCSelector/SourceSelector/
+    # ControlPaneSelector). packages/profile-schema/README.md usaba
+    # "fms.irs_l_mode_selector" como EJEMPLO ilustrativo sin implementación
+    # real -- ahora existe implementación real bajo id "fms.irs_mode_selector_1"
+    # (mismo campo IRS_ModeSelector[0], convención de sufijo _1/_2 por índice
+    # crudo, ver nota en fms.yaml).
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito 7
+    # Event IDs (5 EVT_OH_NAVDSP_* + 2 EVT_IRU_MSU_LEFT/RIGHT) -- se
+    # convirtieron navdis_vhf_nav_selector/irs_selector/fmc_selector/
+    # source_selector/control_pane_selector e irs_mode_selector_1/2 de
+    # readOnly a escribibles. Los 15 controles IRS_* restantes (displays,
+    # anunciadores) siguen readOnly. Sigue sin confirmación EN VIVO -- nivel
+    # se mantiene "partial" (7/22 escribibles).
+    missing: [irs_mode_selector_writes_not_verified_live, fmc_cdu_full]
+  air:
+    level: partial
+    controls: []
+    # controls/air.yaml agrega 67 controles: 36 campos AIR_* (aire
+    # acondicionado/presurización) + 31 campos ICE_* (protección de hielo),
+    # offset real confirmado en PmdgNg3DataLayout.cs. AIR_DuctPress/
+    # DuctPressNeedle/CabinAltNeedle/CabinDPNeedle/CabinVSNeedle/
+    # CabinValveNeedle/TemperatureNeedle (float) e ICE_WindowHeatTestSw (int)
+    # quedaron fuera: bloqueados por esquema.
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito 25
+    # Event IDs -- se convirtieron 25 controles de readOnly a escribibles
+    # (equip cooling supply/exhaust, temp source selector [variante "_800",
+    # -800/900 panel], trim air switch [variante "_800"], recirc fan L/R,
+    # pack L/R, bleed air eng1/eng2/apu, isolation valve, pressurization mode
+    # selector, outflow valve, flt/land alt window [eventos "_SET" dedicados,
+    # 4 campos ICE window heat, 2 probe heat, wing anti-ice, eng anti-ice
+    # 1/2). El resto (anunciadores, displays de texto, campos bloqueados por
+    # esquema) sigue readOnly. Sigue sin confirmación EN VIVO -- nivel se
+    # mantiene "partial" (25/67 escribibles).
+    missing: [air_writes_not_verified_live, air_needles_blocked_by_schema_float, ice_window_heat_test_blocked_by_schema_int]
+  cabinMisc:
+    level: partial
+    controls: []
+    # controls/cabin-misc.yaml agrega 29 controles: PSEU (WARN_annunPSEU),
+    # interphone (COMM_ServiceInterphoneSw), oxígeno (OXY_Needle/SwNormal/
+    # annunPASS_OXY_ON), anunciadores de tren en overhead (GEAR_annunOvhdLEFT/
+    # NOSE/RIGHT), flight recorder (FLTREC_SwNormal/annunOFF), CVR
+    # (CVR_annunTEST), limpiaparabrisas (OH_WiperLSelector/RSelector),
+    # letreros de cabina (COMM_NoSmokingSelector/FastenBeltsSelector/
+    # annunCALL/annunPA_IN_USE), y 12 anunciadores de puertas (DOOR_annun*) --
+    # offset real confirmado en PmdgNg3DataLayout.cs.
+    # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito 6
+    # Event IDs -- se convirtieron comm.service_interphone_sw,
+    # overhead.wiper_l_selector/r_selector, comm.no_smoking_selector/
+    # fasten_belts_selector, recorder.fltrec_sw_normal de readOnly a
+    # escribibles. OXY_SwNormal no se convirtió (candidato ambiguo: PASS vs
+    # crew oxygen, ver nota en cabin-misc.yaml). El resto (anunciadores,
+    # OXY_Needle) sigue readOnly. Sigue sin confirmación EN VIVO -- nivel se
+    # mantiene "partial" (6/29 escribibles).
+    missing: [cabin_signs_writes_not_verified_live, oxy_sw_normal_no_safe_candidate]

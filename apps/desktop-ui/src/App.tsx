@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Nav } from "./components/Nav";
 import { UpdateModal } from "./components/UpdateModal";
+import { FirstLaunchSetup } from "./components/FirstLaunchSetup";
+import { TitleBar } from "./components/TitleBar";
 import { Home } from "./views/Home";
 import { Download } from "./views/Download";
 import { Aircraft } from "./views/Aircraft";
@@ -19,6 +21,17 @@ export function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionPilotName, setSessionPilotName] = useState<string | null>(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [showFirstLaunchSetup, setShowFirstLaunchSetup] = useState(false);
+  const [communityPath, setCommunityPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    const setup = window.weconnectSetup;
+    if (!setup) return; // build web puro: no hay carpeta Community que pedir
+    setup.getConfig().then((config) => {
+      setCommunityPath(config.communityPath);
+      if (!config.firstLaunchCompleted) setShowFirstLaunchSetup(true);
+    });
+  }, []);
 
   useEffect(() => {
     // electron/main.cjs hace un chequeo silencioso al abrir la app
@@ -93,13 +106,19 @@ export function App() {
             pilotName={pilotName}
             onPilotNameChange={setPilotName}
             onCheckForUpdates={() => setUpdateModalOpen(true)}
+            communityPath={communityPath}
+            onChangeFlightSimFolder={() => setShowFirstLaunchSetup(true)}
           />
         );
     }
   }
 
   return (
-    <div style={{ background: "var(--bg)", color: "var(--text)" }}>
+    <div
+      className={window.weconnectWindow ? "has-titlebar" : undefined}
+      style={{ background: "var(--bg)", color: "var(--text)" }}
+    >
+      <TitleBar />
       <Nav
         active={view}
         onNavigate={handleNavigate}
@@ -120,6 +139,15 @@ export function App() {
         view === "cockpit" && <Cockpit joinCode={null} pilotName={null} />
       )}
       <UpdateModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)} />
+      {showFirstLaunchSetup && (
+        <FirstLaunchSetup
+          onClose={() => setShowFirstLaunchSetup(false)}
+          onCompleted={(path) => {
+            setCommunityPath(path);
+            setShowFirstLaunchSetup(false);
+          }}
+        />
+      )}
     </div>
   );
 }

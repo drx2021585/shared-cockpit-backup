@@ -79,3 +79,187 @@
     debounceMs: 100
     confirmAfterWrite: true
     timeoutMs: 1000
+
+# --- Client Data Area de PMDG (PMDG_NG3_Data), campos AFS_* -- solo lectura,
+# 2026-07-26. Todos tienen offset REAL transcrito en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs (entre IRS_DisplayShowsDots y
+# WARN_annunPSEU). Son anunciadores/status internos del Autopilot Flight
+# System reales de PMDG (no simvars genéricas de MSFS) -- NO reemplazan a los
+# controles simvar de arriba (esos siguen siendo el único mecanismo
+# escribible de este archivo); son un tramo de solo lectura adicional, honesto
+# sobre no tener Event ID de escritura confirmado (ninguno de los dos .cpp de
+# ejemplo del SDK menciona EVT_*AFS*).
+- id: autopilot.afs_autothrottle_servos_connected
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AFS_AutothrottleServosConnected"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: autopilot.afs_controls_pitch
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AFS_ControlsPitch"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: autopilot.afs_controls_roll
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AFS_ControlsRoll"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+# --- MCP "_SET" events, ACTUALIZACIÓN 2026-07-26 ---
+#
+# EVT_EVENT_IDS_FULL.txt (transcripción completa del header) incluye un grupo
+# de Event IDs con offset 14500+ (muy por fuera del rango bajo de los
+# EVT_OH_*/EVT_MCP_* de switches) cuyo COMENTARIO ORIGINAL documenta
+# explícitamente una semántica de "set" con parámetro absoluto, ej.
+# "EVT_MCP_HDG_SET // Sets new heading, commands the shortest turn" o
+# "EVT_MCP_VS_SET // Sets MCP VS (if VS window open) to parameter-10000".
+# Esto es justo lo opuesto a los selectores continuos descartados en
+# EVENT_IDS_PENDIENTES.md (EVT_MCP_HEADING_SELECTOR/EVT_MCP_COURSE_SELECTOR_L,
+# que se accionan por MOUSE_FLAG_WHEEL_* -- pulso relativo, no SET_VALUE) --
+# los "_SET" son un mecanismo DISTINTO, dedicado, con parámetro absoluto
+# documentado, igual de seguro que EVT_OH_LIGHTS_LOGO (write.type: inputEvent
+# con "#<id>" y el valor real transmitido como dwData en tiempo de escritura,
+# ver SimConnectNativeClient.TransmitSetEvent).
+#
+# NO se agrega bloque `read`: MCP_Course[2]/MCP_IASMach/MCP_Heading/
+# MCP_Altitude/MCP_VertSpeed SÍ existen como campos reales en
+# PMDG_NG3_SDK.h (struct PMDG_NG3_Data), pero NO están dentro del tramo
+# transcrito en PmdgNg3DataLayout.cs (que cubre "IRS_DisplaySelector hasta
+# LTS_WheelWellSw" + AFS_* al inicio) -- no hay offset real disponible hoy
+# para calcular su lectura sin inventar uno. Por eso estos controles son
+# writeOnly: true (no "no tienen estado", sino "el estado existe pero su
+# offset de lectura no ha sido transcrito todavía" -- ver
+# EVENT_IDS_PENDIENTES.md). Ampliar PmdgNg3DataLayout.cs con el tramo MCP_*
+# le corresponde a simconnect-bridge-agent/wasm-agent, no a este perfil.
+#
+# EVT_MCP_MACH_SET: parameter*0.01 (enviar 78 para M0.78) -- el bridge hoy
+# transmite el valor crudo como dwData (TransmitSetEvent), así que quien
+# escriba este control debe enviar el valor YA multiplicado por 100 (78, no
+# 0.78). Documentado aquí porque el esquema no tiene forma de expresar un
+# factor de escala.
+# EVT_MCP_VS_SET: parameter-10000 (enviar 8200 para -1800fpm) -- mismo caso,
+# quien escriba debe sumar 10000 al VS deseado antes de transmitir.
+
+- id: autopilot.mcp_crs_l_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84132"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_crs_r_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84133"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_ias_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84134"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_mach_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84135"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_hdg_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84136"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_alt_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84137"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500
+
+- id: autopilot.mcp_vs_set
+  dataType: number
+  authority: captain-only
+  writeOnly: true
+  sdkTier: clientDataArea
+  write:
+    type: inputEvent
+    name: "#84138"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: false
+    timeoutMs: 500

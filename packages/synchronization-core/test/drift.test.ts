@@ -27,3 +27,28 @@ test("detectDrift handles a system missing entirely on one side", () => {
   assert.equal(diffs[0].system, "fuel");
   assert.equal(diffs[0].localValue, undefined);
 });
+
+test("detectDrift also catches a system that exists only locally (asymmetric case)", () => {
+  // Escenario real para una aeronave con muchos sistemas (ej. PMDG 737): un
+  // cliente ya reporta hydraulic.sys_a_pressure y el otro todavía no. Antes
+  // esto se ignoraba silenciosamente porque solo se iteraba Object.keys(remote).
+  const local = { hydraulic: { sys_a_pressure: 3000 } };
+  const remote = {};
+  const diffs = detectDrift(local, remote);
+  assert.equal(diffs.length, 1);
+  assert.equal(diffs[0].system, "hydraulic");
+  assert.equal(diffs[0].key, "sys_a_pressure");
+  assert.equal(diffs[0].localValue, 3000);
+  assert.equal(diffs[0].remoteValue, undefined);
+});
+
+test("detectDrift also catches a key that exists only locally within a shared system", () => {
+  const local = { electrical: { battery: true, apu_generator: true } };
+  const remote = { electrical: { battery: true } };
+  const diffs = detectDrift(local, remote);
+  assert.equal(diffs.length, 1);
+  assert.equal(diffs[0].system, "electrical");
+  assert.equal(diffs[0].key, "apu_generator");
+  assert.equal(diffs[0].localValue, true);
+  assert.equal(diffs[0].remoteValue, undefined);
+});

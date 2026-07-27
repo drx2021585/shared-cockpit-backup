@@ -1,8 +1,8 @@
 {
-  "name": "shared-cockpit-desktop-ui",
+  "name": "we-connect-desktop-ui",
   "private": true,
   "version": "0.1.2",
-  "description": "Shared Cockpit UI - web-first, empacado como app de escritorio con Electron.",
+  "description": "We Connect - cliente de cabina compartida, web-first y empacado con Electron.",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -29,7 +29,7 @@
   },
   "build": {
     "appId": "com.weconnect.sharedcockpit",
-    "productName": "WeConnect",
+    "productName": "We Connect",
     "files": [
       "dist/**/*",
       "electron/**/*"
@@ -37,7 +37,14 @@
     "directories": {
       "output": "release"
     },
+    "extraResources": [
+      {
+        "from": "../../simulator/wasm-bridge/PackageSources",
+        "to": "community-packages/WeConnectBridge"
+      }
+    ],
     "win": {
+      "icon": "logos/We Connect - Logo.png",
       "target": [
         "nsis"
       ],

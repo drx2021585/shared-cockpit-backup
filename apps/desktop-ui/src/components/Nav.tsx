@@ -1,4 +1,5 @@
 import { NAV_ITEMS, type ViewId } from "../views/types";
+import weConnectLogo from "../assets/we-connect-logo.png";
 
 interface NavProps {
   active: ViewId;
@@ -11,7 +12,9 @@ export function Nav({ active, onNavigate, sessionActive, partyCreated }: NavProp
   return (
     <div className="nav">
       <button className="nav-brand" onClick={() => onNavigate("home")}>
-        <span>WECONNECT</span>
+        <span className="brand-logo-crop brand-logo-crop-nav">
+          <img src={weConnectLogo} alt="We Connect" />
+        </span>
       </button>
       <div className="nav-links">
         {NAV_ITEMS.map((item) => {

@@ -1,0 +1,308 @@
+# Motor y APU (parte solo-lectura vía Client Data Area) del PMDG 737-900/900ER.
+# capabilities.engine ya era "partial" en capabilities.yaml vía SimConnect
+# estándar (throttle_lever, fuel_control_switches, engine_start_selector) --
+# este archivo agrega el tramo de solo-lectura vía PMDG_NG3_Data (campos
+# ENG_*/APU_* con offset REAL transcrito en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs, mismo tramo que
+# electrical.yaml/hydraulics.yaml). No se agregó ningún campo que no esté en
+# esa tabla. APU_EGTNeedle (float) quedó deliberadamente FUERA: el struct C
+# real lo tiene, pero packages/profile-schema/control.schema.json
+# "nativeType" hoy solo admite bool/uchar/uint/char_array -- no hay forma
+# honesta de declarar un campo float sin inventar un nativeType no soportado.
+# Agregarlo requiere ampliar el esquema (coordinar con orchestrator, ver
+# EVENT_IDS_PENDIENTES.md, sección "Bloqueado por esquema").
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header) confirma por escrito EVT_OH_EEC_L_SWITCH/EVT_OH_EEC_R_SWITCH
+# ("EEC" coincide literalmente con ENG_EECSwitch[2]). Esos 2 controles
+# (eec_switch_1/2) se convirtieron de readOnly a escribibles
+# (write.type: clientDataEvent contra PMDG_NG3_Control). NO se encontró
+# ningún #define confirmado con semántica clara para ENG_StartValve,
+# ENG_StartSelector, ENG_IgnitionSelector ni los campos APU_* -- hay un
+# candidato NO confirmado (EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/
+# R_ENGINE_START, agrupados bajo el prefijo "LIGHTS" pese a que por
+# posición/orden en el header podrían ser los switches reales de arranque;
+# demasiado ambiguo para declarar sin evidencia más fuerte, ver
+# EVENT_IDS_PENDIENTES.md). El resto permanece readOnly: true.
+#
+# ENG_EECSwitch[2]/ENG_annunREVERSER[2]/ENG_annunENGINE_CONTROL[2]/
+# ENG_annunALTN[2]/ENG_StartValve[2]/ENG_StartSelector[2]: convención de
+# índice neutral _1 (índice 0) / _2 (índice 1), SIN evidencia propia de a qué
+# motor físico (1=izq/2=der, o viceversa) corresponde cada índice -- misma
+# convención que electrical.yaml/hydraulics.yaml.
+
+- id: engine.eec_switch_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_EECSwitch"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_EEC_L_SWITCH"
+    semantics: "sets the LEFT EEC switch to the explicit boolean state being written (ENG_EECSwitch[0]); Parameter=1/0 explicit. Guard (EVT_OH_EEC_L_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.eec_switch_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_EECSwitch"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_EEC_R_SWITCH"
+    semantics: "sets the RIGHT EEC switch to the explicit boolean state being written (ENG_EECSwitch[1]); Parameter=1/0 explicit. Guard (EVT_OH_EEC_R_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.annun_reverser_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunREVERSER"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.annun_reverser_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunREVERSER"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.annun_engine_control_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunENGINE_CONTROL"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.annun_engine_control_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunENGINE_CONTROL"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.annun_altn_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunALTN"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.annun_altn_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_annunALTN"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.start_valve_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_StartValve"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.start_valve_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_StartValve"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.start_selector_1
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_StartSelector"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.start_selector_2
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_StartSelector"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.ignition_selector
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ENG_IgnitionSelector"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: apu.annun_maint
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "APU_annunMAINT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: apu.annun_low_oil_pressure
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "APU_annunLOW_OIL_PRESSURE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: apu.annun_fault
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "APU_annunFAULT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: apu.annun_overspeed
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "APU_annunOVERSPEED"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: apu.selector
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "APU_Selector"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

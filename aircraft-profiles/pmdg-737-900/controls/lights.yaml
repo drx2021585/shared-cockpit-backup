@@ -1,0 +1,430 @@
+# --- Investigación Client Data Area de PMDG (PMDG_NG3_Data / PMDG_NG3_Control), 2026-07-25 ---
+#
+# ESTE ARCHIVO CONTIENE EL ÚNICO CONTROL DEL PMDG 737-900/900ER QUE HOY TIENE
+# TANTO OFFSET DE LECTURA COMO EVENT ID DE ESCRITURA CONFIRMADOS CONTRA EL SDK
+# OFICIAL (apps/desktop-ui/Documentation/SDK/PMDG_NG3_SDK.h +
+# PMDG_NG3_ConnectionTest.cpp). NO ha sido probado contra una sesión real de
+# MSFS + PMDG 737 abierta (no hay dotnet/MSFS/PMDG disponibles en este
+# entorno) -- viene únicamente de:
+#   1. Lectura del header PMDG_NG3_SDK.h (offset del campo LTS_TaxiSw dentro
+#      de PMDG_NG3_Data, transcrito en
+#      apps/simulator-bridge/.../PmdgNg3DataLayout.cs línea 258, confirmado
+#      bool, dentro del tramo del struct SÍ transcrito).
+#   2. El único ejemplo .cpp publicado por PMDG (PMDG_NG3_ConnectionTest.cpp,
+#      función toggleTaxiLightSwitch()) que usa
+#      Control.Event = EVT_OH_LIGHTS_TAXI = 69749 con Control.Parameter = 0/1
+#      para fijar el estado del taxi light de forma explícita (no es un pulso
+#      TOGGLE: Parameter determina el estado final -- confirmado en
+#      apps/simulator-bridge/.../PmdgClientDataClient.cs,
+#      KnownControlEventIds["EVT_OH_LIGHTS_TAXI"] = 69749).
+#
+# Antes de confiar en esto en un vuelo real: ver PmdgClientDataClient.cs
+# líneas ~24-36 ("ESTADO DE VERIFICACIÓN") -- falta confirmar en la máquina de
+# Darwin, con MSFS + PMDG 737 abiertos y EnableDataBroadcast=1, que
+# SimConnect_MapClientDataNameToID + AddToClientDataDefinition +
+# RequestClientData entregan el layout esperado y que el Event realmente
+# mueve el switch de taxi light en cabina.
+#
+# NOTA sobre duplicidad de id: controls/overhead.yaml de este mismo perfil
+# tenía previamente un control "lights.taxi" placeholder vía SimConnect
+# estándar (simvar "LIGHT TAXI" / evento "TAXI_LIGHTS_SET"). Se removió de
+# overhead.yaml y se reemplaza por la versión de abajo (sdkTier:
+# clientDataArea) porque ahora existe evidencia real (offset + Event ID
+# confirmados) más específica que el placeholder genérico -- un mismo id no
+# puede declararse dos veces en el mismo perfil. El resto de luces
+# (beacon/nav/landing/strobe/logo) permanecen sin cambios en overhead.yaml:
+# no tienen Event ID de PMDG_NG3_Control confirmado todavía.
+
+# GAP conocido, NO resuelto en este archivo (fuera de mi alcance -- coordinar
+# con simconnect-bridge-agent, ver también EVENT_IDS_PENDIENTES.md):
+# apps/simulator-bridge/.../ProfileModels.cs y ProfileRepository.cs tratan
+# `write.parameter` de un control clientDataEvent como un string ESTÁTICO
+# (Parameter = dto.Parameter, sin sustitución dinámica del valor deseado). No
+# existe hoy un mecanismo para que Parameter valga "0 si se apaga, 1 si se
+# enciende" según el valor boolean que el usuario está fijando -- por eso este
+# control deliberadamente NO declara `parameter` fijo aquí (fijar
+# `parameter: 1` rompería la mitad de los casos, ej. apagar la luz). El bridge
+# necesita, antes de que este control funcione de punta a punta, resolver
+# Parameter dinámicamente a partir del valor boolean que se está escribiendo
+# (0/1) -- esto le corresponde a simconnect-bridge-agent, no a este perfil.
+
+# El control de diagnóstico temporal que vivió aquí (ROTOR_BRAKE param 11701
+# crudo) confirmó en vivo contra MSFS real 2026-07-27 que ROTOR_BRAKE es un
+# evento nativo de SimConnect disparable sin WASM -- ver
+# controls/native-toggle-switches.yaml (native_toggle.taxi_light_switch y 180
+# switches más, portados de la instalación real de YourControls de Darwin con
+# el mismo mecanismo, ahora con 'semantics' auditable vía write.type:
+# nativeEventValue en vez del valor numérico crudo que tenía este control).
+
+- id: lights.taxi
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_TaxiSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_TAXI"
+    semantics: "sets the overhead taxi light switch to the explicit boolean state being written (Parameter=1 ON / Parameter=0 OFF, per PMDG_NG3_ConnectionTest.cpp toggleTaxiLightSwitch()); Parameter fixes the final state, this is not a raw toggle pulse"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# --- SEGUNDO control con Event ID confirmado en vivo-por-header, 2026-07-26 ---
+#
+# apps/desktop-ui/Documentation/SDK/PMDG_NG3_ConnectionTest.cpp,
+# toggleLogoLightsSwitch(): usa un mecanismo DISTINTO al de taxi light --
+# SimConnect_MapClientEventToSimEvent(EVENT_LOGO_LIGHT_SWITCH, "#69754") +
+# SimConnect_TransmitClientEvent(..., parameter) con parameter=0/1 explícito
+# calculado desde el estado deseado (New_LogoLightSwitch ? 1 : 0), NO
+# SimConnect_SetClientData contra el área de control PMDG_NG3_Control. Es el
+# mecanismo estándar de SimConnect (mapear un nombre/ID de evento y
+# transmitirlo con un dwData explícito), el mismo que usa
+# write.type: inputEvent en este perfil (ver
+# apps/simulator-bridge/.../SimConnectNativeClient.cs TransmitSetEvent/
+# GetOrMapEvent: mapea control.Write.Name vía MapClientEventToSimEvent y
+# transmite con dwData = value ? 1u : 0u para booleans -- coincide
+# exactamente con el patrón parameter=0/1 explícito del .cpp). Por eso este
+# control usa write.type: inputEvent con name: "#69754" (el prefijo "#" es la
+# sintaxis de SimConnect para mapear un ID de evento numérico crudo por
+# string, igual que en el .cpp oficial) en vez de clientDataEvent -- no
+# requiere tocar PMDG_NG3_Control ni el mecanismo de área de datos de control.
+#
+# Field de lectura: LTS_LogoSw, offset real en PmdgNg3DataLayout.cs (dentro
+# del tramo transcrito, cerca del final: entre LTS_PositionSw y
+# LTS_AntiCollisionSw).
+- id: lights.logo
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LogoSw"
+    nativeType: bool
+  write:
+    type: inputEvent
+    name: "#69754"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# --- Resto de campos LTS_* con offset real transcrito en
+# PmdgNg3DataLayout.cs (mismo tramo cubierto por LTS_TaxiSw/LTS_LogoSw).
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header, 842 #define con comentario original) confirma por escrito 12
+# Event IDs EVT_OH_LIGHTS_*/EVT_OH_DOME_SWITCH/EVT_OH_EMER_EXIT_LIGHT_SWITCH
+# adicionales. Esos 12 controles se convirtieron de readOnly a escribibles
+# (write.type: clientDataEvent contra PMDG_NG3_Control): dome_white_sw,
+# emer_exit_selector, landing_lt_retractable_sw_1/2, landing_lt_fixed_sw_1/2,
+# runway_turnoff_sw_1/2, position_sw, anti_collision_sw, wing_sw,
+# wheel_well_sw. circuit_breaker_knob/overhead_panel_knob permanecen
+# readOnly: true a propósito: sus eventos candidatos (EVT_OH_CB_LIGHT_CONTROL/
+# EVT_OH_PANEL_LIGHT_CONTROL) tienen comentario "... Decrease" en el header,
+# lo que sugiere un pulso relativo de decremento en vez de un SET_VALUE
+# absoluto pese a que el campo es "Position 0...150" -- no se pudo confirmar
+# la semántica exacta, se deja pendiente por prudencia (ver
+# EVENT_IDS_PENDIENTES.md). Sigue sin confirmación EN VIVO contra MSFS+PMDG
+# real para ninguno de los 14 controles escribibles de este archivo.
+#
+# LTS_LandingLtRetractableSw[2]/LTS_LandingLtFixedSw[2]/
+# LTS_RunwayTurnoffSw[2]: convención de índice neutral _1 (índice 0) / _2
+# (índice 1), SIN evidencia propia de a qué lado físico corresponde cada
+# índice -- misma convención que electrical.yaml/hydraulics.yaml.
+
+- id: lights.dome_white_sw
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_DomeWhiteSw"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_DOME_SWITCH"
+    semantics: "sets the DOME light switch to the explicit numeric position being written (LTS_DomeWhiteSw: 0 DIM, 1 OFF, 2 BRIGHT, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.circuit_breaker_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_CircuitBreakerKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.overhead_panel_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_OvereadPanelKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.annun_emer_not_armed
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_annunEmerNOT_ARMED"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.emer_exit_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_EmerExitSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_EMER_EXIT_LIGHT_SWITCH"
+    semantics: "sets the EMERGENCY EXIT LIGHTS selector to the explicit numeric position being written (LTS_EmerExitSelector: 0 OFF, 1 ARMED, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Guard (EVT_OH_EMER_EXIT_LIGHT_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.landing_lt_retractable_sw_1
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LandingLtRetractableSw"
+    arrayIndex: 0
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_L_RETRACT"
+    semantics: "sets the LEFT retractable landing light switch to the explicit numeric position being written (LTS_LandingLtRetractableSw[0]: 0 RETRACT, 1 EXTEND, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.landing_lt_retractable_sw_2
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LandingLtRetractableSw"
+    arrayIndex: 1
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_R_RETRACT"
+    semantics: "sets the RIGHT retractable landing light switch to the explicit numeric position being written (LTS_LandingLtRetractableSw[1]: 0 RETRACT, 1 EXTEND, 2 ON); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.landing_lt_fixed_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LandingLtFixedSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_L_FIXED"
+    semantics: "sets the LEFT fixed landing light switch to the explicit boolean state being written (LTS_LandingLtFixedSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.landing_lt_fixed_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LandingLtFixedSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_R_FIXED"
+    semantics: "sets the RIGHT fixed landing light switch to the explicit boolean state being written (LTS_LandingLtFixedSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.runway_turnoff_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_RunwayTurnoffSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_L_TURNOFF"
+    semantics: "sets the LEFT runway turnoff light switch to the explicit boolean state being written (LTS_RunwayTurnoffSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.runway_turnoff_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_RunwayTurnoffSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_R_TURNOFF"
+    semantics: "sets the RIGHT runway turnoff light switch to the explicit boolean state being written (LTS_RunwayTurnoffSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.position_sw
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_PositionSw"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_POS_STROBE"
+    semantics: "sets the POSITION/STROBE light switch to the explicit numeric position being written (LTS_PositionSw: 0 STEADY, 1 OFF, 2 STROBE&STEADY, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.anti_collision_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_AntiCollisionSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_ANT_COL"
+    semantics: "sets the ANTI-COLLISION (beacon) light switch to the explicit boolean state being written (LTS_AntiCollisionSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.wing_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_WingSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_WING"
+    semantics: "sets the WING light switch to the explicit boolean state being written (LTS_WingSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: lights.wheel_well_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_WheelWellSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_LIGHTS_WHEEL_WELL"
+    semantics: "sets the WHEEL WELL light switch to the explicit boolean state being written (LTS_WheelWellSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

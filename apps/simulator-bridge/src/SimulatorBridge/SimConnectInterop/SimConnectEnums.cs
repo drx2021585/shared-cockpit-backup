@@ -27,7 +27,18 @@ internal enum SimConnectRecvId : uint
     EventFrame = 7,
     SimObjectData = 8,
     SimObjectDataByType = 9,
+    ClientData = 10,
     SystemState = 15,
+}
+
+/// <summary>Periodo de envío de un Client Data Area (SIMCONNECT_CLIENT_DATA_PERIOD_*).</summary>
+internal enum SimConnectClientDataPeriod : uint
+{
+    Never = 0,
+    Once = 1,
+    VisualFrame = 2,
+    OnSet = 3,
+    Second = 4,
 }
 
 internal enum SimConnectDataType : uint

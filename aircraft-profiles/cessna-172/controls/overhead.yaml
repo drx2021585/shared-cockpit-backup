@@ -77,6 +77,21 @@
     confirmAfterWrite: true
     timeoutMs: 1000
 
+- id: lights.panel
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "LIGHT PANEL"
+  write:
+    type: inputEvent
+    name: "PANEL_LIGHTS_SET"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
 - id: ground.parking_brake
   dataType: boolean
   authority: shared

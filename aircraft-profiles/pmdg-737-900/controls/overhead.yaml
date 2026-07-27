@@ -1,6 +1,27 @@
 # Panel superior: luces, parking brake. PLACEHOLDER SimConnect estándar (no
 # PMDG SDK/Client Data Area, bloqueado — ver Fase 7 del plan maestro).
 # SIEMPRE SET explícito (SET_ON/SET_OFF/SET_VALUE), nunca TOGGLE crudo.
+#
+# NOTA 2026-07-25: "lights.taxi" se removió de este archivo y se movió a
+# controls/lights.yaml con sdkTier: clientDataArea, porque ahora existe
+# evidencia real (offset de PmdgNg3DataLayout.LTS_TaxiSw + Event ID
+# EVT_OH_LIGHTS_TAXI=69749 confirmados) más específica que este placeholder
+# genérico de SimConnect estándar.
+#
+# NOTA 2026-07-26: "lights.logo" también se removió de este archivo y se movió
+# a controls/lights.yaml -- se confirmó un segundo Event ID en el ejemplo
+# oficial del SDK (EVT_OH_LIGHTS_LOGO=69754, ver
+# apps/desktop-ui/Documentation/SDK/PMDG_NG3_ConnectionTest.cpp,
+# toggleLogoLightsSwitch(), vía SimConnect_MapClientEventToSimEvent("#69754")
+# + Parameter=0/1 explícito -- mecanismo distinto al clientDataEvent de
+# PMDG_NG3_Control usado por taxi light, pero representable con
+# write.type: inputEvent, name: "#69754" porque el bridge ya mapea
+# inputEvent.name directamente a SimConnect_MapClientEventToSimEvent, ver
+# controls/lights.yaml).
+#
+# Un mismo id no puede repetirse en el mismo perfil. beacon/nav/landing/
+# strobe de abajo permanecen como placeholder porque no tienen Event ID
+# confirmado todavía.
 
 - id: lights.beacon
   dataType: boolean
@@ -47,21 +68,6 @@
     confirmAfterWrite: true
     timeoutMs: 1000
 
-- id: lights.taxi
-  dataType: boolean
-  authority: shared
-  read:
-    type: simvar
-    name: "LIGHT TAXI"
-  write:
-    type: inputEvent
-    name: "TAXI_LIGHTS_SET"
-  synchronization:
-    mode: event
-    debounceMs: 100
-    confirmAfterWrite: true
-    timeoutMs: 1000
-
 - id: lights.strobe
   dataType: boolean
   authority: shared
@@ -71,21 +77,6 @@
   write:
     type: inputEvent
     name: "STROBES_SET"
-  synchronization:
-    mode: event
-    debounceMs: 100
-    confirmAfterWrite: true
-    timeoutMs: 1000
-
-- id: lights.logo
-  dataType: boolean
-  authority: shared
-  read:
-    type: simvar
-    name: "LIGHT LOGO"
-  write:
-    type: inputEvent
-    name: "LOGO_LIGHTS_SET"
   synchronization:
     mode: event
     debounceMs: 100

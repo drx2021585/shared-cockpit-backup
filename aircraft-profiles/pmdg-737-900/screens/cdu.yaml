@@ -1,0 +1,53 @@
+# Pantallas del CDU del PMDG 737-900/900ER — SOLO LECTURA (sin escritura de
+# botones). Es una decisión de arquitectura INTENCIONAL, documentada en
+# docs/plan-737-fullsync-2026-07-25.md: los Event IDs de botón del CDU
+# (LSK/línea de botones/teclado) no están confirmados contra el SDK/sim real,
+# y el riesgo de romper el FMC en vuelo con un evento equivocado es alto. Por
+# eso packages/profile-schema/screen.schema.json fija readOnly: true de forma
+# obligatoria en esta primera versión del recurso screens/*.yaml — no hay
+# (ni habrá en esta fase) forma de "pulsar" un botón del CDU vía este perfil.
+#
+# NO PROBADO CONTRA MSFS+PMDG REAL. Todo lo declarado abajo (dimensiones
+# 14 filas x 24 columnas, nombres de Client Data Area PMDG_NG3_CDU_0/
+# PMDG_NG3_CDU_1, y los campos del struct de celda Symbol/Color/Flags con
+# PMDG_NG3_CDU_COLOR_WHITE..RED = 0..5) viene ÚNICAMENTE del header oficial
+# apps/desktop-ui/Documentation/SDK/PMDG_NG3_SDK.h (structs PMDG_NG3_CDU_Cell
+# / PMDG_NG3_CDU_Screen, #define CDU_COLUMNS 24 / CDU_ROWS 14), NO de
+# verificación en vivo. En particular, sin confirmar todavía: el offset real
+# de memoria de cada Client Data Area dentro de MSFS, el orden real de bytes
+# del array Cells[CDU_COLUMNS][CDU_ROWS] tal como lo entrega SimConnect, y el
+# comportamiento real del campo Powered (apagado de pantalla / CDU sin
+# energía). simconnect-bridge-agent debe validar esto contra MSFS+PMDG real
+# antes de exponerlo como confiable en producción (ver
+# docs/plan-737-fullsync-2026-07-25.md).
+#
+# Dos áreas, una por CDU físico: PMDG_NG3_CDU_0 = capitán (id cdu_captain),
+# PMDG_NG3_CDU_1 = primer oficial (id cdu_fo). "id" debe coincidir con el
+# "screenId" usado en el mensaje de protocolo screen.snapshot
+# (packages/protocol).
+
+- id: cdu_captain
+  areaName: PMDG_NG3_CDU_0
+  rows: 14
+  cols: 24
+  sdkTier: clientDataArea
+  readOnly: true
+  poweredField: Powered
+  cell:
+    charField: Symbol
+    colorField: Color
+    flagsField: Flags
+    colorValues: 6
+
+- id: cdu_fo
+  areaName: PMDG_NG3_CDU_1
+  rows: 14
+  cols: 24
+  sdkTier: clientDataArea
+  readOnly: true
+  poweredField: Powered
+  cell:
+    charField: Symbol
+    colorField: Color
+    flagsField: Flags
+    colorValues: 6

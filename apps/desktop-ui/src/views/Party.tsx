@@ -31,7 +31,12 @@ export function Party({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const effectiveProfileId = aircraftProfileId || profiles[0]?.id || "";
+  const compatibleProfiles = profiles.filter((profile) => profile.compatibility[sim]);
+  const selectedProfileIsCompatible = compatibleProfiles.some(
+    (profile) => profile.id === aircraftProfileId
+  );
+  const effectiveProfileId =
+    (selectedProfileIsCompatible ? aircraftProfileId : compatibleProfiles[0]?.id) || "";
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
 
   async function handleCreate() {
@@ -92,13 +97,13 @@ export function Party({
             <label>Aircraft</label>
             {loadingProfiles ? (
               <div style={{ fontSize: 13, color: "var(--text-45)", padding: "6px 0" }}>Loading…</div>
-            ) : profiles.length === 0 ? (
+            ) : compatibleProfiles.length === 0 ? (
               <div style={{ fontSize: 13, color: "var(--text-45)", padding: "6px 0" }}>
-                No aircraft profiles available — check the server is running.
+                No aircraft profiles are currently available for this simulator.
               </div>
             ) : (
               <select value={effectiveProfileId} onChange={(e) => setAircraftProfileId(e.target.value)}>
-                {profiles.map((ac) => (
+                {compatibleProfiles.map((ac) => (
                   <option key={ac.id} value={ac.id}>
                     {ac.name} ({ac.coverage}%)
                   </option>

@@ -1,0 +1,396 @@
+# IRS (Inertial Reference System) y selectores de nav display del PMDG
+# 737-900/900ER — capabilities: sin categoría propia en
+# packages/profile-schema/manifest.schema.json (igual que "lights", ver nota
+# en capabilities.yaml), documentado ahí bajo una sección "fms" nueva.
+#
+# Todos los campos "IRS_*" y "NAVDIS_*" de abajo tienen offset REAL transcrito
+# EN ORDEN, sin huecos, en apps/simulator-bridge/.../PmdgNg3DataLayout.cs
+# (tramo transcrito del struct PMDG_NG3_Data, entre AFS_ControlsRoll y
+# ADF_StandbyFrequency). No se agregó ningún campo que no esté en esa tabla.
+# packages/profile-schema/README.md usaba "fms.irs_l_mode_selector" como
+# EJEMPLO ilustrativo del esquema, pero nunca había sido implementado como
+# control real hasta ahora (ver "fms.irs_mode_selector_1" abajo, mismo campo
+# subyacente IRS_ModeSelector[0] con id distinto porque acá se sigue la
+# convención de sufijo _1/_2 por índice crudo, igual que electrical.yaml/
+# hydraulics.yaml, sin asumir a qué IRS físico corresponde cada índice).
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header, 842 #define con comentario original) confirma por escrito 7
+# Event IDs: EVT_OH_NAVDSP_VHF_NAV_SEL/IRS_SEL/FMC_SEL/DISPLAYS_SOURCE_SEL/
+# CONTROL_PANEL_SEL (para los 5 NAVDIS_*Selector) y EVT_IRU_MSU_LEFT/RIGHT
+# (nótese el prefijo EVT_IRU_, no EVT_OH_, pero coincide por nombre/semántica
+# con IRS_ModeSelector[2] -- "IRS Mode Selector Unit"). Esos 7 controles se
+# convirtieron de readOnly a escribibles (write.type: clientDataEvent contra
+# PMDG_NG3_Control). El resto (annunciators, displays de texto) permanece
+# readOnly: true. Sigue sin confirmación EN VIVO contra MSFS+PMDG real -- ver
+# EVENT_IDS_PENDIENTES.md.
+#
+# IRS_annunALIGN[2]/IRS_annunON_DC[2]/IRS_annunFAULT[2]/IRS_annunDC_FAIL[2]/
+# IRS_ModeSelector[2]: convención de índice neutral _1 (índice 0) / _2
+# (índice 1), SIN evidencia propia de a qué IRS físico (L/R, o L/C/R si el
+# 737 tuviera 3) corresponde cada índice -- corregir si se descubre lo
+# contrario.
+#
+# IRS_DisplayLeft[7]/IRS_DisplayRight[8]: char arrays de texto del display de
+# posición IRS -- dataType string, nativeType char_array (mismo patrón que
+# ELEC_MeterDisplayTop/Bottom en electrical.yaml).
+
+- id: fms.irs_display_selector
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_DisplaySelector"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_sys_display_r
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_SysDisplay_R"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_gps
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunGPS"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_align_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunALIGN"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_align_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunALIGN"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_on_dc_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunON_DC"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_on_dc_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunON_DC"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_fault_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunFAULT"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_fault_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunFAULT"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_dc_fail_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunDC_FAIL"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_annun_dc_fail_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_annunDC_FAIL"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_mode_selector_1
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_ModeSelector"
+    arrayIndex: 0
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_IRU_MSU_LEFT"
+    semantics: "sets the LEFT IRS Mode Selector Unit to the explicit numeric position being written (IRS_ModeSelector[0]: 0 OFF, 1 ALIGN, 2 NAV, 3 ATT, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Event is prefixed EVT_IRU_ (not EVT_OH_) but matches this field by name/semantics"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.irs_mode_selector_2
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_ModeSelector"
+    arrayIndex: 1
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_IRU_MSU_RIGHT"
+    semantics: "sets the RIGHT IRS Mode Selector Unit to the explicit numeric position being written (IRS_ModeSelector[1]: 0 OFF, 1 ALIGN, 2 NAV, 3 ATT); Parameter must carry the absolute target position. Event is prefixed EVT_IRU_ (not EVT_OH_) but matches this field by name/semantics"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.irs_aligned
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_aligned"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_display_left
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_DisplayLeft"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_display_right
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_DisplayRight"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.irs_display_shows_dots
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "IRS_DisplayShowsDots"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fms.navdis_vhf_nav_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "NAVDIS_VHFNavSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NAVDSP_VHF_NAV_SEL"
+    semantics: "sets the VHF NAV transfer switch to the explicit numeric position being written (NAVDIS_VHFNavSelector: 0 BOTH ON 1, 1 NORMAL, 2 BOTH ON 2, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.navdis_irs_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "NAVDIS_IRSSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NAVDSP_IRS_SEL"
+    semantics: "sets the IRS transfer switch to the explicit numeric position being written (NAVDIS_IRSSelector: 0 BOTH ON L, 1 NORMAL, 2 BOTH ON R); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.navdis_fmc_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "NAVDIS_FMCSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NAVDSP_FMC_SEL"
+    semantics: "sets the FMC source select switch to the explicit numeric position being written (NAVDIS_FMCSelector: 0 BOTH ON L, 1 NORMAL, 2 BOTH ON R); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.navdis_source_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "NAVDIS_SourceSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NAVDSP_DISPLAYS_SOURCE_SEL"
+    semantics: "sets the DISPLAYS SOURCE selector to the explicit numeric position being written (NAVDIS_SourceSelector: 0 ALL ON 1, 1 AUTO, 2 ALL ON 2); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: fms.navdis_control_pane_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "NAVDIS_ControlPaneSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_NAVDSP_CONTROL_PANEL_SEL"
+    semantics: "sets the CONTROL PANEL select switch to the explicit numeric position being written (NAVDIS_ControlPaneSelector: 0 BOTH ON 1, 1 NORMAL, 2 BOTH ON 2); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

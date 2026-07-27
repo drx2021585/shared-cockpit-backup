@@ -30,13 +30,33 @@ var simVersionEnv = Environment.GetEnvironmentVariable("SHAREDCOCKPIT_SIM_VERSIO
 // NOTA honesta: el bridge no auto-detecta todavía si el proceso conectado es
 // MSFS2020 o MSFS2024 (SimConnect no expone esa distinción de forma directa y
 // sencilla). Se puede forzar con SHAREDCOCKPIT_SIM_VERSION=2020|2024; por
-// defecto se asume 2024. Hoy esto es casi irrelevante porque los overrides de
+// defecto se asume 2020, que es la versión compatible con los perfiles actuales.
 // mappings/msfs2020.yaml y msfs2024.yaml de los perfiles existentes están
 // vacíos, pero se documenta como limitación conocida para cuando dejen de estarlo.
-var simVersion = simVersionEnv == "2020" ? SimulatorVersion.Msfs2020 : SimulatorVersion.Msfs2024;
+var simVersion = simVersionEnv == "2024" ? SimulatorVersion.Msfs2024 : SimulatorVersion.Msfs2020;
 
 var profileRepo = new ProfileRepository(profilesRoot);
 using var simClient = new SimConnectNativeClient();
+
+// Cliente opcional para controles sdkTier=clientDataArea (SDK de terceros, ej.
+// PMDG NG3, ver SimConnectInterop/PmdgClientDataClient.cs). Se instancia siempre
+// que este proceso corra en Windows con SimConnect.dll disponible; si el SDK de
+// terceros no puede conectar (addon no cargado, EnableDataBroadcast=0, etc.),
+// BridgeService hace fallback sin crashear (ver
+// BridgeService.EnsurePmdgClientReady) — NO probado contra MSFS/PMDG real en
+// este entorno de desarrollo, ver comentario de archivo en PmdgClientDataClient.cs.
+using var pmdgClient = new PmdgClientDataClient();
+
+// Cliente para el área propia "SharedCockpitBridge_LVars" expuesta por
+// simulator/wasm-bridge (módulo WASM propio del proyecto, ver README de esa
+// carpeta y la memoria "decision_wasm_bridge_pmdg_sync"). Mismo
+// comportamiento de fallback seguro que pmdgClient: si el módulo WASM no
+// está instalado en la carpeta Community, o no conecta, BridgeService omite
+// esos controles con un warning sin crashear el resto del bridge — NO
+// probado contra MSFS real todavía (el .wasm compila y enlaza limpio, ver
+// simulator/wasm-bridge/README.md, pero nadie lo instaló ni lo cargó en un
+// sim real en esta sesión).
+using var sharedCockpitWasmClient = new SharedCockpitWasmClient();
 
 BridgeWebSocketServer? server = null;
 var bridge = new BridgeService(
@@ -44,7 +64,9 @@ var bridge = new BridgeService(
     profileRepo,
     log,
     message => server?.Broadcast(message),
-    simVersion);
+    simVersion,
+    pmdgClient: pmdgClient,
+    sharedCockpitWasmClient: sharedCockpitWasmClient);
 
 server = new BridgeWebSocketServer(Port, log, bridge.HandleIncoming);
 server.Start();

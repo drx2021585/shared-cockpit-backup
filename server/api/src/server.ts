@@ -17,6 +17,10 @@ import {
   getSessionByCode,
   joinSession,
   markDisconnected,
+  closeSession,
+  leaveSession,
+  requestControls,
+  giveControls,
 } from "./db.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -25,7 +29,7 @@ const app = express();
 app.use(express.json());
 app.use((_req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   next();
 });
@@ -39,12 +43,22 @@ app.get("/api/aircraft-profiles", async (_req, res) => {
 });
 
 app.post("/api/sessions", async (req, res) => {
-  const { sessionName, aircraftProfileId, password, hostPilotName, hostSeat } = req.body ?? {};
-  if (!sessionName || !aircraftProfileId || !hostPilotName || !hostSeat) {
+  const { sessionName, aircraftProfileId, password, hostPilotName, hostSeat, sim } = req.body ?? {};
+  if (!sessionName || !aircraftProfileId || !hostPilotName || !hostSeat || !sim) {
     return res.status(400).json({ error: "missing required fields" });
   }
+  if (sim !== "msfs2020" && sim !== "msfs2024") {
+    return res.status(400).json({ error: "invalid sim" });
+  }
   try {
-    const session = await createSession({ sessionName, aircraftProfileId, password, hostPilotName, hostSeat });
+    const session = await createSession({
+      sessionName,
+      aircraftProfileId,
+      password,
+      hostPilotName,
+      hostSeat,
+      sim,
+    });
     res.status(201).json(session);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -68,6 +82,72 @@ app.post("/api/sessions/:code/join", async (req, res) => {
     return res.status(status).json({ error: result.reason });
   }
   res.json(result.session);
+});
+
+app.delete("/api/sessions/:code", async (req, res) => {
+  const joinCode = req.params.code.toUpperCase();
+  const { pilotName } = req.body ?? {};
+  if (!pilotName) {
+    return res.status(400).json({ error: "missing pilot name" });
+  }
+  if (!(await closeSession(joinCode, pilotName))) {
+    return res.status(404).json({ error: "session-not-found" });
+  }
+  for (const [ws, meta] of connections) {
+    if (meta.joinCode === joinCode) {
+      ws.close(4001, "session closed");
+    }
+  }
+  res.status(204).end();
+});
+
+app.post("/api/sessions/:code/leave", async (req, res) => {
+  const joinCode = req.params.code.toUpperCase();
+  const { pilotName } = req.body ?? {};
+  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
+  if (!(await leaveSession(joinCode, pilotName))) {
+    return res.status(404).json({ error: "session-not-found" });
+  }
+  await broadcastSessionState(joinCode);
+  res.status(204).end();
+});
+
+app.post("/api/sessions/:code/request-controls", async (req, res) => {
+  const joinCode = req.params.code.toUpperCase();
+  const { pilotName } = req.body ?? {};
+  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
+  if (!(await requestControls(joinCode, pilotName))) {
+    return res.status(409).json({ error: "controls-request-not-allowed" });
+  }
+  await broadcastSessionState(joinCode);
+  res.status(204).end();
+});
+
+app.post("/api/sessions/:code/give-controls", async (req, res) => {
+  const joinCode = req.params.code.toUpperCase();
+  const { pilotName } = req.body ?? {};
+  if (!pilotName) return res.status(400).json({ error: "missing pilot name" });
+  const transfer = await giveControls(joinCode, pilotName);
+  if (!transfer) {
+    return res.status(409).json({ error: "control-transfer-not-allowed" });
+  }
+  // Flujo autoritativo: server/api (Postgres) es la fuente de verdad
+  // PERSISTENTE de "quién es el dueño" a nivel de sesión (sobrevive a
+  // reconexión). Una vez que giveControls confirma el cambio en la base de
+  // datos, se emite un authority.transfer REAL por WebSocket con la forma
+  // exacta de packages/protocol — es este mensaje el que
+  // packages/synchronization-core (AuthorityManager/SyncEngine) debe tratar
+  // como autoritativo al sembrarse/resincronizarse, no el relay peer-to-peer
+  // de authority.transfer que los clientes puedan iniciar entre ellos (ver
+  // FLIGHT_MESSAGE_TYPES/relayFlightMessage más abajo). Ese relay sigue
+  // siendo válido para propagar cambios YA resueltos en memoria entre pares
+  // conectados directamente, pero no reemplaza este flujo request-controls
+  // -> give-controls vía HTTP+DB, que es el único que persiste y el que se
+  // usa para reconstruir el estado tras una reconexión. No son dos
+  // mecanismos redundantes compitiendo por la misma verdad.
+  broadcastAuthorityTransfer(joinCode, transfer);
+  await broadcastSessionState(joinCode);
+  res.status(204).end();
 });
 
 const httpServer = createServer(app);
@@ -163,11 +243,48 @@ function validateFlightMessage(msg: any): string | null {
  * existe en el schema (ControlEvent) como "asignado por el receptor, nunca
  * enviado por red", así que aquí actuamos como el receptor que reenvía.
  */
-function relayFlightMessage(senderWs: WebSocket, joinCode: string, msg: any) {
-  const outgoing = { ...msg, origin: "remote" };
+function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: string, msg: any) {
+  const outgoing = { ...msg, origin: "remote", sourcePilot: pilotName };
   const payload = JSON.stringify(outgoing);
   for (const [ws, meta] of connections) {
     if (ws === senderWs) continue;
+    if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
+      ws.send(payload);
+    }
+  }
+}
+
+// El MVP solo tiene un grupo de controles transferible ("flight_controls").
+// Si más adelante hace falta más de un grupo (luces, radios, etc.), el
+// groupId debería venir del perfil de aeronave activo de la sesión
+// (packages/profile-schema), no seguir hardcodeado aquí.
+const FLIGHT_CONTROLS_GROUP_ID = "flight_controls";
+
+interface AuthorityTransferResult {
+  previousOwner: string;
+  newOwner: string;
+  revision: number;
+}
+
+/**
+ * Emite el mensaje authority.transfer AUTORITATIVO (forma exacta de
+ * packages/protocol/types.ts: group, previousOwner, newOwner, revision,
+ * sessionId) a todos los sockets conectados de la sesión, tras un
+ * give-controls exitoso en la base de datos. `sessionId` aquí es el join
+ * code (así es como el resto del código de este archivo y el cliente
+ * (useSessionSocket.ts) usan `sessionId` en mensajes de vuelo — no el id
+ * interno hex de la fila `sessions`).
+ */
+function broadcastAuthorityTransfer(joinCode: string, transfer: AuthorityTransferResult) {
+  const payload = JSON.stringify({
+    type: "authority.transfer",
+    sessionId: joinCode,
+    group: FLIGHT_CONTROLS_GROUP_ID,
+    previousOwner: transfer.previousOwner,
+    newOwner: transfer.newOwner,
+    revision: transfer.revision,
+  });
+  for (const [ws, meta] of connections) {
     if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
       ws.send(payload);
     }
@@ -217,7 +334,7 @@ wss.on("connection", async (ws, req) => {
         }
         const meta = connections.get(ws);
         if (meta) {
-          relayFlightMessage(ws, meta.joinCode, msg);
+          relayFlightMessage(ws, meta.joinCode, meta.pilotName, msg);
         }
         return;
       }

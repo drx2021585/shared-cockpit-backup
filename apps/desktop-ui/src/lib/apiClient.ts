@@ -35,6 +35,13 @@ export interface Session {
   status: "waiting" | "active";
   sim: "msfs2020" | "msfs2024";
   hasPassword: boolean;
+  creatorPilotName: string;
+  /** `seat` ("captain" | "first_officer"), NO pilotName — server/api resuelve
+   *  autoridad por seat, no por nombre. Resolver a nombre de piloto en la UI
+   *  buscando en `participants` el que tenga ese `seat`. */
+  controlOwner: string | null;
+  /** Igual que `controlOwner`: `seat`, no pilotName. */
+  controlRequestedBy: string | null;
   participants: SessionParticipant[];
 }
 
@@ -95,6 +102,30 @@ export async function closeSession(joinCode: string, pilotName: string) {
     const body = await res.json().catch(() => null);
     throw new ApiError(body?.error ?? "request-failed", res.status);
   }
+}
+
+async function postSessionAction(joinCode: string, action: string, pilotName: string) {
+  const res = await fetch(`${API_BASE}/api/sessions/${joinCode}/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pilotName }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.error ?? "request-failed", res.status);
+  }
+}
+
+export function leaveSession(joinCode: string, pilotName: string) {
+  return postSessionAction(joinCode, "leave", pilotName);
+}
+
+export function requestControls(joinCode: string, pilotName: string) {
+  return postSessionAction(joinCode, "request-controls", pilotName);
+}
+
+export function giveControls(joinCode: string, pilotName: string) {
+  return postSessionAction(joinCode, "give-controls", pilotName);
 }
 
 export function apiBaseUrl() {

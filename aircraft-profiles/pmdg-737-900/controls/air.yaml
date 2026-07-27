@@ -1,0 +1,1172 @@
+# Aire acondicionado / presurización (AIR_*) y protección de hielo (ICE_*)
+# del PMDG 737-900/900ER — sin categoría propia en
+# packages/profile-schema/manifest.schema.json, documentado bajo una sección
+# "air" nueva en capabilities.yaml (mismo patrón que "lights"/"fms").
+#
+# Todos los campos "AIR_*"/"ICE_*" de abajo tienen offset REAL transcrito EN
+# ORDEN, sin huecos, en apps/simulator-bridge/.../PmdgNg3DataLayout.cs (tramo
+# transcrito del struct PMDG_NG3_Data, entre HYD_PumpSw_elec y
+# LTS_LandingLtRetractableSw). No se agregó ningún campo que no esté en esa
+# tabla.
+#
+# Campos EXCLUIDOS deliberadamente (bloqueados por esquema, ver
+# EVENT_IDS_PENDIENTES.md sección "Bloqueado por esquema" -- nativeType hoy
+# solo admite bool/uchar/uint/char_array, no float ni int):
+#   AIR_DuctPress[2], AIR_DuctPressNeedle[2], AIR_CabinAltNeedle,
+#   AIR_CabinDPNeedle, AIR_CabinVSNeedle, AIR_CabinValveNeedle,
+#   AIR_TemperatureNeedle (todos float)
+#   ICE_WindowHeatTestSw (int)
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header, 842 #define con comentario original) confirma por escrito 25
+# Event IDs EVT_OH_EC_*/EVT_OH_AIRCOND_*_800/EVT_OH_BLEED_*/EVT_OH_PRESS_*/
+# EVT_OH_ICE_*. Esos 25 controles (equip_cooling_supply_norm/exhaust_norm,
+# temp_source_selector, trim_air_switch, recirc_fan_switch_1/2,
+# pack_switch_1/2, bleed_air_switch_1/2, apu_bleed_air_switch,
+# isolation_valve_switch, pressurization_mode_selector, outflow_valve_switch,
+# flt_alt_window, land_alt_window, ice.window_heat_sw_1..4,
+# ice.probe_heat_sw_1/2, ice.wing_anti_ice_sw, ice.eng_anti_ice_sw_1/2) se
+# convirtieron de readOnly a escribibles (write.type: clientDataEvent contra
+# PMDG_NG3_Control). Para temp_source_selector/trim_air_switch se usó
+# explícitamente la variante "_800" del Event ID (header: "-800/900 panel
+# only"), correcta para este perfil -900/900ER. air.flt_alt_window/
+# land_alt_window usan los eventos dedicados "_SET" (offset 14507/14508,
+# rango distinto a los EVT_OH_* de switches) pese a que el campo de LECTURA
+# correspondiente está marcado "WARNING obsolete" en el header (se prefiere
+# AIR_DisplayFltAlt/AIR_DisplayLandAlt para lectura futura, pero el Event de
+# escritura en sí sigue vigente). El resto (anunciadores, displays de texto,
+# campos bloqueados por esquema) permanece readOnly: true. Sigue sin
+# confirmación EN VIVO contra MSFS+PMDG real -- ver EVENT_IDS_PENDIENTES.md.
+#
+# Convención de índice neutral _1 (índice 0) / _2 (índice 1) para todos los
+# arrays de tamaño 2, y _1/_2/_3/_4 para arrays de tamaño 3/4, SIN evidencia
+# propia de a qué lado/zona/motor físico corresponde cada índice -- misma
+# convención que electrical.yaml/hydraulics.yaml/engine.yaml/fuel.yaml.
+#
+# AIR_DisplayFltAlt[6]/AIR_DisplayLandAlt[6]: char arrays de texto -- dataType
+# string, nativeType char_array (mismo patrón que ELEC_MeterDisplayTop/Bottom).
+
+- id: air.equip_cooling_supply_norm
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_EquipCoolingSupplyNORM"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_EC_SUPPLY_SWITCH"
+    semantics: "sets the EQUIPMENT COOLING SUPPLY switch to the explicit boolean state being written (AIR_EquipCoolingSupplyNORM); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.equip_cooling_exhaust_norm
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_EquipCoolingExhaustNORM"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_EC_EXHAUST_SWITCH"
+    semantics: "sets the EQUIPMENT COOLING EXHAUST switch to the explicit boolean state being written (AIR_EquipCoolingExhaustNORM); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.annun_equip_cooling_supply_off
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunEquipCoolingSupplyOFF"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_equip_cooling_exhaust_off
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunEquipCoolingExhaustOFF"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.temp_source_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_TempSourceSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_AIRCOND_TEMP_SOURCE_SELECTOR_800"
+    semantics: "sets the AIRCOND TEMP SOURCE selector to the explicit numeric position being written (AIR_TempSourceSelector: positions 0..6, per PMDG_NG3_SDK.h comment); uses the '_800' event variant, header-documented as '-800/900 panel only', matching this -900/900ER profile; Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.trim_air_switch
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_TrimAirSwitch"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_AIRCOND_TRIM_AIR_SWITCH_800"
+    semantics: "sets the TRIM AIR switch to the explicit boolean state being written (AIR_TrimAirSwitch); uses the '_800' event variant ('-800/900 panel only' per header); Parameter=1/0 explicit. NOTE: a separate EVT_OH_TRIM_AIR_SWITCH_TOGGLE(84832) exists but its comment 'user clicks a switch' suggests a raw toggle pulse, deliberately NOT used here (anti-TOGGLE rule)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.annun_zone_temp_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunZoneTemp"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_zone_temp_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunZoneTemp"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_zone_temp_3
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunZoneTemp"
+    arrayIndex: 2
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_dual_bleed
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunDualBleed"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_ram_door_l
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunRamDoorL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_ram_door_r
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunRamDoorR"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.recirc_fan_switch_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_RecircFanSwitch"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_RECIRC_FAN_L_SWITCH"
+    semantics: "sets the LEFT recirculation fan switch to the explicit boolean state being written (AIR_RecircFanSwitch[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.recirc_fan_switch_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_RecircFanSwitch"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_RECIRC_FAN_R_SWITCH"
+    semantics: "sets the RIGHT recirculation fan switch to the explicit boolean state being written (AIR_RecircFanSwitch[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.pack_switch_1
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_PackSwitch"
+    arrayIndex: 0
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_PACK_L_SWITCH"
+    semantics: "sets the LEFT pack switch to the explicit numeric position being written (AIR_PackSwitch[0]); Parameter must carry the absolute target position (exact enumerated positions not confirmed in the transcribed header comment for this field, treated as a discrete selector by naming convention)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.pack_switch_2
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_PackSwitch"
+    arrayIndex: 1
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_PACK_R_SWITCH"
+    semantics: "sets the RIGHT pack switch to the explicit numeric position being written (AIR_PackSwitch[1]); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.bleed_air_switch_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_BleedAirSwitch"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_ENG_1_SWITCH"
+    semantics: "sets the ENG 1 bleed air switch to the explicit boolean state being written (AIR_BleedAirSwitch[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.bleed_air_switch_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_BleedAirSwitch"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_ENG_2_SWITCH"
+    semantics: "sets the ENG 2 bleed air switch to the explicit boolean state being written (AIR_BleedAirSwitch[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.apu_bleed_air_switch
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_APUBleedAirSwitch"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_APU_SWITCH"
+    semantics: "sets the APU bleed air switch to the explicit boolean state being written (AIR_APUBleedAirSwitch); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.isolation_valve_switch
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_IsolationValveSwitch"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_BLEED_ISOLATION_VALVE_SWITCH"
+    semantics: "sets the ISOLATION VALVE switch to the explicit numeric position being written (AIR_IsolationValveSwitch); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.annun_pack_trip_off_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunPackTripOff"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_pack_trip_off_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunPackTripOff"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_wing_body_overheat_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunWingBodyOverheat"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_wing_body_overheat_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunWingBodyOverheat"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_bleed_trip_off_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunBleedTripOff"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_bleed_trip_off_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunBleedTripOff"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_auto_fail
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunAUTO_FAIL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_offsched_descent
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunOFFSCHED_DESCENT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_altn
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunALTN"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.annun_manual
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_annunMANUAL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.display_flt_alt
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_DisplayFltAlt"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.display_land_alt
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_DisplayLandAlt"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: air.flt_alt_window
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_FltAltWindow"
+    nativeType: uint
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_PRESS_FLT_ALT_SET"
+    semantics: "sets the FLT ALT window to the explicit numeric value being written (AIR_FltAltWindow); dedicated '_SET' event (offset 14507), distinct from the rotary EVT_OH_PRESS_FLT_ALT_KNOB, treated as an absolute set. NOTE: AIR_FltAltWindow is marked 'WARNING obsolete - use AIR_DisplayFltAlt instead' as a READ field in the header, but the write event itself is current; prefer AIR_DisplayFltAlt for reading in new code"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.land_alt_window
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_LandAltWindow"
+    nativeType: uint
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_PRESS_LAND_ALT_SET"
+    semantics: "sets the LAND ALT window to the explicit numeric value being written (AIR_LandAltWindow); dedicated '_SET' event (offset 14508), distinct from the rotary EVT_OH_PRESS_LAND_ALT_KNOB. NOTE: AIR_LandAltWindow is marked 'WARNING obsolete - use AIR_DisplayLandAlt instead' as a READ field, write event itself is current"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.outflow_valve_switch
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_OutflowValveSwitch"
+    nativeType: uint
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_PRESS_VALVE_SWITCH"
+    semantics: "sets the outflow valve switch to the explicit numeric position being written (AIR_OutflowValveSwitch: 0 CLOSE, 1 NEUTRAL, 2 OPEN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: air.pressurization_mode_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "AIR_PressurizationModeSelector"
+    nativeType: uint
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_PRESS_SELECTOR"
+    semantics: "sets the pressurization mode selector to the explicit numeric position being written (AIR_PressurizationModeSelector: 0 AUTO, 1 ALTN, 2 MAN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.annun_overheat_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunOVERHEAT"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_overheat_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunOVERHEAT"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_overheat_3
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunOVERHEAT"
+    arrayIndex: 2
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_overheat_4
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunOVERHEAT"
+    arrayIndex: 3
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_on_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunON"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_on_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunON"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_on_3
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunON"
+    arrayIndex: 2
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_on_4
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunON"
+    arrayIndex: 3
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.window_heat_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_WindowHeatSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_WINDOW_HEAT_1"
+    semantics: "sets window heat switch 1 to the explicit boolean state being written (ICE_WindowHeatSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.window_heat_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_WindowHeatSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_WINDOW_HEAT_2"
+    semantics: "sets window heat switch 2 to the explicit boolean state being written (ICE_WindowHeatSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.window_heat_sw_3
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_WindowHeatSw"
+    arrayIndex: 2
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_WINDOW_HEAT_3"
+    semantics: "sets window heat switch 3 to the explicit boolean state being written (ICE_WindowHeatSw[2]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.window_heat_sw_4
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_WindowHeatSw"
+    arrayIndex: 3
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_WINDOW_HEAT_4"
+    semantics: "sets window heat switch 4 to the explicit boolean state being written (ICE_WindowHeatSw[3]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.annun_capt_pitot
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunCAPT_PITOT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_l_elev_pitot
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunL_ELEV_PITOT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_l_alpha_vane
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunL_ALPHA_VANE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_l_temp_probe
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunL_TEMP_PROBE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_fo_pitot
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunFO_PITOT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_r_elev_pitot
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunR_ELEV_PITOT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_r_alpha_vane
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunR_ALPHA_VANE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_aux_pitot
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunAUX_PITOT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.probe_heat_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_ProbeHeatSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_PROBE_HEAT_1"
+    semantics: "sets probe heat switch 1 to the explicit boolean state being written (ICE_ProbeHeatSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.probe_heat_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_ProbeHeatSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_PROBE_HEAT_2"
+    semantics: "sets probe heat switch 2 to the explicit boolean state being written (ICE_ProbeHeatSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.annun_valve_open_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunVALVE_OPEN"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_valve_open_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunVALVE_OPEN"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_cowl_anti_ice_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunCOWL_ANTI_ICE"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_cowl_anti_ice_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunCOWL_ANTI_ICE"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_cowl_valve_open_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunCOWL_VALVE_OPEN"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.annun_cowl_valve_open_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_annunCOWL_VALVE_OPEN"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: ice.wing_anti_ice_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_WingAntiIceSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_WING_ANTIICE"
+    semantics: "sets the WING anti-ice switch to the explicit boolean state being written (ICE_WingAntiIceSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.eng_anti_ice_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_EngAntiIceSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_ENGINE_ANTIICE_1"
+    semantics: "sets the ENG 1 anti-ice switch to the explicit boolean state being written (ICE_EngAntiIceSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: ice.eng_anti_ice_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ICE_EngAntiIceSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ICE_ENGINE_ANTIICE_2"
+    semantics: "sets the ENG 2 anti-ice switch to the explicit boolean state being written (ICE_EngAntiIceSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

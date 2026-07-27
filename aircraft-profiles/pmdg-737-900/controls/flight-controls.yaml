@@ -129,3 +129,301 @@
     debounceMs: 100
     confirmAfterWrite: true
     timeoutMs: 1000
+
+# --- Client Data Area de PMDG (PMDG_NG3_Data), campos FCTL_* -- solo lectura,
+# 2026-07-26. Todos tienen offset REAL transcrito EN ORDEN, sin huecos, en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs (tramo transcrito del struct
+# PMDG_NG3_Data, entre COMM_ServiceInterphoneSw y NAVDIS_VHFNavSelector). No
+# se agregó ningún campo que no esté en esa tabla.
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header) confirma por escrito EVT_OH_SPOILER_A/B_SWITCH,
+# EVT_OH_YAW_DAMPER, EVT_OH_ALT_FLAPS_MASTER_SWITCH,
+# EVT_OH_ALT_FLAPS_POS_SWITCH -- se convirtieron 5 controles de readOnly a
+# escribibles (fctl_spoiler_sw_1/2, fctl_yaw_damper_sw,
+# fctl_altn_flaps_sw_arm, fctl_altn_flaps_control_sw). fctl_flt_control_sw_1/2
+# NO se convirtió: sus candidatos (EVT_OH_FCTL_A/B_SWITCH) tienen comentario
+# original "... Switch Decrease" en el header, la misma señal de posible pulso
+# relativo que hizo descartar lights.circuit_breaker_knob -- se deja pendiente
+# por prudencia (ver EVENT_IDS_PENDIENTES.md). El resto (anunciadores)
+# permanece readOnly: true. Sigue sin confirmación EN VIVO contra MSFS+PMDG
+# real.
+#
+# FCTL_FltControl_Sw[2]/FCTL_Spoiler_Sw[2]/FCTL_annunFC_LOW_PRESSURE[2]:
+# convención de índice neutral _1 (índice 0) / _2 (índice 1), SIN evidencia
+# propia de a qué sistema físico (A/B, izq/der) corresponde cada índice --
+# misma convención que electrical.yaml/hydraulics.yaml.
+
+- id: flight.fctl_flt_control_sw_1
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_FltControl_Sw"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_flt_control_sw_2
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_FltControl_Sw"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_spoiler_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_Spoiler_Sw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_SPOILER_A_SWITCH"
+    semantics: "sets the SPOILER A switch to the explicit boolean state being written (FCTL_Spoiler_Sw[0]); Parameter=1/0 explicit. Guard (EVT_OH_SPOILER_A_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.fctl_spoiler_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_Spoiler_Sw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_SPOILER_B_SWITCH"
+    semantics: "sets the SPOILER B switch to the explicit boolean state being written (FCTL_Spoiler_Sw[1]); Parameter=1/0 explicit. Guard (EVT_OH_SPOILER_B_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.fctl_yaw_damper_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_YawDamper_Sw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_YAW_DAMPER"
+    semantics: "sets the YAW DAMPER switch to the explicit boolean state being written (FCTL_YawDamper_Sw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.fctl_altn_flaps_sw_arm
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_AltnFlaps_Sw_ARM"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ALT_FLAPS_MASTER_SWITCH"
+    semantics: "sets the ALTERNATE FLAPS master switch to the explicit boolean state being written (FCTL_AltnFlaps_Sw_ARM); Parameter=1/0 explicit. Guard (EVT_OH_ALT_FLAPS_MASTER_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.fctl_altn_flaps_control_sw
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_AltnFlaps_Control_Sw"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ALT_FLAPS_POS_SWITCH"
+    semantics: "sets the ALTERNATE FLAPS position switch to the explicit numeric position being written (FCTL_AltnFlaps_Control_Sw: 0 UP, 1 OFF, 2 DOWN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flight.fctl_annun_fc_low_pressure_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunFC_LOW_PRESSURE"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_fc_low_pressure_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunFC_LOW_PRESSURE"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_yaw_damper
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunYAW_DAMPER"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_low_quantity
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunLOW_QUANTITY"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_low_pressure
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunLOW_PRESSURE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_low_stby_rud_on
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunLOW_STBY_RUD_ON"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_feel_diff_press
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunFEEL_DIFF_PRESS"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_speed_trim_fail
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunSPEED_TRIM_FAIL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_mach_trim_fail
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunMACH_TRIM_FAIL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flight.fctl_annun_auto_slat_fail
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "FCTL_annunAUTO_SLAT_FAIL"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

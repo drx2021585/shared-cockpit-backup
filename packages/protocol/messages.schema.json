@@ -7,7 +7,8 @@
     { "$ref": "#/definitions/ControlAxis" },
     { "$ref": "#/definitions/AircraftSnapshot" },
     { "$ref": "#/definitions/AuthorityTransfer" },
-    { "$ref": "#/definitions/SessionMessage" }
+    { "$ref": "#/definitions/SessionMessage" },
+    { "$ref": "#/definitions/ScreenSnapshot" }
   ],
   "definitions": {
     "ControlEvent": {
@@ -82,6 +83,36 @@
         "sessionId": { "type": "string" },
         "userId": { "type": "string" },
         "role": { "type": "string", "enum": ["captain", "first_officer", "observer"] },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "ScreenSnapshot": {
+      "type": "object",
+      "description": "Contenido completo de una pantalla de solo lectura de un addon de terceros (ej. CDU/MCDU del PMDG NG3 SDK, Client Data Area PMDG_NG3_CDU_0/1). Canal confiable, baja frecuencia, enviado on-demand/on-change (la pantalla NO cambia a la frecuencia de un control.axis). NO representa controles escribibles: hoy este mensaje es estrictamente de solo lectura (reflejar la pantalla del capitán en la UI del copiloto o viceversa); escritura de botones queda fuera de alcance hasta tener Event IDs confirmados (ver docs/plan-737-fullsync-2026-07-25.md).",
+      "required": ["type", "sessionId", "screenId", "rows", "cols", "cells", "revision"],
+      "properties": {
+        "type": { "const": "screen.snapshot" },
+        "sessionId": { "type": "string" },
+        "screenId": { "type": "string", "description": "Identificador normalizado de la pantalla, ej. \"cdu_captain\" / \"cdu_fo\" (PMDG_NG3_CDU_0/PMDG_NG3_CDU_1)." },
+        "rows": { "type": "integer", "minimum": 1, "description": "Número de filas de la grilla, ej. 14 para el CDU del PMDG NG3 (CDU_ROWS del SDK)." },
+        "cols": { "type": "integer", "minimum": 1, "description": "Número de columnas de la grilla, ej. 24 para el CDU del PMDG NG3 (CDU_COLUMNS del SDK)." },
+        "cells": {
+          "type": "array",
+          "description": "Arreglo de celdas en orden row-major (fila 0 col 0..cols-1, fila 1 col 0..cols-1, ...), longitud esperada rows*cols.",
+          "items": {
+            "type": "object",
+            "required": ["char", "colorId", "flags"],
+            "properties": {
+              "char": { "type": "string", "minLength": 0, "maxLength": 1, "description": "Carácter de la celda (símbolo ASCII); cadena vacía o espacio para celda en blanco." },
+              "colorId": { "type": "integer", "minimum": 0, "maximum": 5, "description": "Uno de los 6 colores definidos por el SDK (PMDG_NG3_CDU_COLOR_*: 0 WHITE, 1 CYAN, 2 GREEN, 3 MAGENTA, 4 AMBER, 5 RED)." },
+              "flags": { "type": "integer", "minimum": 0, "description": "Bitmask de flags del SDK (PMDG_NG3_CDU_FLAG_*: 0x01 SMALL_FONT, 0x02 REVERSE, 0x04 UNUSED/dim)." }
+            },
+            "additionalProperties": false
+          }
+        },
+        "powered": { "type": "boolean", "description": "Espeja PMDG_NG3_CDU_Screen.Powered; si es false, la pantalla está apagada y 'cells' puede ignorarse en la UI." },
+        "revision": { "type": "integer", "description": "Se incrementa en cada snapshot enviado; usado para descartar snapshots viejos/fuera de orden, igual que aircraft.snapshot." },
+        "origin": { "type": "string", "enum": ["local", "remote"], "description": "Marcado por el receptor, no se envía por red." },
         "timestamp": { "type": "integer" }
       }
     }

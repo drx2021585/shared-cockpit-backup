@@ -24,8 +24,14 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
     private readonly HttpListener _listener = new();
     private readonly ILog _log;
     private readonly Action<IncomingMessage> _onIncoming;
-    private readonly List<WebSocket> _clients = new();
+    // .NET WebSocket solo permite un SendAsync pendiente a la vez por instancia -- con
+    // Broadcast() disparando fire-and-forget por cada mensaje (incluido el canal rápido
+    // de control.axis a 20-60Hz), dos envíos concurrentes al mismo cliente abortaban la
+    // conexión ("There is already one outstanding 'SendAsync' call..."). Un semáforo por
+    // cliente serializa los envíos sin bloquear a los demás clientes conectados.
+    private readonly Dictionary<WebSocket, SemaphoreSlim> _clients = new();
     private readonly object _clientsLock = new();
+    private byte[]? _lastStatusBytes;
     private CancellationTokenSource? _cts;
     private Task? _acceptLoopTask;
 
@@ -92,12 +98,22 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
             return;
         }
 
+        var sendGate = new SemaphoreSlim(1, 1);
         lock (_clientsLock)
         {
-            _clients.Add(socket);
+            _clients.Add(socket, sendGate);
         }
 
         _log.Info("Cliente conectado al bridge por WebSocket.");
+        byte[]? lastStatus;
+        lock (_clientsLock)
+        {
+            lastStatus = _lastStatusBytes;
+        }
+        if (lastStatus is not null)
+        {
+            await SendSafeAsync(socket, sendGate, lastStatus);
+        }
 
         var buffer = new byte[16 * 1024];
         try
@@ -144,6 +160,7 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
                 _clients.Remove(socket);
             }
 
+            sendGate.Dispose();
             socket.Dispose();
             _log.Info("Cliente WebSocket desconectado.");
         }
@@ -156,32 +173,46 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
         var json = message.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);
 
-        List<WebSocket> snapshot;
+        List<KeyValuePair<WebSocket, SemaphoreSlim>> snapshot;
         lock (_clientsLock)
         {
-            snapshot = new List<WebSocket>(_clients);
+            if (message["type"]?.GetValue<string>() == "bridge.status")
+            {
+                _lastStatusBytes = bytes;
+            }
+            snapshot = new List<KeyValuePair<WebSocket, SemaphoreSlim>>(_clients);
         }
 
-        foreach (var client in snapshot)
+        foreach (var (client, sendGate) in snapshot)
         {
             if (client.State != WebSocketState.Open)
             {
                 continue;
             }
 
-            _ = SendSafeAsync(client, bytes);
+            _ = SendSafeAsync(client, sendGate, bytes);
         }
     }
 
-    private async Task SendSafeAsync(WebSocket client, byte[] bytes)
+    private async Task SendSafeAsync(WebSocket client, SemaphoreSlim sendGate, byte[] bytes)
     {
+        await sendGate.WaitAsync();
         try
         {
+            if (client.State != WebSocketState.Open)
+            {
+                return;
+            }
+
             await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
         }
         catch (Exception ex)
         {
             _log.Warn($"No se pudo enviar mensaje a un cliente WebSocket: {ex.Message}");
+        }
+        finally
+        {
+            sendGate.Release();
         }
     }
 
@@ -204,9 +235,10 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
 
         lock (_clientsLock)
         {
-            foreach (var client in _clients)
+            foreach (var (client, sendGate) in _clients)
             {
                 client.Dispose();
+                sendGate.Dispose();
             }
 
             _clients.Clear();

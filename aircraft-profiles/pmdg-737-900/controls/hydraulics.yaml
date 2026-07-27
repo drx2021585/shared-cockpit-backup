@@ -1,0 +1,210 @@
+# Sistema hidráulico del PMDG 737-900/900ER — capabilities.hydraulics: partial
+# (lectura + escritura para los switches reales de bomba; los anunciadores
+# siguen siendo solo lectura, ver ACTUALIZACIÓN 2026-07-26 abajo).
+#
+# packages/profile-schema/control.schema.json soporta controles readOnly
+# (write opcional + readOnly: true explícito). Todos los campos "HYD_*" abajo
+# tienen offset REAL transcrito en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs (tramo transcrito del struct
+# PMDG_NG3_Data):
+#   HYD_annunLOW_PRESS_eng[2], HYD_annunLOW_PRESS_elec[2],
+#   HYD_annunOVERHEAT_elec[2], HYD_PumpSw_eng[2], HYD_PumpSw_elec[2]
+# (todos boolean). No se agregó ningún campo HYD_* que no esté en esa tabla.
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header con comentarios originales) confirma por escrito, no solo por
+# offset calculado, los Event IDs EVT_OH_HYD_ENG1/ENG2/ELEC1/ELEC2. Se
+# convirtieron HYD_PumpSw_eng[2]/HYD_PumpSw_elec[2] de readOnly a
+# escribibles (write.type: clientDataEvent contra PMDG_NG3_Control). Sigue
+# sin confirmación EN VIVO contra MSFS+PMDG real (nadie ha abierto el sim en
+# este entorno) — ver EVENT_IDS_PENDIENTES.md para el checklist de
+# validación en vivo pendiente.
+#
+# HYD_annunLOW_PRESS_eng/elec y HYD_annunOVERHEAT_elec son anunciadores puros
+# (no tiene sentido que alguna vez tengan write) y permanecen readOnly: true.
+#
+# Convención de índice [0]/[1]: para HYD_PumpSw_eng, EVENT_IDS_PENDIENTES.md
+# asume [0]=motor 1 (izquierdo) / [1]=motor 2 (derecho) pero marca esa
+# suposición como NO confirmada (el orden real del array C puede diferir).
+# Para HYD_PumpSw_elec, EVENT_IDS_PENDIENTES.md documenta explícitamente que
+# el orden de aparición en el header (#define EVT_OH_HYD_ELEC2 antes que
+# EVT_OH_HYD_ELEC1) NO debe asumirse como el orden del array -- por eso aquí
+# se usan sufijos _1/_2 genéricos por índice crudo (0->_1, 1->_2), sin afirmar
+# a qué bomba física corresponde cada uno hasta que se confirme en vivo. Para
+# HYD_annunLOW_PRESS_eng/elec y HYD_annunOVERHEAT_elec se sigue la misma
+# convención neutral índice0->_1/índice1->_2 por consistencia, también sin
+# evidencia propia de a qué lado corresponde cada índice.
+
+- id: hydraulics.annun_low_press_eng_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunLOW_PRESS_eng"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.annun_low_press_eng_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunLOW_PRESS_eng"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.annun_low_press_elec_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunLOW_PRESS_elec"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.annun_low_press_elec_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunLOW_PRESS_elec"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.annun_overheat_elec_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunOVERHEAT_elec"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.annun_overheat_elec_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_annunOVERHEAT_elec"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.pump_sw_eng_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_PumpSw_eng"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_HYD_ENG1"
+    semantics: "sets the ENG 1 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_eng[0]); Parameter=1/0 explicit. Index0->ENG1 assumed by name match, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_sw_eng_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_PumpSw_eng"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_HYD_ENG2"
+    semantics: "sets the ENG 2 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_eng[1]); Parameter=1/0 explicit. Index1->ENG2 assumed by name match, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_sw_elec_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_PumpSw_elec"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_HYD_ELEC1"
+    semantics: "sets the ELEC 1 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_elec[0]); Parameter=1/0 explicit. Index0->ELEC1 assumed by matching the event name suffix number to the array index, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_sw_elec_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "HYD_PumpSw_elec"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_HYD_ELEC2"
+    semantics: "sets the ELEC 2 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_elec[1]); Parameter=1/0 explicit. Index1->ELEC2 assumed by matching the event name suffix number to the array index, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

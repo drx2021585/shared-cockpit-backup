@@ -55,3 +55,818 @@
     debounceMs: 100
     confirmAfterWrite: true
     timeoutMs: 1000
+
+# --- Client Data Area de PMDG (PMDG_NG3_Data), campos ELEC_* -- solo lectura, 2026-07-25 ---
+#
+# packages/profile-schema/control.schema.json ahora soporta controles
+# readOnly (write opcional + readOnly: true explícito). Todos los campos
+# "ELEC_*" listados abajo tienen offset REAL transcrito EN ORDEN, sin huecos,
+# en apps/simulator-bridge/.../PmdgNg3DataLayout.cs (desde
+# ELEC_annunBAT_DISCHARGE hasta ELEC_BusPowered[16], dentro del tramo del
+# struct SÍ cubierto por esa tabla). NO se agregó ningún campo que no esté en
+# esa tabla.
+#
+# Se declaran todos como readOnly: true (sin `write`) porque NINGUNO tiene un
+# Event ID de PMDG_NG3_Control confirmado hoy -- ver
+# aircraft-profiles/pmdg-737-900/EVENT_IDS_PENDIENTES.md, sección
+# "Candidatos ELEC_*": esa tabla lista valores CALCULADOS (THIRD_PARTY_EVENT_ID_MIN
+# + offset del #define del header) para varios de estos campos (GenSw,
+# APUGenSw, GrdPwrSw, BusTransSw_AUTO, StandbyPowerSelector,
+# IDGDisconnectSw, DCMeterSelector, ACMeterSelector, BatSelector,
+# CabUtilSw, IFEPassSeatSw), pero un valor CALCULADO desde el header no es lo
+# mismo que un Event ID CONFIRMADO en vivo contra MSFS+PMDG (política del
+# proyecto: nunca inventar/asumir un Event ID de escritura sin esa
+# confirmación). Cuando alguno de esos candidatos se valide en vivo (pasos en
+# EVENT_IDS_PENDIENTES.md), ese control específico debe moverse de readOnly a
+# escribible (agregar `write.type: clientDataEvent` + quitar `readOnly`).
+#
+# Los siguientes SÍ son anunciadores/displays puros por naturaleza (no tiene
+# sentido que alguna vez tengan write): annunBAT_DISCHARGE, annunTR_UNIT,
+# annunELEC, annunSTANDBY_POWER_OFF, annunGRD_POWER_AVAILABLE,
+# annunTRANSFER_BUS_OFF, annunSOURCE_OFF, annunGEN_BUS_OFF,
+# annunAPU_GEN_OFF_BUS, MeterDisplayTop/Bottom, BusPowered[16] (estado
+# calculado del bus, no un switch).
+#
+# ELEC_BusPowered[16]: el struct expone 16 booleans en un array plano. El
+# header/tabla transcrita NO documenta a qué bus físico corresponde cada
+# índice (BUS 1, BUS 2, STANDBY, GROUND SERVICE, etc.) -- se exponen como
+# electrical.bus_powered_<0..15> genéricos, honestos sobre el índice crudo,
+# sin inventar un nombre de bus que no está confirmado.
+#
+# ACTUALIZACIÓN 2026-07-26 — EVT_EVENT_IDS_FULL.txt (transcripción completa
+# del header con comentario original de cada #define) confirma por escrito
+# 14 de los Event IDs "candidatos calculados" listados en
+# EVENT_IDS_PENDIENTES.md (DC/AC meter selector, BAT selector, CAB UTIL,
+# IFE/PASS, IDG disconnect x2, standby power selector, GRD PWR, bus transfer,
+# GEN x2, APU GEN x2). Esos 14 controles se convirtieron de readOnly a
+# escribibles (write.type: clientDataEvent contra PMDG_NG3_Control). Los
+# anunciadores/displays/bus status permanecen readOnly: true (no tiene
+# sentido escribirlos). Sigue sin confirmación EN VIVO contra MSFS+PMDG real
+# -- ver EVENT_IDS_PENDIENTES.md para el checklist pendiente.
+#
+# Convención de índice en pares [0]/[1]: cuando EVENT_IDS_PENDIENTES.md ya
+# documentó explícitamente qué lado es cada índice (GenSw, APUGenSw,
+# IDGDisconnectSw: [0]=izquierdo, [1]=derecho), se usa sufijo _1/_2 en el id
+# siguiendo esa misma convención L/R. Para los pares sin esa confirmación
+# explícita (annunDRIVE, annunTRANSFER_BUS_OFF, annunSOURCE_OFF,
+# annunGEN_BUS_OFF) se asume la misma convención L=índice0/R=índice1 por
+# consistencia con los switches asociados del mismo subsistema, pero SIN
+# evidencia propia -- si se descubre que está invertido, corregir aquí.
+
+- id: electrical.annun_bat_discharge
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunBAT_DISCHARGE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_tr_unit
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunTR_UNIT"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_elec
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunELEC"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.dc_meter_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_DCMeterSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_DC_METER"
+    semantics: "sets the DC SOURCE meter selector knob to the explicit numeric position being written (ELEC_DCMeterSelector: 0 STBY PWR ... 7 TEST, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position, not a relative step"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.ac_meter_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_ACMeterSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_AC_METER"
+    semantics: "sets the AC SOURCE meter selector knob to the explicit numeric position being written (ELEC_ACMeterSelector: 0 STBY PWR ... 6 TEST, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.bat_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BatSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_BATTERY_SWITCH"
+    semantics: "sets the BAT selector to the explicit numeric position being written (ELEC_BatSelector: 0 OFF, 1 BAT, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position, this is not a raw toggle"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.cab_util_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_CabUtilSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_CAB_UTIL"
+    semantics: "sets the CAB UTIL switch to the explicit boolean state being written (ELEC_CabUtilSw, marked [-800/900 only] in the header, matches this -900/900ER profile); Parameter=1 ON / Parameter=0 OFF"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.ife_pass_seat_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_IFEPassSeatSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_IFE"
+    semantics: "sets the IFE/PASS switch to the explicit boolean state being written (ELEC_IFEPassSeatSw, marked [-800/900 only] in the header); Parameter=1 ON / Parameter=0 OFF"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.annun_drive_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunDRIVE"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_drive_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunDRIVE"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_standby_power_off
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunSTANDBY_POWER_OFF"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.idg_disconnect_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_IDGDisconnectSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_DISCONNECT_1_SWITCH"
+    semantics: "sets the left GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[0]); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_DISCONNECT_1_GUARD) not modeled -- may need to be raised first in the real cockpit, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.idg_disconnect_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_IDGDisconnectSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_DISCONNECT_2_SWITCH"
+    semantics: "sets the right GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[1]); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_DISCONNECT_2_GUARD) not modeled, not verified live"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.standby_power_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_StandbyPowerSelector"
+    nativeType: uchar
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_STBY_PWR_SWITCH"
+    semantics: "sets the STANDBY POWER selector to the explicit numeric position being written (ELEC_StandbyPowerSelector: 0 BAT, 1 OFF, 2 AUTO, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Guard (EVT_OH_ELEC_STBY_PWR_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.annun_grd_power_available
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunGRD_POWER_AVAILABLE"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.grd_pwr_sw
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_GrdPwrSw"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_GRD_PWR_SWITCH"
+    semantics: "sets the GROUND POWER switch to the explicit boolean state being written (ELEC_GrdPwrSw); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.bus_trans_sw_auto
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusTransSw_AUTO"
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_BUS_TRANSFER_SWITCH"
+    semantics: "sets the BUS TRANSFER switch to the explicit boolean state being written (ELEC_BusTransSw_AUTO); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_BUS_TRANSFER_GUARD) not modeled"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.gen_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_GenSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_GEN1_SWITCH"
+    semantics: "sets the left GENERATOR switch to the explicit boolean state being written (ELEC_GenSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.gen_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_GenSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_GEN2_SWITCH"
+    semantics: "sets the right GENERATOR switch to the explicit boolean state being written (ELEC_GenSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.apu_gen_sw_1
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_APUGenSw"
+    arrayIndex: 0
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_APU_GEN1_SWITCH"
+    semantics: "sets the left APU GENERATOR switch to the explicit boolean state being written (ELEC_APUGenSw[0]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.apu_gen_sw_2
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_APUGenSw"
+    arrayIndex: 1
+    nativeType: bool
+  write:
+    type: clientDataEvent
+    areaName: "PMDG_NG3_Control"
+    event: "EVT_OH_ELEC_APU_GEN2_SWITCH"
+    semantics: "sets the right APU GENERATOR switch to the explicit boolean state being written (ELEC_APUGenSw[1]); Parameter=1/0 explicit"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.annun_transfer_bus_off_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunTRANSFER_BUS_OFF"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_transfer_bus_off_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunTRANSFER_BUS_OFF"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_source_off_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunSOURCE_OFF"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_source_off_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunSOURCE_OFF"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_gen_bus_off_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunGEN_BUS_OFF"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_gen_bus_off_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunGEN_BUS_OFF"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.annun_apu_gen_off_bus
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_annunAPU_GEN_OFF_BUS"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.meter_display_top
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_MeterDisplayTop"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.meter_display_bottom
+  dataType: string
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_MeterDisplayBottom"
+    nativeType: char_array
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_0
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 2
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_3
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 3
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_4
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 4
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_5
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 5
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_6
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 6
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_7
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 7
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_8
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 8
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_9
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 9
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_10
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 10
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_11
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 11
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_12
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 12
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_13
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 13
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_14
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 14
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: electrical.bus_powered_15
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "ELEC_BusPowered"
+    arrayIndex: 15
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
