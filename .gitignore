@@ -23,3 +23,9 @@ apps/desktop-ui/Documentation/
 # trabajo del .wasm) -- el binario final que de verdad se distribuye vive en
 # simulator/wasm-bridge/PackageSources/modules/, ese sí se versiona.
 simulator/wasm-bridge/build/
+
+# Salida de `dotnet publish` del bridge (.exe self-contained, ~160MB) --
+# artefacto de build que apps/desktop-ui/package.json empaqueta vía
+# extraResources; se regenera con el comando documentado en
+# apps/simulator-bridge/README.md, nunca se versiona.
+apps/simulator-bridge/src/SimulatorBridge/publish/

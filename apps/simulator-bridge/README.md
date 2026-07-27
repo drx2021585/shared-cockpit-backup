@@ -37,6 +37,29 @@ Ambos comandos se corrieron en este entorno de desarrollo (sin MSFS ni
 Windows con el SDK de MSFS instalado) y terminan en 0 errores / 24/24 tests
 en verde.
 
+## Cómo publicarlo para empaquetar dentro de We Connect (apps/desktop-ui)
+
+`apps/desktop-ui/electron/main.cjs` lanza este bridge automáticamente al
+abrir la app (ya no hace falta correrlo a mano en una consola aparte) --
+lee el ejecutable publicado acá y lo copia dentro del `.exe` de We Connect
+vía `extraResources` en `apps/desktop-ui/package.json`. Antes de empaquetar
+(`npm run dist` / `dist:publish` en `apps/desktop-ui`), hay que regenerar
+este publish (no se versiona en git, ver `.gitignore`):
+
+```
+cd apps/simulator-bridge/src/SimulatorBridge
+dotnet publish -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o publish
+cp "C:\MSFS 2024 SDK\SimConnect SDK\lib\SimConnect.dll" publish/
+```
+
+(Ajustar la ruta de `SimConnect.dll` a donde esté instalado el SDK de MSFS
+en la máquina que empaqueta. `SimConnect.dll` no se puede obtener de NuGet,
+ver la sección de abajo.) El resultado (~160MB, self-contained: no requiere
+que el usuario final tenga el runtime de .NET 8 instalado) queda en
+`publish/SharedCockpit.Bridge.exe` + `publish/SimConnect.dll`.
+
 ## Cómo correrlo contra MSFS real
 
 1. Copiar `SimConnect.dll` (la DLL nativa, NO el ensamblado administrado) al

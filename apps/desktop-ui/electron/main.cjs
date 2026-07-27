@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const net = require("node:net");
+const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 
 // La app apunta al backend compartido en Railway por defecto (ver
@@ -222,6 +224,106 @@ ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
 
 ipcMain.handle("setup:reset", () => writeSetupConfig({ firstLaunchCompleted: false }));
 
+// ---------------------------------------------------------------------------
+// apps/simulator-bridge embebido: hasta ahora había que correrlo a mano en
+// una consola aparte (dotnet run / el .exe suelto) para que los switches se
+// sincronizaran entre pilotos -- si uno de los dos no lo tenía corriendo, su
+// lado nunca detectaba el avión ni podía escribir nada, aunque la app We
+// Connect pareciera "conectada" (esa parte solo cubre sesión/red). Se
+// publica como .exe self-contained (ver apps/simulator-bridge/README.md +
+// package.json "build.extraResources") y se lanza solo al abrir la app.
+// ---------------------------------------------------------------------------
+
+const BRIDGE_PORT = 7620; // debe coincidir con Program.cs
+let bridgeProcess = null;
+let bridgeLogStream = null;
+
+function getBridgeExecutablePath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "bridge", "SharedCockpit.Bridge.exe");
+  }
+  return path.join(
+    __dirname, "..", "..", "simulator-bridge", "src", "SimulatorBridge", "publish", "SharedCockpit.Bridge.exe",
+  );
+}
+
+function getBridgeProfilesDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "aircraft-profiles");
+  }
+  // En desarrollo el propio bridge ya sabe subir desde el monorepo
+  // (ProfileRepository.DiscoverRoot) -- no hace falta forzar la ruta.
+  return null;
+}
+
+/** true si ya hay algo escuchando en BRIDGE_PORT (bridge ya corriendo, a mano o de un lanzamiento previo). */
+function isBridgePortOpen() {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ port: BRIDGE_PORT, host: "127.0.0.1" });
+    const done = (result) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(result);
+    };
+    socket.once("connect", () => done(true));
+    socket.once("error", () => done(false));
+    socket.setTimeout(500, () => done(false));
+  });
+}
+
+async function launchBridgeIfNeeded() {
+  if (await isBridgePortOpen()) {
+    // Ya hay un bridge respondiendo en ese puerto (corrido a mano, o de un
+    // segundo intento de arranque) -- no lanzar un segundo proceso, fallaría
+    // al intentar bindear el mismo puerto.
+    return;
+  }
+
+  const exePath = getBridgeExecutablePath();
+  if (!fs.existsSync(exePath)) {
+    console.warn(`[bridge] no se encontró el ejecutable en ${exePath} -- no se lanza automáticamente.`);
+    return;
+  }
+
+  const profilesDir = getBridgeProfilesDir();
+  const env = { ...process.env };
+  if (profilesDir) env.SHAREDCOCKPIT_PROFILES_DIR = profilesDir;
+
+  try {
+    bridgeLogStream = fs.createWriteStream(path.join(app.getPath("userData"), "bridge.log"), { flags: "a" });
+  } catch {
+    bridgeLogStream = null; // no crítico -- el bridge sigue funcionando sin log a archivo
+  }
+
+  bridgeProcess = spawn(exePath, [], {
+    cwd: path.dirname(exePath),
+    env,
+    windowsHide: true,
+  });
+
+  bridgeProcess.stdout?.on("data", (chunk) => bridgeLogStream?.write(chunk));
+  bridgeProcess.stderr?.on("data", (chunk) => bridgeLogStream?.write(chunk));
+  bridgeProcess.on("exit", (code, signal) => {
+    console.warn(`[bridge] proceso terminado (code=${code}, signal=${signal}).`);
+    bridgeProcess = null;
+  });
+  bridgeProcess.on("error", (err) => {
+    console.warn(`[bridge] no se pudo lanzar: ${err?.message ?? err}`);
+    bridgeProcess = null;
+  });
+}
+
+function stopBridge() {
+  if (bridgeProcess && !bridgeProcess.killed) {
+    bridgeProcess.kill();
+  }
+  bridgeProcess = null;
+  bridgeLogStream?.end();
+  bridgeLogStream = null;
+}
+
+app.on("before-quit", stopBridge);
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -254,6 +356,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  launchBridgeIfNeeded();
 
   if (app.isPackaged) {
     // Chequeo silencioso al abrir la app — el resultado llega por el mismo
