@@ -1,0 +1,2821 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Asientos, ventanas, viseras, luces de lectura
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Miscellaneous_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: misc.capt_window_move
+  # Window -- nodo VC_CAPT_WINDOW_MOVE del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (1): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_Window_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_Window_VAL,number) $value != if{ 1 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_window_move
+  # Window -- nodo VC_FO_WINDOW_MOVE del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (2): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_Window_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_Window_VAL,number) $value != if{ 2 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.capt_window_lockpin
+  # Latch Mechanism Rod -- nodo VC_CAPT_WINDOW_LockPin del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (1): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_Window_LockPin_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_Window_LockPin_VAL,number) $value != if{ 1 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_window_lockpin
+  # Latch Mechanism Rod -- nodo VC_FO_WINDOW_LockPin del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (2): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_Window_LockPin_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_Window_LockPin_VAL,number) $value != if{ 2 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.capt_seat_move_click
+  # Pilot Seat -- nodo VC_CAPT_SEAT_MOVE_Click del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 3) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 3 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.fo_seat_move_click
+  # Pilot Seat -- nodo VC_FO_SEAT_MOVE_Click del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 4) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 4 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.capt_seat_armrest_click_01
+  # Armrest -- nodo VC_CAPT_SEAT_ARMREST_Click_01 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (5): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_Seat_Armrest_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_Seat_Armrest_VAL,number) $value != if{ 5 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.capt_seat_armrest_click_02
+  # Armrest -- nodo VC_CAPT_SEAT_ARMREST_Click_02 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (5): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_Seat_Armrest_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_Seat_Armrest_VAL,number) $value != if{ 5 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_seat_armrest_click_01
+  # Armrest -- nodo VC_FO_SEAT_ARMREST_Click_01 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (6): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_Seat_Armrest_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_Seat_Armrest_VAL,number) $value != if{ 6 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_seat_armrest_click_02
+  # Armrest -- nodo VC_FO_SEAT_ARMREST_Click_02 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (6): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_Seat_Armrest_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_Seat_Armrest_VAL,number) $value != if{ 6 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.capt_seat_locklever
+  # Pilot Seat -- nodo VC_CAPT_Seat_LockLever del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (3): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_Seat_LockLever_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_Seat_LockLever_VAL,number) $value != if{ 3 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_seat_locklever
+  # Pilot Seat -- nodo VC_FO_Seat_LockLever del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (4): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_Seat_LockLever_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_Seat_LockLever_VAL,number) $value != if{ 4 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.firstobserverseat
+  # First Observer Seat -- nodo VC_FirstObserverSeat del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (7): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FirstObserverSeat_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FirstObserverSeat_VAL,number) $value != if{ 7 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.cb_light_bright_sw
+  # CIRCUIT BREAKER Light Control -- nodo VC_CB_Light_Bright_SW del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 9 sube, 8 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CB_Light_Bright_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CB_Light_Bright_SW_VAL,number) $value < if{ 9 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_CB_Light_Bright_SW_VAL,number) $value > if{ 8 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.cb_light_l_rotate
+  # P18 Circuit Breaker Panel Light -- nodo VC_CB_Light_L_Rotate del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 131 sube, 130 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CB_Light_L_Rotate_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CB_Light_L_Rotate_VAL,number) $value < if{ 131 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_CB_Light_L_Rotate_VAL,number) $value > if{ 130 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.cb_light_r_rotate
+  # P8 Circuit Breaker Panel Light -- nodo VC_CB_Light_R_Rotate del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 133 sube, 132 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CB_Light_R_Rotate_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CB_Light_R_Rotate_VAL,number) $value < if{ 133 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_CB_Light_R_Rotate_VAL,number) $value > if{ 132 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.ovhd_panel_bright_sw
+  # Overhead PANEL Light Control -- nodo VC_OVHD_Panel_Bright_SW del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 11 sube, 10 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OVHD_Panel_Bright_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OVHD_Panel_Bright_SW_VAL,number) $value < if{ 11 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_OVHD_Panel_Bright_SW_VAL,number) $value > if{ 10 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.emergency_light_sw
+  # Emergency (EMER) EXIT LIGHTS Switch -- nodo VC_Emergency_Light_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 13 sube, 12 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Emergency_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Emergency_Light_SW_VAL,number) $value < if{ 13 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Emergency_Light_SW_VAL,number) $value > if{ 12 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.no_smoking_sw
+  # NO SMOKING Switch -- nodo VC_No_Smoking_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 15 sube, 14 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_No_Smoking_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_No_Smoking_SW_VAL,number) $value < if{ 15 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_No_Smoking_SW_VAL,number) $value > if{ 14 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.fasten_belts_sw
+  # FASTEN BELTS Switch -- nodo VC_Fasten_Belts_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 17 sube, 16 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fasten_Belts_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fasten_Belts_SW_VAL,number) $value < if{ 17 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Fasten_Belts_SW_VAL,number) $value > if{ 16 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.landing_light_1_sw
+  # LANDING Light Switch -- nodo VC_Landing_Light_1_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 18 sube, 19 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Landing_Light_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Landing_Light_1_SW_VAL,number) $value < if{ 18 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_1_SW_VAL,number) $value > if{ 19 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.landing_light_2_sw
+  # LANDING Light Switch -- nodo VC_Landing_Light_2_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 20 sube, 21 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Landing_Light_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Landing_Light_2_SW_VAL,number) $value < if{ 20 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_2_SW_VAL,number) $value > if{ 21 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.runway_turnoff_light_l_sw
+  # RUNWAY TURNOFF Light Switch -- nodo VC_Runway_Turnoff_Light_L_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 22 sube, 23 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Runway_Turnoff_Light_L_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value < if{ 22 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value > if{ 23 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.runway_turnoff_light_r_sw
+  # RUNWAY TURNOFF Light Switch -- nodo VC_Runway_Turnoff_Light_R_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 24 sube, 25 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Runway_Turnoff_Light_R_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value < if{ 24 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value > if{ 25 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.taxi_light_sw
+  # TAXI Light Switch -- nodo VC_Taxi_Light_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 26 sube, 27 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Taxi_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Taxi_Light_SW_VAL,number) $value < if{ 26 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Taxi_Light_SW_VAL,number) $value > if{ 27 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.logo_light_sw
+  # LOGO Light Switch -- nodo VC_Logo_Light_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 28 sube, 29 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Logo_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Logo_Light_SW_VAL,number) $value < if{ 28 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Logo_Light_SW_VAL,number) $value > if{ 29 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.position_light_sw
+  # POSITION Light Switch -- nodo VC_Position_Light_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 30 sube, 31 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Position_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Position_Light_SW_VAL,number) $value < if{ 30 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Position_Light_SW_VAL,number) $value > if{ 31 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.beacon_light_sw
+  # ANTI-COLLISION Light Switch -- nodo VC_Beacon_Light_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 32 sube, 33 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Beacon_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Beacon_Light_SW_VAL,number) $value < if{ 32 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Beacon_Light_SW_VAL,number) $value > if{ 33 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.wing_light_sw
+  # WING Illumination Switch -- nodo VC_Wing_Light_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 34 sube, 35 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Wing_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Wing_Light_SW_VAL,number) $value < if{ 34 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wing_Light_SW_VAL,number) $value > if{ 35 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.wheel_well_light_sw
+  # WHEEL WELL Light Switch -- nodo VC_Wheel_Well_Light_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 36 sube, 37 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Wheel_Well_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Wheel_Well_Light_SW_VAL,number) $value < if{ 36 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wheel_Well_Light_SW_VAL,number) $value > if{ 37 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.dome_light_sw
+  # Dome Light Control -- nodo VC_Dome_Light_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 38 sube, 39 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Dome_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Dome_Light_SW_VAL,number) $value < if{ 38 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Dome_Light_SW_VAL,number) $value > if{ 39 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.oxygen_sw
+  # Passenger Oxygen (PASS OXYGEN) Switch -- nodo VC_Oxygen_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 40 sube, 41 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_SW_VAL,number) $value < if{ 40 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Oxygen_SW_VAL,number) $value > if{ 41 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.elt_sw
+  # Emergency Locator Transmitter Switch -- nodo VC_ELT_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 42 sube, 43 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ELT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ELT_SW_VAL,number) $value < if{ 42 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_ELT_SW_VAL,number) $value > if{ 43 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.lights_test_sw
+  # Master LIGHTS TEST and DIM SWITCH -- nodo VC_Lights_Test_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 44 sube, 45 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lights_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lights_Test_SW_VAL,number) $value < if{ 44 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Lights_Test_SW_VAL,number) $value > if{ 45 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.aft_electronics_flood_light_sw
+  # FLOOD Light Control -- nodo VC_Aft_Electronics_Flood_Light_SW del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 47 sube, 46 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Aft_Electronics_Flood_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Aft_Electronics_Flood_Light_SW_VAL,number) $value < if{ 47 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Aft_Electronics_Flood_Light_SW_VAL,number) $value > if{ 46 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.aft_electronics_panel_light_sw
+  # PANEL Light Control -- nodo VC_Aft_Electronics_Panel_Light_SW del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 49 sube, 48 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Aft_Electronics_Panel_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Aft_Electronics_Panel_Light_SW_VAL,number) $value < if{ 49 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Aft_Electronics_Panel_Light_SW_VAL,number) $value > if{ 48 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.flt_dk_door_sw
+  # Flight Deck (FLT DK) Door Lock Selector -- nodo VC_FLT_DK_Door_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 51 sube, 50 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FLT_DK_Door_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FLT_DK_Door_SW_VAL,number) $value < if{ 51 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FLT_DK_Door_SW_VAL,number) $value > if{ 50 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.capt_yoke_checklist_sw
+  # (sin tooltip en el modelo) -- nodo VC_CAPT_YOKE_Checklist_SW del modelo iFly.
+  # Selector/perilla de 25 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 64 sube, 65 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_YOKE_Checklist_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_YOKE_Checklist_SW_VAL,number) $value < if{ 64 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_CAPT_YOKE_Checklist_SW_VAL,number) $value > if{ 65 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.fo_yoke_checklist_sw
+  # (sin tooltip en el modelo) -- nodo VC_FO_YOKE_Checklist_SW del modelo iFly.
+  # Selector/perilla de 25 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 66 sube, 67 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_YOKE_Checklist_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_YOKE_Checklist_SW_VAL,number) $value < if{ 66 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FO_YOKE_Checklist_SW_VAL,number) $value > if{ 67 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.map_light_capt_pushpull_sw
+  # MAP Light Control -- nodo VC_Map_Light_CAPT_PushPull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 70 sube, 71 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Map_Light_CAPT_PushPull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Map_Light_CAPT_PushPull_SW_VAL,number) $value < if{ 70 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Map_Light_CAPT_PushPull_SW_VAL,number) $value > if{ 71 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.map_light_fo_pushpull_sw
+  # MAP Light Control -- nodo VC_Map_Light_FO_PushPull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 74 sube, 75 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Map_Light_FO_PushPull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Map_Light_FO_PushPull_SW_VAL,number) $value < if{ 74 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Map_Light_FO_PushPull_SW_VAL,number) $value > if{ 75 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.chart_light_capt_pushpull_sw
+  # CHART Light Control -- nodo VC_Chart_Light_CAPT_PushPull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 78 sube, 79 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Chart_Light_CAPT_PushPull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Chart_Light_CAPT_PushPull_SW_VAL,number) $value < if{ 78 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Chart_Light_CAPT_PushPull_SW_VAL,number) $value > if{ 79 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.chart_light_fo_pushpull_sw
+  # CHART Light Control -- nodo VC_Chart_Light_FO_PushPull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 82 sube, 83 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Chart_Light_FO_PushPull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Chart_Light_FO_PushPull_SW_VAL,number) $value < if{ 82 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Chart_Light_FO_PushPull_SW_VAL,number) $value > if{ 83 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.compass_light_sw
+  # Compass Light Switch -- nodo VC_Compass_Light_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 85 sube, 84 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Compass_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Compass_Light_SW_VAL,number) $value < if{ 85 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Compass_Light_SW_VAL,number) $value > if{ 84 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.capt_handle_move
+  # (sin tooltip en el modelo) -- nodo VC_CAPT_HANDLE_MOVE del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (86): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_HANDLE_MOVE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CAPT_HANDLE_MOVE_VAL,number) $value != if{ 86 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.fo_handle_move
+  # (sin tooltip en el modelo) -- nodo VC_FO_HANDLE_MOVE del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (87): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_HANDLE_MOVE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FO_HANDLE_MOVE_VAL,number) $value != if{ 87 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.visor1_move
+  # Sun Visor -- nodo VC_VISOR1_MOVE del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 88) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 88 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.visor2_move
+  # Sun Visor -- nodo VC_VISOR2_MOVE del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 89) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 89 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.visor3_move
+  # Sun Visor -- nodo VC_VISOR3_MOVE del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 90) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 90 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.visor4_move
+  # Sun Visor -- nodo VC_VISOR4_MOVE del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 91) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 91 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.general_light_not_armed
+  # Emergency (EMER) EXIT LIGHTS NOT ARMED Light -- nodo VC_GENERAL_LIGHT_NOT_ARMED del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 162), false = soltar (codigo 163).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_NOT_ARMED_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 162 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 163 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_fwd_entry
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_FWD_ENTRY del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 164), false = soltar (codigo 165).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_FWD_ENTRY_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 164 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 165 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_left_fwd_overwing
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_LEFT_FWD_OVERWING del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 166), false = soltar (codigo 167).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_LEFT_FWD_OVERWING_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 166 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 167 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_left_aft_overwing
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_LEFT_AFT_OVERWING del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 168), false = soltar (codigo 169).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_LEFT_AFT_OVERWING_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 168 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 169 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_aft_entry
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_AFT_ENTRY del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 170), false = soltar (codigo 171).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_AFT_ENTRY_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 170 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 171 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_fwd_service
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_FWD_SERVICE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 172), false = soltar (codigo 173).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_FWD_SERVICE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 172 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 173 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_right_fwd_overwing
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_RIGHT_FWD_OVERWING del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 174), false = soltar (codigo 175).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_RIGHT_FWD_OVERWING_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 174 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 175 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_right_aft_overwing
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_RIGHT_AFT_OVERWING del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 176), false = soltar (codigo 177).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_RIGHT_AFT_OVERWING_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 176 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 177 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_aft_service
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_AFT_SERVICE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 178), false = soltar (codigo 179).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_AFT_SERVICE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 178 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 179 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_left_mid_exit
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_LEFT_MID_EXIT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 182), false = soltar (codigo 183).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_LEFT_MID_EXIT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 182 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 183 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_right_mid_exit
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_RIGHT_MID_EXIT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 184), false = soltar (codigo 185).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_RIGHT_MID_EXIT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 184 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 185 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_equip
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_EQUIP del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 180), false = soltar (codigo 181).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_EQUIP_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 180 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 181 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_fwd_cargo
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_FWD_CARGO del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 186), false = soltar (codigo 187).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_FWD_CARGO_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 186 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 187 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_aft_cargo
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_AFT_CARGO del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 188), false = soltar (codigo 189).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_AFT_CARGO_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 188 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 189 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_airstair
+  # Exterior Door Annunciations -- nodo VC_GENERAL_LIGHT_AIRSTAIR del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 190), false = soltar (codigo 191).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_AIRSTAIR_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 190 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 191 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_pass_oxy_on
+  # Passenger Oxygen On Light -- nodo VC_GENERAL_LIGHT_PASS_OXY_ON del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 192), false = soltar (codigo 193).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_PASS_OXY_ON_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 192 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 193 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_elt
+  # Emergency Locator Transmitter Light -- nodo VC_GENERAL_LIGHT_ELT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 194), false = soltar (codigo 195).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_ELT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 194 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 195 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_lock_fail
+  # LOCK FAIL Light -- nodo VC_GENERAL_LIGHT_LOCK_FAIL del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 196), false = soltar (codigo 197).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_LOCK_FAIL_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 196 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 197 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.general_light_auto_unlk
+  # AUTO Unlock (UNLK) Light -- nodo VC_GENERAL_LIGHT_AUTO_UNLK del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 198), false = soltar (codigo 199).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GENERAL_LIGHT_AUTO_UNLK_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 198 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 199 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.map_light_capt
+  # Left Map Light -- nodo VC_Map_Light_CAPT del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 95), false = paso abajo (codigo 94). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 95 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 94 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.map_light_capt_bracket
+  # Left Map Light Bracket -- nodo VC_Map_Light_CAPT_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 97), false = paso abajo (codigo 96). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 97 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 96 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.map_light_fo
+  # Left Map Light -- nodo VC_Map_Light_FO del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 99), false = paso abajo (codigo 98). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 99 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 98 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.map_light_fo_bracket
+  # Left Map Light Bracket -- nodo VC_Map_Light_FO_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 101), false = paso abajo (codigo 100). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 101 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 100 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew1_reading_light_bracket
+  # Captain's Flight Kit/Reading Light Bracket -- nodo VC_FlightCrew1_Reading_Light_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 105), false = paso abajo (codigo 104). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 105 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 104 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew1_reading_light
+  # Captain's Flight Kit/Reading Light -- nodo VC_FlightCrew1_Reading_Light del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 105 sube, 104 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew1_Reading_Light_Switch_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew1_Reading_Light_Switch_VAL,number) $value < if{ 105 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FlightCrew1_Reading_Light_Switch_VAL,number) $value > if{ 104 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.flightcrew2_reading_light_bracket
+  # Captain's Flight Kit/Reading Light Bracket -- nodo VC_FlightCrew2_Reading_Light_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 111), false = paso abajo (codigo 110). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 111 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 110 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew2_reading_light
+  # Captain's Flight Kit/Reading Light Switch -- nodo VC_FlightCrew2_Reading_Light del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 111 sube, 110 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew2_Reading_Light_Switch_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew2_Reading_Light_Switch_VAL,number) $value < if{ 111 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FlightCrew2_Reading_Light_Switch_VAL,number) $value > if{ 110 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.flightcrew3_reading_light_bracket
+  # Captain's Flight Kit/Reading Light Bracket -- nodo VC_FlightCrew3_Reading_Light_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 117), false = paso abajo (codigo 116). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 117 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 116 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew3_reading_light
+  # Captain's Flight Kit/Reading Light Switch -- nodo VC_FlightCrew3_Reading_Light del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 117 sube, 116 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew3_Reading_Light_Switch_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew3_Reading_Light_Switch_VAL,number) $value < if{ 117 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FlightCrew3_Reading_Light_Switch_VAL,number) $value > if{ 116 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.flightcrew4_reading_light
+  # Captain's Flight Kit/Reading Light -- nodo VC_FlightCrew4_Reading_Light del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 123), false = paso abajo (codigo 122). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 123 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 122 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew4_reading_light_bracket
+  # Captain's Flight Kit/Reading Light Bracket -- nodo VC_FlightCrew4_Reading_Light_Bracket del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 123), false = paso abajo (codigo 122). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 123 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 122 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.flightcrew4_reading_light_switch
+  # Captain's Flight Kit/Reading Light Switch -- nodo VC_FlightCrew4_Reading_Light_Switch del modelo iFly.
+  # Selector/perilla de 100 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 123 sube, 122 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew4_Reading_Light_Switch_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew4_Reading_Light_Switch_VAL,number) $value < if{ 123 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_FlightCrew4_Reading_Light_Switch_VAL,number) $value > if{ 122 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.flightcrew1_clotheshook
+  # Hook -- nodo VC_FlightCrew1_ClothesHook del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (126): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew1_ClothesHook_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew1_ClothesHook_VAL,number) $value != if{ 126 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.flightcrew2_clotheshook
+  # Hook -- nodo VC_FlightCrew2_ClothesHook del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (127): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew2_ClothesHook_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew2_ClothesHook_VAL,number) $value != if{ 127 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.flightcrew3_clotheshook
+  # Hook -- nodo VC_FlightCrew3_ClothesHook del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (128): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew3_ClothesHook_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew3_ClothesHook_VAL,number) $value != if{ 128 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.flightcrew4_clotheshook
+  # Hook -- nodo VC_FlightCrew4_ClothesHook del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (129): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FlightCrew4_ClothesHook_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FlightCrew4_ClothesHook_VAL,number) $value != if{ 129 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.oxygen_1_test_sw
+  # TEST/RESET Switch -- nodo VC_Oxygen_1_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 134), false = soltar (codigo 135).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_1_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 134 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 135 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.oxygen_1_normal_sw
+  # NORMAL/100%% Switch -- nodo VC_Oxygen_1_Normal_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (136): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_1_Normal_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_1_Normal_SW_VAL,number) $value != if{ 136 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.oxygen_1_emergency_sw
+  # EMERGENCY/PRESS TO TEST Selector -- nodo VC_Oxygen_1_Emergency_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 140 sube, 139 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_1_Emergency_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_1_Emergency_SW_VAL,number) $value < if{ 140 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Oxygen_1_Emergency_SW_VAL,number) $value > if{ 139 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.oxygen_2_test_sw
+  # TEST/RESET Switch -- nodo VC_Oxygen_2_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 141), false = soltar (codigo 142).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_2_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 141 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 142 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.oxygen_2_normal_sw
+  # NORMAL/100%% Switch -- nodo VC_Oxygen_2_Normal_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (143): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_2_Normal_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_2_Normal_SW_VAL,number) $value != if{ 143 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.oxygen_2_emergency_sw
+  # EMERGENCY/PRESS TO TEST Selector -- nodo VC_Oxygen_2_Emergency_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 147 sube, 146 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_2_Emergency_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_2_Emergency_SW_VAL,number) $value < if{ 147 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Oxygen_2_Emergency_SW_VAL,number) $value > if{ 146 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.oxygen_3_test_sw
+  # TEST/RESET Switch -- nodo VC_Oxygen_3_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 148), false = soltar (codigo 149).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_3_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 148 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 149 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.oxygen_3_normal_sw
+  # NORMAL/100%% Switch -- nodo VC_Oxygen_3_Normal_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (150): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_3_Normal_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_3_Normal_SW_VAL,number) $value != if{ 150 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.oxygen_3_emergency_sw
+  # EMERGENCY/PRESS TO TEST Selector -- nodo VC_Oxygen_3_Emergency_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 154 sube, 153 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_3_Emergency_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_3_Emergency_SW_VAL,number) $value < if{ 154 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Oxygen_3_Emergency_SW_VAL,number) $value > if{ 153 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.oxygen_4_test_sw
+  # TEST/RESET Switch -- nodo VC_Oxygen_4_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 155), false = soltar (codigo 156).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_4_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 155 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 156 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.oxygen_4_normal_sw
+  # NORMAL/100%% Switch -- nodo VC_Oxygen_4_Normal_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (157): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_4_Normal_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_4_Normal_SW_VAL,number) $value != if{ 157 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.oxygen_4_emergency_sw
+  # EMERGENCY/PRESS TO TEST Selector -- nodo VC_Oxygen_4_Emergency_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 161 sube, 160 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Oxygen_4_Emergency_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Oxygen_4_Emergency_SW_VAL,number) $value < if{ 161 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Oxygen_4_Emergency_SW_VAL,number) $value > if{ 160 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: misc.cockpitdoor_inside_click
+  # Control Cabin Door -- nodo VC_CockpitDoor_Inside_Click del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (200): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CollisionDetection_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CollisionDetection_VAL,number) $value != if{ 200 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.cockpitdoor_outside_click
+  # Control Cabin Door -- nodo VC_CockpitDoor_Outside_Click del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 201) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 201 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.cockpitdoor_keypad
+  # Cockpit Door -- nodo VC_CockpitDoor_Keypad del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 202) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 202 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.lavatory_1_door
+  # Lavatory Door -- nodo VC_Lavatory_1_Door del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (203): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_1_Door_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_1_Door_VAL,number) $value != if{ 203 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_2_door
+  # Lavatory Door -- nodo VC_Lavatory_2_Door del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (204): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_2_Door_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_2_Door_VAL,number) $value != if{ 204 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_3_door
+  # Lavatory Door -- nodo VC_Lavatory_3_Door del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (205): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_3_Door_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_3_Door_VAL,number) $value != if{ 205 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_1_toiletseat
+  # Toilet Seat -- nodo VC_Lavatory_1_ToiletSeat del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (206): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_1_ToiletSeat_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_1_ToiletSeat_VAL,number) $value != if{ 206 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_2_toiletseat
+  # Toilet Seat -- nodo VC_Lavatory_2_ToiletSeat del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (207): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_2_ToiletSeat_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_2_ToiletSeat_VAL,number) $value != if{ 207 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_3_toiletseat
+  # Toilet Seat -- nodo VC_Lavatory_3_ToiletSeat del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (208): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_3_ToiletSeat_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_3_ToiletSeat_VAL,number) $value != if{ 208 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_1_toiletcover
+  # Toilet Cover -- nodo VC_Lavatory_1_ToiletCover del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (209): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_1_ToiletCover_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_1_ToiletCover_VAL,number) $value != if{ 209 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_2_toiletcover
+  # Toilet Cover -- nodo VC_Lavatory_2_ToiletCover del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (210): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_2_ToiletCover_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_2_ToiletCover_VAL,number) $value != if{ 210 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.lavatory_3_toiletcover
+  # Toilet Cover -- nodo VC_Lavatory_3_ToiletCover del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (211): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Lavatory_3_ToiletCover_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Lavatory_3_ToiletCover_VAL,number) $value != if{ 211 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_01
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_01 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (212): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_01_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_01_VAL,number) $value != if{ 212 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_02
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_02 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (213): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_02_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_02_VAL,number) $value != if{ 213 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_03
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_03 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (214): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_03_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_03_VAL,number) $value != if{ 214 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_04
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_04 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (215): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_04_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_04_VAL,number) $value != if{ 215 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_05
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_05 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (216): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_05_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_05_VAL,number) $value != if{ 216 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_06
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_06 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (217): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_06_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_06_VAL,number) $value != if{ 217 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_07
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_07 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (218): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_07_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_07_VAL,number) $value != if{ 218 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_08
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_08 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (219): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_08_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_08_VAL,number) $value != if{ 219 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_09
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_09 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (220): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_09_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_09_VAL,number) $value != if{ 220 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_10
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_10 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (221): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_10_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_10_VAL,number) $value != if{ 221 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_11
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_11 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (222): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_11_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_11_VAL,number) $value != if{ 222 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_12
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_12 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (223): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_12_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_12_VAL,number) $value != if{ 223 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_13
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_13 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (224): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_13_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_13_VAL,number) $value != if{ 224 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_14
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_14 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (225): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_14_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_14_VAL,number) $value != if{ 225 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_15
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_15 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (226): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_15_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_15_VAL,number) $value != if{ 226 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_16
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_16 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (227): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_16_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_16_VAL,number) $value != if{ 227 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_17
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_17 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (228): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_17_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_17_VAL,number) $value != if{ 228 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_18
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_18 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (229): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_18_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_18_VAL,number) $value != if{ 229 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_19
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_19 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (230): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_19_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_19_VAL,number) $value != if{ 230 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_20
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_20 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (231): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_20_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_20_VAL,number) $value != if{ 231 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_21
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_21 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (232): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_21_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_21_VAL,number) $value != if{ 232 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_22
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_22 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (233): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_22_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_22_VAL,number) $value != if{ 233 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_23
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_23 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (234): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_23_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_23_VAL,number) $value != if{ 234 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_24
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_24 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (235): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_24_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_24_VAL,number) $value != if{ 235 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_25
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_25 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (236): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_25_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_25_VAL,number) $value != if{ 236 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_26
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_26 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (237): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_26_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_26_VAL,number) $value != if{ 237 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_27
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_27 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (238): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_27_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_27_VAL,number) $value != if{ 238 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_28
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_28 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (239): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_28_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_28_VAL,number) $value != if{ 239 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_29
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_29 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (240): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_29_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_29_VAL,number) $value != if{ 240 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.overheadstowagebinclick_30
+  # Overhead Stowage Bins -- nodo VC_OverheadStowageBinClick_30 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (241): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OverheadStowageBin_30_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OverheadStowageBin_30_VAL,number) $value != if{ 241 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.cabincurtain_click_01
+  # Curtain -- nodo VC_CabinCurtain_Click_01 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (242): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CabinCurtain_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CabinCurtain_VAL,number) $value != if{ 242 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: misc.cabincurtain_click_02
+  # Curtain -- nodo VC_CabinCurtain_Click_02 del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 242) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 242 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.pause_click
+  # Pause the Sim -- nodo VC_Pause_Click del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 243) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 243 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: misc.emergency_exit_light_sw
+  # Emergency Exit Light Switch -- nodo VC_Emergency_Exit_Light_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 244), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Emergency_Exit_Light_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 244 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 0 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: misc.landing_light_click
+  # LANDING Light Switch -- nodo VC_Landing_Light_Click del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 260), false = paso abajo (codigo 261). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 260 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 261 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: misc.runway_turnoff_light_click
+  # RUNWAY TURNOFF Light Switch -- nodo VC_Runway_Turnoff_Light_Click del modelo iFly.
+  # Sin L-Var de estado en el modelo: solo escritura. true = paso arriba
+  # (codigo 262), false = paso abajo (codigo 263). Sin confirmacion posible.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 262 (>L:VC_Miscellaneous_trigger_VAL,number) } els{ 263 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50

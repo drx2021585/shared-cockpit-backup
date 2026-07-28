@@ -1,0 +1,74 @@
+schemaVersion: 1
+
+aircraft:
+  id: ifly-737-max8
+  name: iFly B737 MAX 8
+  developer: iFly Development Team
+
+# El paquete instalado declara minimum_game_version 1.39.12 (MSFS 2020) y el
+# mismo .wasm se carga en MSFS 2024. No hay mappings/ especificos por version:
+# los controles usan L-Vars del propio addon, que son identicas en ambos sims.
+compatibility:
+  msfs2020: true
+  msfs2024: true
+
+# ¿Se voló este perfil contra MSFS de verdad? Alimenta la etiqueta "verificado"
+# de la UI y se reporta SEPARADO del % de cobertura, que solo mide completitud
+# mecánica (ver computeCoverage en server/api/src/profiles.ts).
+# untested: el perfil entero se generó desde el XML del modelo instalado (ver
+# tools/generate_ifly_profile.py y la cabecera de controls/*.yaml). Es
+# mecánicamente muy completo -- justamente por eso hay que decir explícitamente
+# que ningún control se probó en el sim todavía.
+verification: untested
+
+versions:
+  # package_version del manifest.json real del addon instalado.
+  minimum: "1.1.0.0"
+  tested:
+    - "1.1.0.0"
+
+# Un solo prefijo cubre las 4 variantes de asientos, las 3 libreas dedicadas y
+# el MAX 8-200 -- todos los aircraft.cfg del paquete arrancan con esta cadena
+# (verificado sobre la instalacion real). Ver detection.yaml.
+detection:
+  titleContains:
+    - "iFly 737-MAX8"
+
+# ---------------------------------------------------------------------------
+# Todos los niveles son "partial" a proposito, y ninguno sube a "full", por dos
+# razones concretas y verificables:
+#
+# 1. Ningun control fue probado EN VIVO contra MSFS + iFly todavia. El perfil
+#    entero se genero mecanicamente desde el XML del modelo instalado (ver
+#    cabecera de controls/*.yaml), que es evidencia solida sobre QUE codigo
+#    dispara cada control, pero no prueba el efecto real en el sim.
+#
+# 2. iFly no expone ningun SET absoluto: cada escritura avanza UN paso hacia el
+#    valor pedido. Es determinista y direccional (no es un TOGGLE ciego, ver la
+#    nota anti-TOGGLE en controls/*.yaml), pero un selector de varias
+#    posiciones necesita varias escrituras para converger.
+#
+# Nota: el canal alternativo del SDK propio de iFly (Client Data Area
+# "737MAX_SDK_ClientData" + evento cliente "737MAX_External_Command", ambos
+# confirmados por strings dentro de panel/iFly737-MAX.wasm) sigue SIN usar
+# aqui: falta el header oficial de iFly con el layout del struct y la
+# codificacion del comando. Ver NOTAS-SDK.md.
+# ---------------------------------------------------------------------------
+capabilities:
+  # controls/flight-controls.yaml (36) + controls/gear.yaml (22).
+  flightControls: partial
+  # controls/autoflight.yaml (43): MCP completo (selectores de curso, IAS/MACH,
+  # heading, altitud, V/S y botones de modo).
+  autopilot: partial
+  # controls/electrical.yaml (30).
+  electrical: partial
+  # controls/hydraulics.yaml (10).
+  hydraulics: partial
+  # controls/communications.yaml (182): 3 ACP, 3 RTP, interfono, CVR, ADF.
+  radios: partial
+  # Los dos CDU viven en controls/navigation.yaml (teclados completos como
+  # botones momentaneos). La PANTALLA del CDU no esta espejada todavia -- no
+  # hay screens/ en este perfil, porque el contenido del CDU de iFly no se
+  # expone como L-Var y requeriria el SDK propio (ver NOTAS-SDK.md).
+  mcdu: partial
+  failures: none

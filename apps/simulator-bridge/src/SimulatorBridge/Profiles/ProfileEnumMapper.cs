@@ -56,6 +56,8 @@ public static class ProfileEnumMapper
         "uchar" => ClientDataNativeType.UChar,
         "uint" => ClientDataNativeType.UInt,
         "char_array" => ClientDataNativeType.CharArray,
+        "float" => ClientDataNativeType.Float,
+        "int" => ClientDataNativeType.Int,
         _ => throw new NotSupportedException($"read.nativeType desconocido en perfil: '{value}'"),
     };
 

@@ -1,0 +1,495 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Motores y APU
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Engine_APU_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: engine.ignition_select_sw
+  # Ignition Select Switch -- nodo VC_Ignition_Select_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 2 sube, 1 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Ignition_Select_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Ignition_Select_SW_VAL,number) $value < if{ 2 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Ignition_Select_SW_VAL,number) $value > if{ 1 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.engine_1_start_sw
+  # ENGINE START Switches -- nodo VC_Engine_1_Start_SW del modelo iFly.
+  # Selector/perilla de 30 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 4 sube, 3 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_1_Start_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_1_Start_SW_VAL,number) $value < if{ 4 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_SW_VAL,number) $value > if{ 3 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.engine_2_start_sw
+  # ENGINE START Switches -- nodo VC_Engine_2_Start_SW del modelo iFly.
+  # Selector/perilla de 30 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 6 sube, 5 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_2_Start_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_2_Start_SW_VAL,number) $value < if{ 6 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_SW_VAL,number) $value > if{ 5 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.apu_sw
+  # APU Switch -- nodo VC_APU_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 7 sube, 8 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_APU_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_APU_SW_VAL,number) $value < if{ 7 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) $value > if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.eec_1_sw_v5
+  # Electronic Engine Control (EEC) Switches -- nodo VC_EEC_1_SW_V5 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (9): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EEC_1_SW_V5_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_EEC_1_SW_V5_VAL,number) $value != if{ 9 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: engine.eec_2_sw_v5
+  # Electronic Engine Control (EEC) Switches -- nodo VC_EEC_2_SW_V5 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (10): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EEC_2_SW_V5_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_EEC_2_SW_V5_VAL,number) $value != if{ 10 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: engine.engine_1_start_lever
+  # Engine Start Levers -- nodo VC_Engine_1_Start_Lever del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 12 sube, 11 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_1_Start_Lever_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_1_Start_Lever_VAL,number) $value < if{ 12 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_Lever_VAL,number) $value > if{ 11 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.engine_2_start_lever
+  # Engine Start Levers -- nodo VC_Engine_2_Start_Lever del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 13 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_2_Start_Lever_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_2_Start_Lever_VAL,number) $value < if{ 14 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_Lever_VAL,number) $value > if{ 13 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.mfd_eng_sw
+  # MFD Engine (ENG) Switch -- nodo VC_MFD_ENG_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_MFD_ENG_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 16 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.mfd_sys_sw
+  # MFD System (SYS) Switch -- nodo VC_MFD_SYS_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_MFD_SYS_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 18 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.mfd_info_sw
+  # MFD Information (INFO) Switch -- nodo VC_MFD_INFO_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_MFD_INFO_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 20 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.mfd_cr_sw
+  # MFD Information (INFO) Switch -- nodo VC_MFD_CR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 21), false = soltar (codigo 22).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_MFD_CR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 21 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 22 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.eng_tfr_sw
+  # Engine Transfer (ENG TFR) Switch -- nodo VC_ENG_TFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 23), false = soltar (codigo 24).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENG_TFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 23 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 24 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.fuel_flow_sw
+  # FUEL FLOW Switch -- nodo VC_Fuel_Flow_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 25 sube, 26 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_Flow_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_Flow_SW_VAL,number) $value < if{ 25 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Fuel_Flow_SW_VAL,number) $value > if{ 26 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: engine.engapu_light_engine_control_1
+  # ENGINE CONTROL Lights -- nodo VC_ENGAPU_LIGHT_ENGINE_CONTROL_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 27), false = soltar (codigo 28).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_ENGINE_CONTROL_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 27 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 28 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_engine_control_2
+  # ENGINE CONTROL Lights -- nodo VC_ENGAPU_LIGHT_ENGINE_CONTROL_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 29), false = soltar (codigo 30).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_ENGINE_CONTROL_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 29 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 30 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_reverser_limited_1
+  # REVERSER LIMITED Lights -- nodo VC_ENGAPU_LIGHT_REVERSER_LIMITED_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 31), false = soltar (codigo 32).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_REVERSER_LIMITED_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 31 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 32 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_reverser_limited_2
+  # REVERSER LIMITED Lights -- nodo VC_ENGAPU_LIGHT_REVERSER_LIMITED_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 33), false = soltar (codigo 34).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_REVERSER_LIMITED_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 33 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 34 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_reverser_command
+  # REVERSER COMMAND Light -- nodo VC_ENGAPU_LIGHT_REVERSER_COMMAND del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 35), false = soltar (codigo 36).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_REVERSER_COMMAND_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 35 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 36 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_reverser_airgnd
+  # REVERSER AIR/GRD Light -- nodo VC_ENGAPU_LIGHT_REVERSER_AIRGND del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 37), false = soltar (codigo 38).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_REVERSER_AIRGND_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 37 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 38 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_apu_door
+  # APU Door (DOOR) Light -- nodo VC_ENGAPU_LIGHT_APU_DOOR del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 39), false = soltar (codigo 40).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_APU_DOOR_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 39 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 40 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_apu_low_oil_pressure
+  # APU LOW OIL PRESSURE Light -- nodo VC_ENGAPU_LIGHT_APU_LOW_OIL_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 41), false = soltar (codigo 42).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_APU_LOW_OIL_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 41 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 42 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_apu_fault
+  # APU FAULT Light -- nodo VC_ENGAPU_LIGHT_APU_FAULT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 43), false = soltar (codigo 44).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_APU_FAULT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 43 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 44 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: engine.engapu_light_apu_over_speed
+  # APU OVERSPEED Light -- nodo VC_ENGAPU_LIGHT_APU_OVER_SPEED del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 45), false = soltar (codigo 46).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENGAPU_LIGHT_APU_OVER_SPEED_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 45 (>L:VC_Engine_APU_trigger_VAL,number) } els{ 46 (>L:VC_Engine_APU_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50

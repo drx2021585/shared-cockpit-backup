@@ -1,0 +1,650 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Deteccion y extincion de fuego
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Fire_Protection_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: fire_protection.ovht_det_1_sw
+  # Overheat Detector (OVHT DET) Switch -- nodo VC_OVHT_DET_1_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 2 sube, 1 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OVHT_DET_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OVHT_DET_1_SW_VAL,number) $value < if{ 2 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_OVHT_DET_1_SW_VAL,number) $value > if{ 1 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.ovht_det_2_sw
+  # Overheat Detector (OVHT DET) Switch -- nodo VC_OVHT_DET_2_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 4 sube, 3 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_OVHT_DET_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_OVHT_DET_2_SW_VAL,number) $value < if{ 4 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_OVHT_DET_2_SW_VAL,number) $value > if{ 3 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.fire_test_sw
+  # Fault/Inoperative (FAULT/INOP) and Overheat/Fire (OVHT/FIRE) TEST Switch -- nodo VC_Fire_Test_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 6 sube, 5 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fire_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fire_Test_SW_VAL,number) $value < if{ 6 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_Fire_Test_SW_VAL,number) $value > if{ 5 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.engine_1_fire_pull_sw
+  # Engine Fire Switch -- nodo VC_Engine_1_Fire_Pull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 9 sube, 10 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_1_Fire_Pull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_1_Fire_Pull_SW_VAL,number) $value < if{ 9 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_Engine_1_Fire_Pull_SW_VAL,number) $value > if{ 10 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.engine_1_fire_unlock_sw
+  # EFire Switch Override -- nodo VC_Engine_1_Fire_UnLock_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 32), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_1_Fire_UnLock_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 32 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 0 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.engine_2_fire_pull_sw
+  # Engine Fire Switch -- nodo VC_Engine_2_Fire_Pull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 13 sube, 14 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_2_Fire_Pull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_2_Fire_Pull_SW_VAL,number) $value < if{ 13 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_Engine_2_Fire_Pull_SW_VAL,number) $value > if{ 14 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.engine_2_fire_unlock_sw
+  # Fire Switch Override -- nodo VC_Engine_2_Fire_UnLock_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 33), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_2_Fire_UnLock_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 33 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 0 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.apu_fire_pull_sw
+  # APU Fire Switch -- nodo VC_APU_Fire_Pull_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 17 sube, 18 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_APU_Fire_Pull_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_APU_Fire_Pull_SW_VAL,number) $value < if{ 17 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_APU_Fire_Pull_SW_VAL,number) $value > if{ 18 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.apu_fire_unlock_sw
+  # Fire Switch Override -- nodo VC_APU_Fire_UnLock_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 34), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_APU_Fire_UnLock_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 34 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 0 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.bell_cutout_sw
+  # Fire Warning BELL CUTOUT Switch -- nodo VC_BELL_CUTOUT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_BELL_CUTOUT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 20 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.ext_test_sw
+  # Extinguisher (EXT) TEST Switch -- nodo VC_EXT_Test_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 22 sube, 21 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EXT_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_EXT_Test_SW_VAL,number) $value < if{ 22 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_EXT_Test_SW_VAL,number) $value > if{ 21 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.det_select_1_sw
+  # Detector Select (DET SELECT) Switch -- nodo VC_DET_Select_1_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 24 sube, 23 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_DET_Select_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_DET_Select_1_SW_VAL,number) $value < if{ 24 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_DET_Select_1_SW_VAL,number) $value > if{ 23 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.det_select_2_sw
+  # Detector Select (DET SELECT) Switch -- nodo VC_DET_Select_2_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 26 sube, 25 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_DET_Select_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_DET_Select_2_SW_VAL,number) $value < if{ 26 (>L:VC_Fire_Protection_trigger_VAL,number) } (L:VC_DET_Select_2_SW_VAL,number) $value > if{ 25 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fire_protection.cargo_fire_test_sw
+  # Cargo Fire TEST Switch -- nodo VC_Cargo_Fire_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 27), false = soltar (codigo 28).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Cargo_Fire_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 27 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 28 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fwd_cargo_fire_sw_v5
+  # Cargo Fire ARM Switches -- nodo VC_FWD_Cargo_FIRE_SW_V5 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (29): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FWD_Cargo_FIRE_SW_V5_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FWD_Cargo_FIRE_SW_V5_VAL,number) $value != if{ 29 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: fire_protection.aft_cargo_fire_sw_v5
+  # Cargo Fire ARM Switches -- nodo VC_AFT_Cargo_FIRE_SW_V5 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (30): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AFT_Cargo_FIRE_SW_V5_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AFT_Cargo_FIRE_SW_V5_VAL,number) $value != if{ 30 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: fire_protection.cargo_fire_discharge_sw_v5
+  # Cargo Fire Discharge (DISCH) Switch -- nodo VC_CARGO_FIRE_Discharge_SW_V5 del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (31): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CARGO_FIRE_Discharge_SW_V5_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_CARGO_FIRE_Discharge_SW_V5_VAL,number) $value != if{ 31 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: fire_protection.fire_light_wheel_well
+  # WHEEL WELL Fire Warning Light -- nodo VC_FIRE_LIGHT_WHEEL_WELL del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 35), false = soltar (codigo 36).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_WHEEL_WELL_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 35 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 36 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_l_bottle_discharge
+  # Engine BOTTLE DISCHARGE Light -- nodo VC_FIRE_LIGHT_L_BOTTLE_DISCHARGE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 37), false = soltar (codigo 38).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_L_BOTTLE_DISCHARGE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 37 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 38 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_r_bottle_discharge
+  # Engine BOTTLE DISCHARGE Light -- nodo VC_FIRE_LIGHT_R_BOTTLE_DISCHARGE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 39), false = soltar (codigo 40).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_R_BOTTLE_DISCHARGE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 39 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 40 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_ext_l
+  # Extinguisher Test (EXT TEST) Lights -- nodo VC_FIRE_LIGHT_EXT_L del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 41), false = soltar (codigo 42).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_EXT_L_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 41 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 42 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_ext_r
+  # Extinguisher Test (EXT TEST) Lights -- nodo VC_FIRE_LIGHT_EXT_R del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 43), false = soltar (codigo 44).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_EXT_R_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 43 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 44 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_ext_apu
+  # Extinguisher Test (EXT TEST) Lights -- nodo VC_FIRE_LIGHT_EXT_APU del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 45), false = soltar (codigo 46).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_EXT_APU_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 45 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 46 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_apu_bottle_discharge
+  # APU BOTTLE DISCHARGE Light -- nodo VC_FIRE_LIGHT_APU_BOTTLE_DISCHARGE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_APU_BOTTLE_DISCHARGE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 47 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 48 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_apu_det_inop
+  # APU Detector Inoperative (DET INOP) Light -- nodo VC_FIRE_LIGHT_APU_DET_INOP del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 49), false = soltar (codigo 50).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_APU_DET_INOP_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 49 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 50 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_eng1_overheat
+  # Engine (ENG) OVERHEAT Light -- nodo VC_FIRE_LIGHT_ENG1_OVERHEAT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 51), false = soltar (codigo 52).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_ENG1_OVERHEAT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 51 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 52 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_eng2_overheat
+  # Engine (ENG) OVERHEAT Light -- nodo VC_FIRE_LIGHT_ENG2_OVERHEAT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 53), false = soltar (codigo 54).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_ENG2_OVERHEAT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 53 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 54 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_fault
+  # FAULT Light -- nodo VC_FIRE_LIGHT_FAULT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 55), false = soltar (codigo 56).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_FAULT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 55 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 56 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_cargo_ext_fwd
+  # Extinguisher (EXT) Test Lights -- nodo VC_FIRE_LIGHT_CARGO_EXT_FWD del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 57), false = soltar (codigo 58).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_CARGO_EXT_FWD_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 57 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 58 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_cargo_ext_aft
+  # Extinguisher (EXT) Test Lights -- nodo VC_FIRE_LIGHT_CARGO_EXT_AFT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 59), false = soltar (codigo 60).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_CARGO_EXT_AFT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 59 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 60 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_detector_fault
+  # DETECTOR FAULT Light -- nodo VC_FIRE_LIGHT_DETECTOR_FAULT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 61), false = soltar (codigo 62).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_DETECTOR_FAULT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 61 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 62 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fire_protection.fire_light_lavatory_smoke
+  # LAVATORY SMOKE Light -- nodo VC_FIRE_LIGHT_LAVATORY_SMOKE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FIRE_LIGHT_LAVATORY_SMOKE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_Fire_Protection_trigger_VAL,number) } els{ 64 (>L:VC_Fire_Protection_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50

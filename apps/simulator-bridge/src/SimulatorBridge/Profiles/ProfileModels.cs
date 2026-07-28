@@ -104,6 +104,20 @@ public enum ClientDataNativeType
     UChar,
     UInt,
     CharArray,
+
+    // Float/Int ya estaban en el enum de control.schema.json pero no tenían
+    // equivalente en C#, así que cualquier perfil que los declarara hacía
+    // fallar la carga entera del perfil (ProfileEnumMapper lanzaba). Se
+    // agregaron al portar el iFly 737 MAX 8, cuyas L-Vars de estado
+    // (L:VC_*_VAL) son valores continuos de posición leídos como double por
+    // FsuipcLVarClient -- ese cliente ignora nativeType (ReadLVar siempre
+    // devuelve double), así que aquí solo hace falta que el valor exista y no
+    // rompa la deserialización. PmdgClientDataClient sigue sin soportarlos a
+    // propósito: el layout transcrito de PMDG_NG3_Data no tiene campos float
+    // mapeados (HandleDataPayload los ignora, NativeTypeMatchesLayoutKind
+    // devuelve false).
+    Float,
+    Int,
 }
 
 /// <summary>

@@ -1,0 +1,23 @@
+# Como el bridge decide "la aeronave cargada es el iFly 737 MAX 8".
+# titleContains se compara contra el titulo / ATC MODEL de la aeronave activa.
+#
+# Estos valores NO son placeholders: salen de leer los aircraft.cfg reales del
+# paquete instalado (apps/desktop-ui/recurso/ifly-aircraft-737max8*/). Los
+# titulos existentes hoy son:
+#
+#   iFly 737-MAX8 (166Seats)
+#   iFly 737-MAX8 (178Seats)
+#   iFly 737-MAX8 (189Seats)
+#   iFly 737-MAX8200
+#   iFly 737-MAX8 Caribbean Airlines 9Y-TTO (166Seats)
+#   iFly 737-MAX8 Southwest Airlines 'Independence One' N1776R (189Seats)
+#   iFly 737-MAX8 WestJet 'Blue Jays' C-GORP (189Seats)
+#
+# Todos comparten el mismo panel/iFly737-MAX.wasm y el mismo modelo interior,
+# asi que comparten L-Vars y codigos de comando -- un solo perfil los cubre.
+titleContains:
+  - "iFly 737-MAX8"
+
+# Las variantes de asientos/libreas y el MAX 8-200 no difieren en ninguna L-Var
+# de cabina, asi que un match parcial es seguro aqui.
+fallbackToPartialMatch: true

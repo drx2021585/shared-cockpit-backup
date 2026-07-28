@@ -1,0 +1,417 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Combustible
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Fuel_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: fuel.fuel_crossfeed_sw
+  # CROSSFEED Selector -- nodo VC_Fuel_Crossfeed_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (1): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_Crossfeed_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_Crossfeed_SW_VAL,number) $value != if{ 1 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: fuel.fuel_center_l_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_CENTER_L_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 3 sube, 2 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_CENTER_L_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_CENTER_L_SW_VAL,number) $value < if{ 3 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_CENTER_L_SW_VAL,number) $value > if{ 2 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_center_r_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_CENTER_R_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 5 sube, 4 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_CENTER_R_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_CENTER_R_SW_VAL,number) $value < if{ 5 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_CENTER_R_SW_VAL,number) $value > if{ 4 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_l_aft_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_L_AFT_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 7 sube, 6 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_L_AFT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_L_AFT_SW_VAL,number) $value < if{ 7 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_L_AFT_SW_VAL,number) $value > if{ 6 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_l_fwd_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_L_FWD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 9 sube, 8 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_L_FWD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_L_FWD_SW_VAL,number) $value < if{ 9 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_L_FWD_SW_VAL,number) $value > if{ 8 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_r_fwd_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_R_FWD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 11 sube, 10 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_R_FWD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_R_FWD_SW_VAL,number) $value < if{ 11 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_R_FWD_SW_VAL,number) $value > if{ 10 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_r_aft_sw
+  # FUEL PUMP Switches -- nodo VC_Fuel_R_AFT_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 13 sube, 12 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fuel_R_AFT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Fuel_R_AFT_SW_VAL,number) $value < if{ 13 (>L:VC_Fuel_trigger_VAL,number) } (L:VC_Fuel_R_AFT_SW_VAL,number) $value > if{ 12 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: fuel.fuel_light_ctr_l_low_pressure
+  # Center Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_CTR_L_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 14), false = soltar (codigo 15).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_CTR_L_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 14 (>L:VC_Fuel_trigger_VAL,number) } els{ 15 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_ctr_r_low_pressure
+  # Center Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_CTR_R_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 16), false = soltar (codigo 17).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_CTR_R_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 16 (>L:VC_Fuel_trigger_VAL,number) } els{ 17 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_aft_1_low_pressure
+  # Main Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_AFT_1_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 18), false = soltar (codigo 19).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_AFT_1_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 18 (>L:VC_Fuel_trigger_VAL,number) } els{ 19 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_fwd_1_low_pressure
+  # Main Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_FWD_1_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 20), false = soltar (codigo 21).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_FWD_1_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 20 (>L:VC_Fuel_trigger_VAL,number) } els{ 21 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_aft_2_low_pressure
+  # Main Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_AFT_2_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 22), false = soltar (codigo 23).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_AFT_2_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 22 (>L:VC_Fuel_trigger_VAL,number) } els{ 23 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_fwd_2_low_pressure
+  # Main Tank FUEL PUMP LOW PRESSURE Lights -- nodo VC_FUEL_LIGHT_FWD_2_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 24), false = soltar (codigo 25).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_FWD_2_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 24 (>L:VC_Fuel_trigger_VAL,number) } els{ 25 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_valve_open
+  # Crossfeed VALVE OPEN Light -- nodo VC_FUEL_LIGHT_VALVE_OPEN del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 26), false = soltar (codigo 27).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_VALVE_OPEN_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 26 (>L:VC_Fuel_trigger_VAL,number) } els{ 27 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_filter_bypass_1
+  # FILTER BYPASS Lights -- nodo VC_FUEL_LIGHT_FILTER_BYPASS_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 28), false = soltar (codigo 29).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_FILTER_BYPASS_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 28 (>L:VC_Fuel_trigger_VAL,number) } els{ 29 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_filter_bypass_2
+  # FILTER BYPASS Lights -- nodo VC_FUEL_LIGHT_FILTER_BYPASS_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 30), false = soltar (codigo 31).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_FILTER_BYPASS_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 30 (>L:VC_Fuel_trigger_VAL,number) } els{ 31 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_eng_valve_closed_1
+  # Engine Valve Closed (ENG VALVE CLOSED) Lights -- nodo VC_FUEL_LIGHT_ENG_VALVE_CLOSED_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 32), false = soltar (codigo 33).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_ENG_VALVE_CLOSED_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 32 (>L:VC_Fuel_trigger_VAL,number) } els{ 33 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_eng_valve_closed_2
+  # Engine Valve Closed (ENG VALVE CLOSED) Lights -- nodo VC_FUEL_LIGHT_ENG_VALVE_CLOSED_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 34), false = soltar (codigo 35).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_ENG_VALVE_CLOSED_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 34 (>L:VC_Fuel_trigger_VAL,number) } els{ 35 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_spar_valve_closed_1
+  # SPAR VALVE CLOSED Lights -- nodo VC_FUEL_LIGHT_SPAR_VALVE_CLOSED_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 36), false = soltar (codigo 37).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_SPAR_VALVE_CLOSED_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 36 (>L:VC_Fuel_trigger_VAL,number) } els{ 37 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: fuel.fuel_light_spar_valve_closed_2
+  # SPAR VALVE CLOSED Lights -- nodo VC_FUEL_LIGHT_SPAR_VALVE_CLOSED_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 38), false = soltar (codigo 39).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FUEL_LIGHT_SPAR_VALVE_CLOSED_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 38 (>L:VC_Fuel_trigger_VAL,number) } els{ 39 (>L:VC_Fuel_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50

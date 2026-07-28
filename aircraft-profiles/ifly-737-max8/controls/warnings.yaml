@@ -1,0 +1,548 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Avisos, GPWS, master caution
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Warning_Systems_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: warnings.overspeed_1_test
+  # MACH AIRSPEED WARNING TEST Switches -- nodo VC_Overspeed_1_Test del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 1), false = soltar (codigo 2).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Overspeed_1_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 1 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 2 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.overspeed_2_test
+  # MACH AIRSPEED WARNING TEST Switches -- nodo VC_Overspeed_2_Test del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 3), false = soltar (codigo 4).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Overspeed_2_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 3 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 4 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.stall_1_test_sw
+  # STALL WARNING TEST Switches -- nodo VC_Stall_1_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 5), false = soltar (codigo 6).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Stall_1_Test_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 5 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 6 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.stall_2_test_sw
+  # STALL WARNING TEST Switches -- nodo VC_Stall_2_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 7), false = soltar (codigo 8).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Stall_2_Test_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 7 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 8 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.capt_fire_warning_light
+  # Master Fire Warning (FIRE WARN) Lights -- nodo VC_CAPT_Fire_Warning_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 9), false = soltar (codigo 10).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fire_Warning_Light_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 9 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 10 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.capt_master_caution_light
+  # MASTER CAUTION Lights -- nodo VC_CAPT_Master_Caution_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 13), false = soltar (codigo 14).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Master_Caution_Light_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 13 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 14 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.fo_fire_warning_light
+  # Master Fire Warning (FIRE WARN) Lights -- nodo VC_FO_Fire_Warning_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 11), false = soltar (codigo 12).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Fire_Warning_Light_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 11 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 12 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.fo_master_caution_light
+  # MASTER CAUTION Lights -- nodo VC_FO_Master_Caution_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Master_Caution_Light_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 16 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.capt_system_annunciator_light
+  # System Annunciator Panel -- nodo VC_CAPT_System_Annunciator_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_System_Annunciator_Light_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 18 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.fo_system_annunciator_light
+  # System Annunciator Panel -- nodo VC_FO_System_Annunciator_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_System_Annunciator_Light_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 20 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.capt_gs_inhibit_sw
+  # BELOW Glideslope (G/S) light -- nodo VC_CAPT_GS_Inhibit_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 21), false = soltar (codigo 35).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CAPT_GS_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 21 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 35 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.fo_gs_inhibit_sw
+  # BELOW Glideslope (G/S) light -- nodo VC_FO_GS_Inhibit_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 22), false = soltar (codigo 36).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FO_GS_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 22 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 36 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.gpws_test_sw
+  # BELOW Glideslope (G/S) light -- nodo VC_GPWS_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 23), false = soltar (codigo 24).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GPWS_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 23 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 24 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.flap_inhibit_sw
+  # Ground Proximity FLAP INHIBIT Switch -- nodo VC_Flap_Inhibit_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 25 sube, 26 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Flap_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Flap_Inhibit_SW_VAL,number) $value < if{ 25 (>L:VC_Warning_Systems_trigger_VAL,number) } (L:VC_Flap_Inhibit_SW_VAL,number) $value > if{ 26 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: warnings.gear_inhibit_sw
+  # Ground Proximity GEAR INHIBIT Switch -- nodo VC_Gear_Inhibit_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 27 sube, 28 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Gear_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Gear_Inhibit_SW_VAL,number) $value < if{ 27 (>L:VC_Warning_Systems_trigger_VAL,number) } (L:VC_Gear_Inhibit_SW_VAL,number) $value > if{ 28 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: warnings.terr_inhibit_sw
+  # Ground Proximity Terrain Inhibit (TERR INHIBIT) Switch -- nodo VC_Terr_Inhibit_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 29 sube, 30 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Terr_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Terr_Inhibit_SW_VAL,number) $value < if{ 29 (>L:VC_Warning_Systems_trigger_VAL,number) } (L:VC_Terr_Inhibit_SW_VAL,number) $value > if{ 30 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: warnings.runway_inhibit_sw
+  # Ground Proximity Runway Inhibit (RUNWAY INHIBIT) Switch -- nodo VC_Runway_Inhibit_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 31 sube, 32 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Runway_Inhibit_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Runway_Inhibit_SW_VAL,number) $value < if{ 31 (>L:VC_Warning_Systems_trigger_VAL,number) } (L:VC_Runway_Inhibit_SW_VAL,number) $value > if{ 32 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: warnings.landing_gear_warning_cutout_sw
+  # Landing Gear Warning Cutout Switch -- nodo VC_Landing_Gear_Warning_Cutout_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 33), false = soltar (codigo 34).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Landing_Gear_Warning_Cutout_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 33 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 34 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_maint_light
+  # Maintenance (MAINT) light -- nodo VC_WARNING_MAINT_LIGHT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 41), false = soltar (codigo 42).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_MAINT_LIGHT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 41 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 42 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_light_fdr_off
+  # OFF Light (amber) -- nodo VC_WARNING_LIGHT_FDR_OFF del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 43), false = soltar (codigo 44).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_LIGHT_FDR_OFF_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 43 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 44 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_light_takeoff_config_l
+  # Takeoff Configuration Warning Light -- nodo VC_WARNING_LIGHT_TAKEOFF_CONFIG_L del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 45), false = soltar (codigo 46).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_LIGHT_TAKEOFF_CONFIG_L_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 45 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 46 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_light_takeoff_config_r
+  # Takeoff Configuration Warning Light -- nodo VC_WARNING_LIGHT_TAKEOFF_CONFIG_R del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_LIGHT_TAKEOFF_CONFIG_R_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 47 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 48 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_light_cabin_altitude_l
+  # Cabin Altitude Warning Light -- nodo VC_WARNING_LIGHT_CABIN_ALTITUDE_L del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 49), false = soltar (codigo 50).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_LIGHT_CABIN_ALTITUDE_L_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 49 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 50 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_light_cabin_altitude_r
+  # Cabin Altitude Warning Light -- nodo VC_WARNING_LIGHT_CABIN_ALTITUDE_R del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 51), false = soltar (codigo 52).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_LIGHT_CABIN_ALTITUDE_R_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 51 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 52 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_gpws_gpws_inop
+  # Inoperative (INOP) light -- nodo VC_WARNING_GPWS_GPWS_INOP del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 53), false = soltar (codigo 54).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_GPWS_GPWS_INOP_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 53 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 54 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.warning_gpws_runway_inop
+  # Runway Inoperative (INOP) Light -- nodo VC_WARNING_GPWS_RUNWAY_INOP del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 55), false = soltar (codigo 56).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_WARNING_GPWS_RUNWAY_INOP_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 55 (>L:VC_Warning_Systems_trigger_VAL,number) } els{ 56 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: warnings.auralwarningmodule_test_sw
+  # ROTATE TO TEST Switch -- nodo VC_AuralWarningModule_Test_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 38 sube, 37 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AuralWarningModule_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AuralWarningModule_Test_SW_VAL,number) $value < if{ 38 (>L:VC_Warning_Systems_trigger_VAL,number) } (L:VC_AuralWarningModule_Test_SW_VAL,number) $value > if{ 37 (>L:VC_Warning_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150

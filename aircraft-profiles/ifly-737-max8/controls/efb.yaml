@@ -1,0 +1,1474 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Electronic Flight Bag (tablets CAPT/FO)
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_EFB_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: efb.efb_capt_home_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_HOME_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_HOME_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_EFB_trigger_VAL,number) } els{ 64 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_home_sw02
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_HOME_SW02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_HOME_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_EFB_trigger_VAL,number) } els{ 64 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_home_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_HOME_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 163), false = soltar (codigo 164).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_HOME_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 163 (>L:VC_EFB_trigger_VAL,number) } els{ 164 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_home_sw02
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_HOME_SW02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 163), false = soltar (codigo 164).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_HOME_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 163 (>L:VC_EFB_trigger_VAL,number) } els{ 164 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l1_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 1), false = soltar (codigo 2).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 1 (>L:VC_EFB_trigger_VAL,number) } els{ 2 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l2_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 3), false = soltar (codigo 4).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 3 (>L:VC_EFB_trigger_VAL,number) } els{ 4 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l3_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 5), false = soltar (codigo 6).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 5 (>L:VC_EFB_trigger_VAL,number) } els{ 6 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l4_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L4_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 7), false = soltar (codigo 8).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L4_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 7 (>L:VC_EFB_trigger_VAL,number) } els{ 8 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l5_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L5_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 9), false = soltar (codigo 10).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L5_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 9 (>L:VC_EFB_trigger_VAL,number) } els{ 10 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l6_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L6_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 11), false = soltar (codigo 12).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L6_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 11 (>L:VC_EFB_trigger_VAL,number) } els{ 12 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l7_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L7_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 13), false = soltar (codigo 14).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L7_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 13 (>L:VC_EFB_trigger_VAL,number) } els{ 14 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_l8_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_L8_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_L8_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_EFB_trigger_VAL,number) } els{ 16 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r1_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_EFB_trigger_VAL,number) } els{ 18 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r2_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_EFB_trigger_VAL,number) } els{ 20 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r3_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 21), false = soltar (codigo 22).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 21 (>L:VC_EFB_trigger_VAL,number) } els{ 22 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r4_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R4_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 23), false = soltar (codigo 24).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R4_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 23 (>L:VC_EFB_trigger_VAL,number) } els{ 24 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r5_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R5_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 25), false = soltar (codigo 26).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R5_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 25 (>L:VC_EFB_trigger_VAL,number) } els{ 26 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r6_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R6_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 27), false = soltar (codigo 28).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R6_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 27 (>L:VC_EFB_trigger_VAL,number) } els{ 28 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r7_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R7_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 29), false = soltar (codigo 30).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R7_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 29 (>L:VC_EFB_trigger_VAL,number) } els{ 30 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_r8_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_R8_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 31), false = soltar (codigo 32).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_R8_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 31 (>L:VC_EFB_trigger_VAL,number) } els{ 32 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_brt_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_BRT_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 34 sube, 33 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_BRT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_EFB_CAPT_BRT_SW_VAL,number) $value < if{ 34 (>L:VC_EFB_trigger_VAL,number) } (L:VC_EFB_CAPT_BRT_SW_VAL,number) $value > if{ 33 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: efb.efb_capt_menu_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_MENU_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 36), false = soltar (codigo 37).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_MENU_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 36 (>L:VC_EFB_trigger_VAL,number) } els{ 37 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_backspace_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_BACKSPACE_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 38), false = soltar (codigo 39).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_BACKSPACE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 38 (>L:VC_EFB_trigger_VAL,number) } els{ 39 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_pgup_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_PGUP_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 40), false = soltar (codigo 41).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_PGUP_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 40 (>L:VC_EFB_trigger_VAL,number) } els{ 41 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_pgdn_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_PGDN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 42), false = soltar (codigo 43).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_PGDN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 42 (>L:VC_EFB_trigger_VAL,number) } els{ 43 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_xfr_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_XFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 44), false = soltar (codigo 45).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_XFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 44 (>L:VC_EFB_trigger_VAL,number) } els{ 45 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_enter_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ENTER_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 46), false = soltar (codigo 47).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ENTER_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 46 (>L:VC_EFB_trigger_VAL,number) } els{ 47 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_pwr_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_PWR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 48), false = soltar (codigo 49).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_PWR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 48 (>L:VC_EFB_trigger_VAL,number) } els{ 49 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_zoom_in_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ZOOM_IN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 50), false = soltar (codigo 51).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ZOOM_IN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 50 (>L:VC_EFB_trigger_VAL,number) } els{ 51 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_zoom_out_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ZOOM_OUT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 52), false = soltar (codigo 53).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ZOOM_OUT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 52 (>L:VC_EFB_trigger_VAL,number) } els{ 53 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_arrow_up_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ARROW_UP_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 54), false = soltar (codigo 55).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ARROW_UP_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 54 (>L:VC_EFB_trigger_VAL,number) } els{ 55 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_arrow_dn_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ARROW_DN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 56), false = soltar (codigo 57).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ARROW_DN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 56 (>L:VC_EFB_trigger_VAL,number) } els{ 57 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_arrow_left_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ARROW_LEFT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 58), false = soltar (codigo 59).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ARROW_LEFT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 58 (>L:VC_EFB_trigger_VAL,number) } els{ 59 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_arrow_right_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_ARROW_RIGHT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 60), false = soltar (codigo 61).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_ARROW_RIGHT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 60 (>L:VC_EFB_trigger_VAL,number) } els{ 61 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l1_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 101), false = soltar (codigo 102).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 101 (>L:VC_EFB_trigger_VAL,number) } els{ 102 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l2_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 103), false = soltar (codigo 104).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 103 (>L:VC_EFB_trigger_VAL,number) } els{ 104 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l3_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 105), false = soltar (codigo 106).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 105 (>L:VC_EFB_trigger_VAL,number) } els{ 106 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l4_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L4_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 107), false = soltar (codigo 108).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L4_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 107 (>L:VC_EFB_trigger_VAL,number) } els{ 108 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l5_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L5_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 109), false = soltar (codigo 110).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L5_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 109 (>L:VC_EFB_trigger_VAL,number) } els{ 110 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l6_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L6_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 111), false = soltar (codigo 112).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L6_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 111 (>L:VC_EFB_trigger_VAL,number) } els{ 112 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l7_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L7_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 113), false = soltar (codigo 114).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L7_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 113 (>L:VC_EFB_trigger_VAL,number) } els{ 114 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_l8_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_L8_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 115), false = soltar (codigo 116).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_L8_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 115 (>L:VC_EFB_trigger_VAL,number) } els{ 116 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r1_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 117), false = soltar (codigo 118).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 117 (>L:VC_EFB_trigger_VAL,number) } els{ 118 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r2_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 119), false = soltar (codigo 120).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 119 (>L:VC_EFB_trigger_VAL,number) } els{ 120 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r3_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 121), false = soltar (codigo 122).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 121 (>L:VC_EFB_trigger_VAL,number) } els{ 122 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r4_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R4_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 123), false = soltar (codigo 124).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R4_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 123 (>L:VC_EFB_trigger_VAL,number) } els{ 124 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r5_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R5_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 125), false = soltar (codigo 126).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R5_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 125 (>L:VC_EFB_trigger_VAL,number) } els{ 126 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r6_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R6_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 127), false = soltar (codigo 128).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R6_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 127 (>L:VC_EFB_trigger_VAL,number) } els{ 128 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r7_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R7_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 129), false = soltar (codigo 130).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R7_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 129 (>L:VC_EFB_trigger_VAL,number) } els{ 130 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_r8_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_R8_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 131), false = soltar (codigo 132).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_R8_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 131 (>L:VC_EFB_trigger_VAL,number) } els{ 132 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_brt_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_BRT_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 134 sube, 133 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_BRT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_EFB_FO_BRT_SW_VAL,number) $value < if{ 134 (>L:VC_EFB_trigger_VAL,number) } (L:VC_EFB_FO_BRT_SW_VAL,number) $value > if{ 133 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: efb.efb_fo_menu_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_MENU_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 136), false = soltar (codigo 137).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_MENU_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 136 (>L:VC_EFB_trigger_VAL,number) } els{ 137 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_backspace_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_BACKSPACE_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 138), false = soltar (codigo 139).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_BACKSPACE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 138 (>L:VC_EFB_trigger_VAL,number) } els{ 139 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_pgup_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_PGUP_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 140), false = soltar (codigo 141).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_PGUP_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 140 (>L:VC_EFB_trigger_VAL,number) } els{ 141 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_pgdn_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_PGDN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 142), false = soltar (codigo 143).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_PGDN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 142 (>L:VC_EFB_trigger_VAL,number) } els{ 143 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_xfr_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_XFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 144), false = soltar (codigo 145).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_XFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 144 (>L:VC_EFB_trigger_VAL,number) } els{ 145 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_enter_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ENTER_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 146), false = soltar (codigo 147).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ENTER_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 146 (>L:VC_EFB_trigger_VAL,number) } els{ 147 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_pwr_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_PWR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 148), false = soltar (codigo 149).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_PWR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 148 (>L:VC_EFB_trigger_VAL,number) } els{ 149 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_zoom_in_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ZOOM_IN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 150), false = soltar (codigo 151).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ZOOM_IN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 150 (>L:VC_EFB_trigger_VAL,number) } els{ 151 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_zoom_out_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ZOOM_OUT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 152), false = soltar (codigo 153).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ZOOM_OUT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 152 (>L:VC_EFB_trigger_VAL,number) } els{ 153 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_arrow_up_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ARROW_UP_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 154), false = soltar (codigo 155).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ARROW_UP_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 154 (>L:VC_EFB_trigger_VAL,number) } els{ 155 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_arrow_dn_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ARROW_DN_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 156), false = soltar (codigo 157).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ARROW_DN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 156 (>L:VC_EFB_trigger_VAL,number) } els{ 157 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_arrow_left_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ARROW_LEFT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 158), false = soltar (codigo 159).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ARROW_LEFT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 158 (>L:VC_EFB_trigger_VAL,number) } els{ 159 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_arrow_right_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_ARROW_RIGHT_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 160), false = soltar (codigo 161).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_ARROW_RIGHT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 160 (>L:VC_EFB_trigger_VAL,number) } els{ 161 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_switch_2efb_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_Switch_2EFB_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 68), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 68 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: efb.efb_fo_switch_2efb_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_Switch_2EFB_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 168), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 168 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: efb.efb_capt_switch_2efb_sw_02
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_Switch_2EFB_SW_02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 68), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 68 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: efb.efb_fo_switch_2efb_sw_02
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_Switch_2EFB_SW_02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 168), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 168 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: efb.efb_capt_dspy_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_DSPY_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 62) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 62 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: efb.efb_fo_dspy_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_DSPY_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 162) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 162 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: efb.efb_capt_hide_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_CAPT_HIDE_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 62) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 62 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: efb.efb_fo_hide_sw
+  # (sin tooltip en el modelo) -- nodo VC_EFB_FO_HIDE_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 162) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 162 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: efb.efb_capt_usb_cabin
+  # USB Charging Cable -- nodo VC_EFB_CAPT_USB_CABIN del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 65), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_USB_CABIN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 65 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_usb_cabin
+  # USB Charging Cable -- nodo VC_EFB_FO_USB_CABIN del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 165), false = soltar (codigo 0).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_USB_CABIN_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 165 (>L:VC_EFB_trigger_VAL,number) } els{ 0 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_power_sw_click
+  # Power Switch -- nodo VC_EFB_CAPT_Power_SW_Click del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 66), false = soltar (codigo 67).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_CAPT_Power_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 66 (>L:VC_EFB_trigger_VAL,number) } els{ 67 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_capt_power_sw02_click
+  # Power Switch -- nodo VC_EFB_CAPT_Power_SW02_Click del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 66), false = soltar (codigo 67).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 66 (>L:VC_EFB_trigger_VAL,number) } els{ 67 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: efb.efb_fo_power_sw_click
+  # Power Switch -- nodo VC_EFB_FO_Power_SW_Click del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 166), false = soltar (codigo 167).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_EFB_FO_Power_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 166 (>L:VC_EFB_trigger_VAL,number) } els{ 167 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: efb.efb_fo_power_sw02_click
+  # Power Switch -- nodo VC_EFB_FO_Power_SW02_Click del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 166), false = soltar (codigo 167).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 166 (>L:VC_EFB_trigger_VAL,number) } els{ 167 (>L:VC_EFB_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50

@@ -1,0 +1,3483 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: ACP, RTP, interfono, CVR
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Communications_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: communications.attend
+  # Attendant Call (ATTEND) Switch -- nodo VC_ATTEND del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 1), false = soltar (codigo 2).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ATTEND_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 1 (>L:VC_Communications_trigger_VAL,number) } els{ 2 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.grd_call
+  # Ground Call (GRD CALL) Switch -- nodo VC_GRD_CALL del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 3), false = soltar (codigo 4).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_GRD_CALL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 3 (>L:VC_Communications_trigger_VAL,number) } els{ 4 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.cvr_erase
+  # ERASE Switch -- nodo VC_CVR_ERASE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 5), false = soltar (codigo 6).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CVR_Erase_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 5 (>L:VC_Communications_trigger_VAL,number) } els{ 6 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.cvr_test
+  # TEST Switch -- nodo VC_CVR_TEST del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 7), false = soltar (codigo 8).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CVR_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 7 (>L:VC_Communications_trigger_VAL,number) } els{ 8 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.service_interphone_sw
+  # SERVICE INTERPHONE Switch -- nodo VC_Service_Interphone_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 9 sube, 10 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Service_Interphone_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Service_Interphone_SW_VAL,number) $value < if{ 9 (>L:VC_Communications_trigger_VAL,number) } (L:VC_Service_Interphone_SW_VAL,number) $value > if{ 10 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_1_tfr_sw
+  # Frequency Transfer Switch -- nodo VC_RTP_1_TFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 11), false = soltar (codigo 12).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_TFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 11 (>L:VC_Communications_trigger_VAL,number) } els{ 12 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_tfr_sw
+  # Frequency Transfer Switch -- nodo VC_RTP_2_TFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 13), false = soltar (codigo 14).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_TFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 13 (>L:VC_Communications_trigger_VAL,number) } els{ 14 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_tfr_sw
+  # Frequency Transfer Switch -- nodo VC_RTP_3_TFR_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_TFR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Communications_trigger_VAL,number) } els{ 16 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_off_sw
+  # Radio Tuning Panel OFF Switch -- nodo VC_RTP_1_OFF_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_OFF_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Communications_trigger_VAL,number) } els{ 18 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_off_sw
+  # Radio Tuning Panel OFF Switch -- nodo VC_RTP_2_OFF_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_OFF_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Communications_trigger_VAL,number) } els{ 20 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_off_sw
+  # Radio Tuning Panel OFF Switch -- nodo VC_RTP_3_OFF_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 21), false = soltar (codigo 22).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_OFF_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 21 (>L:VC_Communications_trigger_VAL,number) } els{ 22 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_vhf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_1_VHF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 23), false = soltar (codigo 24).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_VHF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 23 (>L:VC_Communications_trigger_VAL,number) } els{ 24 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_vhf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_2_VHF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 25), false = soltar (codigo 26).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_VHF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 25 (>L:VC_Communications_trigger_VAL,number) } els{ 26 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_vhf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_3_VHF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 27), false = soltar (codigo 28).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_VHF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 27 (>L:VC_Communications_trigger_VAL,number) } els{ 28 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_vhf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_1_VHF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 29), false = soltar (codigo 30).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_VHF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 29 (>L:VC_Communications_trigger_VAL,number) } els{ 30 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_vhf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_2_VHF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 31), false = soltar (codigo 32).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_VHF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 31 (>L:VC_Communications_trigger_VAL,number) } els{ 32 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_vhf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_3_VHF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 33), false = soltar (codigo 34).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_VHF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 33 (>L:VC_Communications_trigger_VAL,number) } els{ 34 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_vhf3_sw
+  # Radio Tuning Switch -- nodo VC_RTP_1_VHF3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 35), false = soltar (codigo 36).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_VHF3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 35 (>L:VC_Communications_trigger_VAL,number) } els{ 36 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_vhf3_sw
+  # Radio Tuning Switch -- nodo VC_RTP_2_VHF3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 37), false = soltar (codigo 38).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_VHF3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 37 (>L:VC_Communications_trigger_VAL,number) } els{ 38 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_vhf3_sw
+  # Radio Tuning Switch -- nodo VC_RTP_3_VHF3_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 39), false = soltar (codigo 40).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_VHF3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 39 (>L:VC_Communications_trigger_VAL,number) } els{ 40 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_hf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_1_HF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 41), false = soltar (codigo 42).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_HF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 41 (>L:VC_Communications_trigger_VAL,number) } els{ 42 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_hf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_2_HF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 43), false = soltar (codigo 44).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_HF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 43 (>L:VC_Communications_trigger_VAL,number) } els{ 44 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_hf1_sw
+  # Radio Tuning Switch -- nodo VC_RTP_3_HF1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 45), false = soltar (codigo 46).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_HF1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 45 (>L:VC_Communications_trigger_VAL,number) } els{ 46 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_am_sw
+  # AM Switch -- nodo VC_RTP_1_AM_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_AM_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 47 (>L:VC_Communications_trigger_VAL,number) } els{ 48 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_am_sw
+  # AM Switch -- nodo VC_RTP_2_AM_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 49), false = soltar (codigo 50).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_AM_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 49 (>L:VC_Communications_trigger_VAL,number) } els{ 50 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_am_sw
+  # AM Switch -- nodo VC_RTP_3_AM_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 51), false = soltar (codigo 52).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_AM_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 51 (>L:VC_Communications_trigger_VAL,number) } els{ 52 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_hf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_1_HF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 53), false = soltar (codigo 54).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_HF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 53 (>L:VC_Communications_trigger_VAL,number) } els{ 54 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_hf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_2_HF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 55), false = soltar (codigo 56).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_HF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 55 (>L:VC_Communications_trigger_VAL,number) } els{ 56 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_hf2_sw
+  # Radio Tuning Switch -- nodo VC_RTP_3_HF2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 57), false = soltar (codigo 58).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_HF2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 57 (>L:VC_Communications_trigger_VAL,number) } els{ 58 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_test_sw
+  # VHF TEST Switch -- nodo VC_RTP_1_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 59), false = soltar (codigo 60).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 59 (>L:VC_Communications_trigger_VAL,number) } els{ 60 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_2_test_sw
+  # VHF TEST Switch -- nodo VC_RTP_2_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 61), false = soltar (codigo 62).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 61 (>L:VC_Communications_trigger_VAL,number) } els{ 62 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_3_test_sw
+  # VHF TEST Switch -- nodo VC_RTP_3_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_Communications_trigger_VAL,number) } els{ 64 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.rtp_1_hf_sens_sw
+  # HF Sensitivity Control -- nodo VC_RTP_1_HF_SENS_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 66 sube, 65 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_HF_SENS_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_1_HF_SENS_SW_VAL,number) $value < if{ 66 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_1_HF_SENS_SW_VAL,number) $value > if{ 65 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_2_hf_sens_sw
+  # HF Sensitivity Control -- nodo VC_RTP_2_HF_SENS_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 68 sube, 67 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_HF_SENS_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_2_HF_SENS_SW_VAL,number) $value < if{ 68 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_2_HF_SENS_SW_VAL,number) $value > if{ 67 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_3_hf_sens_sw
+  # HF Sensitivity Control -- nodo VC_RTP_3_HF_SENS_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 70 sube, 69 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_HF_SENS_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_3_HF_SENS_SW_VAL,number) $value < if{ 70 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_3_HF_SENS_SW_VAL,number) $value > if{ 69 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_1_freq_whole_sw
+  # Frequency Selector -- nodo VC_RTP_1_Freq_WHOLE_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 72 sube, 71 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_Freq_WHOLE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_1_Freq_WHOLE_SW_VAL,number) $value < if{ 72 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_1_Freq_WHOLE_SW_VAL,number) $value > if{ 71 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_2_freq_whole_sw
+  # Frequency Selector -- nodo VC_RTP_2_Freq_WHOLE_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 74 sube, 73 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_Freq_WHOLE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_2_Freq_WHOLE_SW_VAL,number) $value < if{ 74 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_2_Freq_WHOLE_SW_VAL,number) $value > if{ 73 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_3_freq_whole_sw
+  # Frequency Selector -- nodo VC_RTP_3_Freq_WHOLE_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 76 sube, 75 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_Freq_WHOLE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_3_Freq_WHOLE_SW_VAL,number) $value < if{ 76 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_3_Freq_WHOLE_SW_VAL,number) $value > if{ 75 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_1_freq_fract_sw
+  # Frequency Selector -- nodo VC_RTP_1_Freq_FRACT_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 78 sube, 77 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_1_Freq_FRACT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_1_Freq_FRACT_SW_VAL,number) $value < if{ 78 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_1_Freq_FRACT_SW_VAL,number) $value > if{ 77 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_2_freq_fract_sw
+  # Frequency Selector -- nodo VC_RTP_2_Freq_FRACT_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 80 sube, 79 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_2_Freq_FRACT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_2_Freq_FRACT_SW_VAL,number) $value < if{ 80 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_2_Freq_FRACT_SW_VAL,number) $value > if{ 79 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.rtp_3_freq_fract_sw
+  # Frequency Selector -- nodo VC_RTP_3_Freq_FRACT_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 82 sube, 81 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RTP_3_Freq_FRACT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RTP_3_Freq_FRACT_SW_VAL,number) $value < if{ 82 (>L:VC_Communications_trigger_VAL,number) } (L:VC_RTP_3_Freq_FRACT_SW_VAL,number) $value > if{ 81 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_transmitter_01_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_01_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 83) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 83 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_01_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_01_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 84) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 84 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_01_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_01_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 85) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 85 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_02_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_02_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 86) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 86 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_02_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_02_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 87) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 87 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_02_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_02_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 88) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 88 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_03_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_03_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 89) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 89 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_03_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_03_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 90) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 90 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_03_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_03_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 91) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 91 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_04_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_04_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 92) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 92 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_04_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_04_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 93) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 93 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_04_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_04_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 94) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 94 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_05_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_05_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 95) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 95 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_05_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_05_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 96) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 96 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_05_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_05_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 97) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 97 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_06_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_06_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 98) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 98 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_06_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_06_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 99) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 99 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_06_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_06_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 100) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 100 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_07_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_07_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 101) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 101 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_07_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_07_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 102) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 102 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_07_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_07_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 103) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 103 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_08_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_08_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 104) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 104 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_08_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_08_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 105) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 105 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_08_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_08_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 106) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 106 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_09_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_09_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 107) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 107 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_09_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_09_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 108) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 108 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_09_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_09_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 109) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 109 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_1_transmitter_10_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_1_Transmitter_10_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 110) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 110 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_transmitter_10_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_2_Transmitter_10_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 111) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 111 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_3_transmitter_10_sw
+  # Transmitter Selector (MIC SELECTOR) Switches -- nodo VC_ACP_3_Transmitter_10_SW del modelo iFly.
+  dataType: boolean
+  authority: shared
+  # Pulso unico (codigo 112) sin L-Var de estado en el modelo: solo escritura,
+  # se dispara al recibir true y no hay nada que confirmar.
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 112 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 100
+
+- id: communications.acp_2_rvc_01_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_01_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 119 sube, 118 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_01_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_01_SW_VAL,number) $value < if{ 119 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_01_SW_VAL,number) $value > if{ 118 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_01_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_01_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 121 sube, 120 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_01_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_01_SW_VAL,number) $value < if{ 121 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_01_SW_VAL,number) $value > if{ 120 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_01_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_01_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 117 sube, 116 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_01_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_01_VOL_SW_VAL,number) $value < if{ 117 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_01_VOL_SW_VAL,number) $value > if{ 116 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_01_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_01_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 119 sube, 118 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_01_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_01_VOL_SW_VAL,number) $value < if{ 119 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_01_VOL_SW_VAL,number) $value > if{ 118 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_01_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_01_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 121 sube, 120 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_01_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_01_VOL_SW_VAL,number) $value < if{ 121 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_01_VOL_SW_VAL,number) $value > if{ 120 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_02_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_02_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 126 sube, 125 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_02_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_02_SW_VAL,number) $value < if{ 126 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_02_SW_VAL,number) $value > if{ 125 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_02_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_02_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 128 sube, 127 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_02_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_02_SW_VAL,number) $value < if{ 128 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_02_SW_VAL,number) $value > if{ 127 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_02_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_02_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 130 sube, 129 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_02_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_02_SW_VAL,number) $value < if{ 130 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_02_SW_VAL,number) $value > if{ 129 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_02_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_02_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 126 sube, 125 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_02_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_02_VOL_SW_VAL,number) $value < if{ 126 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_02_VOL_SW_VAL,number) $value > if{ 125 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_02_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_02_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 128 sube, 127 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_02_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_02_VOL_SW_VAL,number) $value < if{ 128 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_02_VOL_SW_VAL,number) $value > if{ 127 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_02_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_02_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 130 sube, 129 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_02_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_02_VOL_SW_VAL,number) $value < if{ 130 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_02_VOL_SW_VAL,number) $value > if{ 129 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_03_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_03_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 135 sube, 134 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_03_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_03_SW_VAL,number) $value < if{ 135 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_03_SW_VAL,number) $value > if{ 134 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_03_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_03_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 137 sube, 136 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_03_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_03_SW_VAL,number) $value < if{ 137 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_03_SW_VAL,number) $value > if{ 136 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_03_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_03_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (133): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_03_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_03_SW_VAL,number) $value != if{ 133 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: communications.acp_1_rvc_03_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_03_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 135 sube, 134 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_03_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_03_VOL_SW_VAL,number) $value < if{ 135 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_03_VOL_SW_VAL,number) $value > if{ 134 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_03_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_03_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 137 sube, 136 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_03_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_03_VOL_SW_VAL,number) $value < if{ 137 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_03_VOL_SW_VAL,number) $value > if{ 136 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_03_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_03_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 139 sube, 138 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_03_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_03_VOL_SW_VAL,number) $value < if{ 139 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_03_VOL_SW_VAL,number) $value > if{ 138 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_04_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_04_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 144 sube, 143 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_04_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_04_SW_VAL,number) $value < if{ 144 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_04_SW_VAL,number) $value > if{ 143 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_04_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_04_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 146 sube, 145 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_04_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_04_SW_VAL,number) $value < if{ 146 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_04_SW_VAL,number) $value > if{ 145 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_04_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_04_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 148 sube, 147 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_04_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_04_SW_VAL,number) $value < if{ 148 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_04_SW_VAL,number) $value > if{ 147 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_04_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_04_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 144 sube, 143 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_04_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_04_VOL_SW_VAL,number) $value < if{ 144 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_04_VOL_SW_VAL,number) $value > if{ 143 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_04_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_04_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 146 sube, 145 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_04_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_04_VOL_SW_VAL,number) $value < if{ 146 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_04_VOL_SW_VAL,number) $value > if{ 145 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_04_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_04_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 148 sube, 147 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_04_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_04_VOL_SW_VAL,number) $value < if{ 148 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_04_VOL_SW_VAL,number) $value > if{ 147 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_05_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_05_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 153 sube, 152 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_05_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_05_SW_VAL,number) $value < if{ 153 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_05_SW_VAL,number) $value > if{ 152 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_05_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_05_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 155 sube, 154 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_05_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_05_SW_VAL,number) $value < if{ 155 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_05_SW_VAL,number) $value > if{ 154 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_05_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_05_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 157 sube, 156 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_05_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_05_SW_VAL,number) $value < if{ 157 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_05_SW_VAL,number) $value > if{ 156 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_05_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_05_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 153 sube, 152 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_05_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_05_VOL_SW_VAL,number) $value < if{ 153 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_05_VOL_SW_VAL,number) $value > if{ 152 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_05_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_05_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 155 sube, 154 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_05_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_05_VOL_SW_VAL,number) $value < if{ 155 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_05_VOL_SW_VAL,number) $value > if{ 154 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_05_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_05_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 157 sube, 156 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_05_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_05_VOL_SW_VAL,number) $value < if{ 157 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_05_VOL_SW_VAL,number) $value > if{ 156 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_06_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_06_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 162 sube, 161 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_06_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_06_SW_VAL,number) $value < if{ 162 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_06_SW_VAL,number) $value > if{ 161 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_06_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_06_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 164 sube, 163 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_06_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_06_SW_VAL,number) $value < if{ 164 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_06_SW_VAL,number) $value > if{ 163 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_06_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_06_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 166 sube, 165 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_06_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_06_SW_VAL,number) $value < if{ 166 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_06_SW_VAL,number) $value > if{ 165 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_06_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_06_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 162 sube, 161 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_06_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_06_VOL_SW_VAL,number) $value < if{ 162 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_06_VOL_SW_VAL,number) $value > if{ 161 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_06_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_06_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 164 sube, 163 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_06_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_06_VOL_SW_VAL,number) $value < if{ 164 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_06_VOL_SW_VAL,number) $value > if{ 163 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_06_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_06_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 166 sube, 165 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_06_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_06_VOL_SW_VAL,number) $value < if{ 166 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_06_VOL_SW_VAL,number) $value > if{ 165 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_07_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_07_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 171 sube, 170 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_07_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_07_SW_VAL,number) $value < if{ 171 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_07_SW_VAL,number) $value > if{ 170 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_07_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_07_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 173 sube, 172 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_07_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_07_SW_VAL,number) $value < if{ 173 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_07_SW_VAL,number) $value > if{ 172 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_07_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_07_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 175 sube, 174 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_07_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_07_SW_VAL,number) $value < if{ 175 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_07_SW_VAL,number) $value > if{ 174 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_07_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_07_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 171 sube, 170 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_07_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_07_VOL_SW_VAL,number) $value < if{ 171 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_07_VOL_SW_VAL,number) $value > if{ 170 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_07_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_07_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 173 sube, 172 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_07_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_07_VOL_SW_VAL,number) $value < if{ 173 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_07_VOL_SW_VAL,number) $value > if{ 172 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_07_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_07_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 175 sube, 174 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_07_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_07_VOL_SW_VAL,number) $value < if{ 175 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_07_VOL_SW_VAL,number) $value > if{ 174 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_08_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_08_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 180 sube, 179 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_08_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_08_SW_VAL,number) $value < if{ 180 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_08_SW_VAL,number) $value > if{ 179 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_08_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_08_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 182 sube, 181 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_08_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_08_SW_VAL,number) $value < if{ 182 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_08_SW_VAL,number) $value > if{ 181 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_08_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_08_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 184 sube, 183 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_08_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_08_SW_VAL,number) $value < if{ 184 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_08_SW_VAL,number) $value > if{ 183 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_08_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_08_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 180 sube, 179 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_08_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_08_VOL_SW_VAL,number) $value < if{ 180 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_08_VOL_SW_VAL,number) $value > if{ 179 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_08_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_08_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 182 sube, 181 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_08_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_08_VOL_SW_VAL,number) $value < if{ 182 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_08_VOL_SW_VAL,number) $value > if{ 181 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_08_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_08_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 184 sube, 183 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_08_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_08_VOL_SW_VAL,number) $value < if{ 184 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_08_VOL_SW_VAL,number) $value > if{ 183 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_09_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_09_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 189 sube, 188 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_09_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_09_SW_VAL,number) $value < if{ 189 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_09_SW_VAL,number) $value > if{ 188 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_09_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_09_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 191 sube, 190 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_09_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_09_SW_VAL,number) $value < if{ 191 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_09_SW_VAL,number) $value > if{ 190 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_09_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_09_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 193 sube, 192 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_09_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_09_SW_VAL,number) $value < if{ 193 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_09_SW_VAL,number) $value > if{ 192 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_09_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_09_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 189 sube, 188 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_09_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_09_VOL_SW_VAL,number) $value < if{ 189 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_09_VOL_SW_VAL,number) $value > if{ 188 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_09_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_09_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 191 sube, 190 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_09_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_09_VOL_SW_VAL,number) $value < if{ 191 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_09_VOL_SW_VAL,number) $value > if{ 190 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_09_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_09_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 193 sube, 192 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_09_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_09_VOL_SW_VAL,number) $value < if{ 193 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_09_VOL_SW_VAL,number) $value > if{ 192 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_10_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_10_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 198 sube, 197 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_10_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_10_SW_VAL,number) $value < if{ 198 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_10_SW_VAL,number) $value > if{ 197 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_10_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_10_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 200 sube, 199 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_10_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_10_SW_VAL,number) $value < if{ 200 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_10_SW_VAL,number) $value > if{ 199 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_10_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_10_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 202 sube, 201 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_10_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_10_SW_VAL,number) $value < if{ 202 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_10_SW_VAL,number) $value > if{ 201 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_10_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_10_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 198 sube, 197 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_10_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_10_VOL_SW_VAL,number) $value < if{ 198 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_10_VOL_SW_VAL,number) $value > if{ 197 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_10_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_10_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 200 sube, 199 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_10_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_10_VOL_SW_VAL,number) $value < if{ 200 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_10_VOL_SW_VAL,number) $value > if{ 199 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_10_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_10_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 202 sube, 201 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_10_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_10_VOL_SW_VAL,number) $value < if{ 202 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_10_VOL_SW_VAL,number) $value > if{ 201 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_11_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_11_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 207 sube, 206 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_11_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_11_SW_VAL,number) $value < if{ 207 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_11_SW_VAL,number) $value > if{ 206 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_11_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_11_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 209 sube, 208 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_11_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_11_SW_VAL,number) $value < if{ 209 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_11_SW_VAL,number) $value > if{ 208 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_11_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_11_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 211 sube, 210 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_11_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_11_SW_VAL,number) $value < if{ 211 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_11_SW_VAL,number) $value > if{ 210 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_11_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_11_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 207 sube, 206 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_11_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_11_VOL_SW_VAL,number) $value < if{ 207 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_11_VOL_SW_VAL,number) $value > if{ 206 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_11_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_11_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 209 sube, 208 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_11_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_11_VOL_SW_VAL,number) $value < if{ 209 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_11_VOL_SW_VAL,number) $value > if{ 208 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_11_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_11_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 211 sube, 210 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_11_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_11_VOL_SW_VAL,number) $value < if{ 211 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_11_VOL_SW_VAL,number) $value > if{ 210 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_12_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_12_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 216 sube, 215 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_12_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_12_SW_VAL,number) $value < if{ 216 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_12_SW_VAL,number) $value > if{ 215 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_12_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_12_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 218 sube, 217 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_12_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_12_SW_VAL,number) $value < if{ 218 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_12_SW_VAL,number) $value > if{ 217 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_12_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_12_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 220 sube, 219 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_12_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_12_SW_VAL,number) $value < if{ 220 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_12_SW_VAL,number) $value > if{ 219 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_12_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_12_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 216 sube, 215 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_12_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_12_VOL_SW_VAL,number) $value < if{ 216 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_12_VOL_SW_VAL,number) $value > if{ 215 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_12_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_12_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 218 sube, 217 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_12_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_12_VOL_SW_VAL,number) $value < if{ 218 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_12_VOL_SW_VAL,number) $value > if{ 217 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_12_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_12_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 220 sube, 219 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_12_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_12_VOL_SW_VAL,number) $value < if{ 220 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_12_VOL_SW_VAL,number) $value > if{ 219 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_13_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_13_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 225 sube, 224 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_13_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_13_SW_VAL,number) $value < if{ 225 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_13_SW_VAL,number) $value > if{ 224 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_13_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_13_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 227 sube, 226 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_13_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_13_SW_VAL,number) $value < if{ 227 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_13_SW_VAL,number) $value > if{ 226 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_13_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_13_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 229 sube, 228 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_13_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_13_SW_VAL,number) $value < if{ 229 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_13_SW_VAL,number) $value > if{ 228 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_13_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_13_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 225 sube, 224 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_13_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_13_VOL_SW_VAL,number) $value < if{ 225 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_13_VOL_SW_VAL,number) $value > if{ 224 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_13_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_13_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 227 sube, 226 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_13_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_13_VOL_SW_VAL,number) $value < if{ 227 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_13_VOL_SW_VAL,number) $value > if{ 226 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_13_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_13_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 229 sube, 228 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_13_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_13_VOL_SW_VAL,number) $value < if{ 229 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_13_VOL_SW_VAL,number) $value > if{ 228 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_14_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_14_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 234 sube, 233 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_14_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_14_SW_VAL,number) $value < if{ 234 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_14_SW_VAL,number) $value > if{ 233 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_14_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_14_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 236 sube, 235 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_14_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_14_SW_VAL,number) $value < if{ 236 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_14_SW_VAL,number) $value > if{ 235 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_14_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_14_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 238 sube, 237 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_14_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_14_SW_VAL,number) $value < if{ 238 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_14_SW_VAL,number) $value > if{ 237 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_14_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_14_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 234 sube, 233 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_14_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_14_VOL_SW_VAL,number) $value < if{ 234 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_14_VOL_SW_VAL,number) $value > if{ 233 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_14_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_14_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 236 sube, 235 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_14_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_14_VOL_SW_VAL,number) $value < if{ 236 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_14_VOL_SW_VAL,number) $value > if{ 235 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_14_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_14_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 238 sube, 237 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_14_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_14_VOL_SW_VAL,number) $value < if{ 238 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_14_VOL_SW_VAL,number) $value > if{ 237 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_15_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_15_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 243 sube, 242 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_15_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_15_SW_VAL,number) $value < if{ 243 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_15_SW_VAL,number) $value > if{ 242 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_15_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_15_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 245 sube, 244 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_15_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_15_SW_VAL,number) $value < if{ 245 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_15_SW_VAL,number) $value > if{ 244 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_15_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_15_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 247 sube, 246 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_15_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_15_SW_VAL,number) $value < if{ 247 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_15_SW_VAL,number) $value > if{ 246 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_15_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_15_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 243 sube, 242 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_15_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_15_VOL_SW_VAL,number) $value < if{ 243 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_15_VOL_SW_VAL,number) $value > if{ 242 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_15_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_15_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 245 sube, 244 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_15_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_15_VOL_SW_VAL,number) $value < if{ 245 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_15_VOL_SW_VAL,number) $value > if{ 244 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_15_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_15_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 247 sube, 246 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_15_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_15_VOL_SW_VAL,number) $value < if{ 247 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_15_VOL_SW_VAL,number) $value > if{ 246 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_16_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_16_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 252 sube, 251 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_16_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_16_SW_VAL,number) $value < if{ 252 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_16_SW_VAL,number) $value > if{ 251 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_16_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_16_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 254 sube, 253 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_16_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_16_SW_VAL,number) $value < if{ 254 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_16_SW_VAL,number) $value > if{ 253 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_16_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_16_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 256 sube, 255 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_16_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_16_SW_VAL,number) $value < if{ 256 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_16_SW_VAL,number) $value > if{ 255 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_rvc_16_vol_sw
+  # Receiver Switches -- nodo VC_ACP_1_RVC_16_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 252 sube, 251 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_RVC_16_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_RVC_16_VOL_SW_VAL,number) $value < if{ 252 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_RVC_16_VOL_SW_VAL,number) $value > if{ 251 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_rvc_16_vol_sw
+  # Receiver Switches -- nodo VC_ACP_2_RVC_16_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 254 sube, 253 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_RVC_16_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_RVC_16_VOL_SW_VAL,number) $value < if{ 254 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_RVC_16_VOL_SW_VAL,number) $value > if{ 253 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_rvc_16_vol_sw
+  # Receiver Switches -- nodo VC_ACP_3_RVC_16_VOL_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 256 sube, 255 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_RVC_16_VOL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_RVC_16_VOL_SW_VAL,number) $value < if{ 256 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_RVC_16_VOL_SW_VAL,number) $value > if{ 255 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_push_to_talk_sw
+  # Push-to-Talk Switch -- nodo VC_ACP_1_Push_to_Talk_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 257 sube, 258 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_Push_to_Talk_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_Push_to_Talk_SW_VAL,number) $value < if{ 257 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_Push_to_Talk_SW_VAL,number) $value > if{ 258 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_push_to_talk_sw
+  # Push-to-Talk Switch -- nodo VC_ACP_2_Push_to_Talk_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 259 sube, 260 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_Push_to_Talk_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_Push_to_Talk_SW_VAL,number) $value < if{ 259 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_Push_to_Talk_SW_VAL,number) $value > if{ 260 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_push_to_talk_sw
+  # Push-to-Talk Switch -- nodo VC_ACP_3_Push_to_Talk_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 261 sube, 262 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_Push_to_Talk_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_Push_to_Talk_SW_VAL,number) $value < if{ 261 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_Push_to_Talk_SW_VAL,number) $value > if{ 262 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_filter_sw
+  # Filter Switch -- nodo VC_ACP_1_Filter_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 264 sube, 263 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_Filter_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_Filter_SW_VAL,number) $value < if{ 264 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_Filter_SW_VAL,number) $value > if{ 263 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_filter_sw
+  # Filter Switch -- nodo VC_ACP_2_Filter_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 266 sube, 265 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_Filter_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_Filter_SW_VAL,number) $value < if{ 266 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_Filter_SW_VAL,number) $value > if{ 265 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_filter_sw
+  # Filter Switch -- nodo VC_ACP_3_Filter_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 268 sube, 267 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_Filter_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_Filter_SW_VAL,number) $value < if{ 268 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_Filter_SW_VAL,number) $value > if{ 267 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_altnorm_sw
+  # Alternate-Normal (ALT-NORM) Switch -- nodo VC_ACP_1_AltNorm_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 269 sube, 270 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_AltNorm_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_1_AltNorm_SW_VAL,number) $value < if{ 269 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_1_AltNorm_SW_VAL,number) $value > if{ 270 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_2_altnorm_sw
+  # Alternate-Normal (ALT-NORM) Switch -- nodo VC_ACP_2_AltNorm_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 271 sube, 272 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_AltNorm_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_2_AltNorm_SW_VAL,number) $value < if{ 271 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_2_AltNorm_SW_VAL,number) $value > if{ 272 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_3_altnorm_sw
+  # Alternate-Normal (ALT-NORM) Switch -- nodo VC_ACP_3_AltNorm_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 273 sube, 274 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_AltNorm_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ACP_3_AltNorm_SW_VAL,number) $value < if{ 273 (>L:VC_Communications_trigger_VAL,number) } (L:VC_ACP_3_AltNorm_SW_VAL,number) $value > if{ 274 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: communications.acp_1_sat1_sw
+  # SAT Switch -- nodo VC_ACP_1_SAT1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 275), false = soltar (codigo 276).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_SAT1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 275 (>L:VC_Communications_trigger_VAL,number) } els{ 276 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.acp_2_sat1_sw
+  # SAT Switch -- nodo VC_ACP_2_SAT1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 277), false = soltar (codigo 278).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_SAT1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 277 (>L:VC_Communications_trigger_VAL,number) } els{ 278 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.acp_3_sat1_sw
+  # SAT Switch -- nodo VC_ACP_3_SAT1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 279), false = soltar (codigo 280).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_SAT1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 279 (>L:VC_Communications_trigger_VAL,number) } els{ 280 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.acp_1_sat2_sw
+  # SAT Switch -- nodo VC_ACP_1_SAT2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 281), false = soltar (codigo 282).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_1_SAT2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 281 (>L:VC_Communications_trigger_VAL,number) } els{ 282 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.acp_2_sat2_sw
+  # SAT Switch -- nodo VC_ACP_2_SAT2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 283), false = soltar (codigo 284).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_2_SAT2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 283 (>L:VC_Communications_trigger_VAL,number) } els{ 284 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.acp_3_sat2_sw
+  # SAT Switch -- nodo VC_ACP_3_SAT2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 285), false = soltar (codigo 286).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ACP_3_SAT2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 285 (>L:VC_Communications_trigger_VAL,number) } els{ 286 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: communications.voicerecorder_sw
+  # VOICE RECORDER Switch -- nodo VC_VoiceRecorder_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 297 sube, 298 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_VoiceRecorder_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_VoiceRecorder_SW_VAL,number) $value < if{ 297 (>L:VC_Communications_trigger_VAL,number) } (L:VC_VoiceRecorder_SW_VAL,number) $value > if{ 298 (>L:VC_Communications_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150

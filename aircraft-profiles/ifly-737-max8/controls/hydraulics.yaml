@@ -1,0 +1,224 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Sistema hidraulico
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Hydraulics_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: hydraulics.eng_1_hyd_sw
+  # ENGINE HYDRAULIC PUMPS Switches -- nodo VC_ENG_1_HYD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 2 sube, 1 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENG_1_HYD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ENG_1_HYD_SW_VAL,number) $value < if{ 2 (>L:VC_Hydraulics_trigger_VAL,number) } (L:VC_ENG_1_HYD_SW_VAL,number) $value > if{ 1 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: hydraulics.eng_2_hyd_sw
+  # ENGINE HYDRAULIC PUMPS Switches -- nodo VC_ENG_2_HYD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 4 sube, 3 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ENG_2_HYD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ENG_2_HYD_SW_VAL,number) $value < if{ 4 (>L:VC_Hydraulics_trigger_VAL,number) } (L:VC_ENG_2_HYD_SW_VAL,number) $value > if{ 3 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: hydraulics.elec_1_hyd_sw
+  # ELECTRIC HYDRAULIC PUMPS Switches -- nodo VC_ELEC_1_HYD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 6 sube, 5 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ELEC_1_HYD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ELEC_1_HYD_SW_VAL,number) $value < if{ 6 (>L:VC_Hydraulics_trigger_VAL,number) } (L:VC_ELEC_1_HYD_SW_VAL,number) $value > if{ 5 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: hydraulics.elec_2_hyd_sw
+  # ELECTRIC HYDRAULIC PUMPS Switches -- nodo VC_ELEC_2_HYD_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 8 sube, 7 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ELEC_2_HYD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ELEC_2_HYD_SW_VAL,number) $value < if{ 8 (>L:VC_Hydraulics_trigger_VAL,number) } (L:VC_ELEC_2_HYD_SW_VAL,number) $value > if{ 7 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: hydraulics.hydraulic_light_eng_1_low_pressure
+  # Hydraulic Pump LOW PRESSURE Lights -- nodo VC_HYDRAULIC_LIGHT_ENG_1_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 9), false = soltar (codigo 10).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ENG_1_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 9 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 10 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: hydraulics.hydraulic_light_eng_2_low_pressure
+  # Hydraulic Pump LOW PRESSURE Lights -- nodo VC_HYDRAULIC_LIGHT_ENG_2_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 11), false = soltar (codigo 12).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ENG_2_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 11 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 12 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: hydraulics.hydraulic_light_elec_1_low_pressure
+  # Hydraulic Pump LOW PRESSURE Lights -- nodo VC_HYDRAULIC_LIGHT_ELEC_1_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 13), false = soltar (codigo 14).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ELEC_1_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 13 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 14 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: hydraulics.hydraulic_light_elec_2_low_pressure
+  # Hydraulic Pump LOW PRESSURE Lights -- nodo VC_HYDRAULIC_LIGHT_ELEC_2_LOW_PRESSURE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ELEC_2_LOW_PRESSURE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 16 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: hydraulics.hydraulic_light_elec_1_overheat
+  # Electric Hydraulic Pump OVERHEAT Lights -- nodo VC_HYDRAULIC_LIGHT_ELEC_1_OVERHEAT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ELEC_1_OVERHEAT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 18 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: hydraulics.hydraulic_light_elec_2_overheat
+  # Electric Hydraulic Pump OVERHEAT Lights -- nodo VC_HYDRAULIC_LIGHT_ELEC_2_OVERHEAT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HYDRAULIC_LIGHT_ELEC_2_OVERHEAT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Hydraulics_trigger_VAL,number) } els{ 20 (>L:VC_Hydraulics_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50

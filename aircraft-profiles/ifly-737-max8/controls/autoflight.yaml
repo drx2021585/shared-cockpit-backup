@@ -1,0 +1,852 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: MCP / piloto automatico
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Automatic_Flight_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: autoflight.at_sw
+  # Autothrottle (A/T) ARM Switch -- nodo VC_AT_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 1 sube, 2 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AT_SW_VAL,number) $value < if{ 1 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_AT_SW_VAL,number) $value > if{ 2 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.vnav_sw
+  # VNAV Switch -- nodo VC_VNAV_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 3), false = soltar (codigo 4).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_VNAV_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 3 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 4 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.lnav_sw
+  # LNAV Switch -- nodo VC_LNAV_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 5), false = soltar (codigo 6).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_LNAV_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 5 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 6 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.cmd_a_sw
+  # Command Engage (CMD ENGAGE) Switch -- nodo VC_CMD_A_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 7), false = soltar (codigo 8).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CMD_A_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 7 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 8 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.cmd_b_sw
+  # Command Engage (CMD ENGAGE) Switch -- nodo VC_CMD_B_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 9), false = soltar (codigo 10).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CMD_B_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 9 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 10 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.course_1_sw
+  # Course Selector -- nodo VC_Course_1_SW del modelo iFly.
+  # Selector/perilla de 120 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 12 sube, 11 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Course_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Course_1_SW_VAL,number) $value < if{ 12 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_Course_1_SW_VAL,number) $value > if{ 11 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.course_2_sw
+  # Course Selector -- nodo VC_Course_2_SW del modelo iFly.
+  # Selector/perilla de 120 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 13 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Course_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Course_2_SW_VAL,number) $value < if{ 14 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_Course_2_SW_VAL,number) $value > if{ 13 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.toga_1_sw
+  # Takeoff/Go-Around (TO/GA) Switches -- nodo VC_TOGA_1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_TOGA_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 16 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.toga_2_sw
+  # Takeoff/Go-Around (TO/GA) Switches -- nodo VC_TOGA_2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_TOGA_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 18 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.toga_1_sw_02
+  # Takeoff/Go-Around (TO/GA) Switches -- nodo VC_TOGA_1_SW_02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 15), false = soltar (codigo 16).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 15 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 16 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: autoflight.toga_2_sw_02
+  # Takeoff/Go-Around (TO/GA) Switches -- nodo VC_TOGA_2_SW_02 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 17), false = soltar (codigo 18).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 17 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 18 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: false
+    debounceMs: 50
+
+- id: autoflight.changeover_sw
+  # Changeover (C/O) Switch -- nodo VC_Changeover_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 19), false = soltar (codigo 20).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Changeover_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 19 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 20 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.iasmach_sw
+  # IAS/MACH Selector -- nodo VC_IASMACH_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 22 sube, 21 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_IASMACH_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_IASMACH_SW_VAL,number) $value < if{ 22 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_IASMACH_SW_VAL,number) $value > if{ 21 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.spd_intv_sw
+  # Speed Intervention (SPD INTV) Switch -- nodo VC_SPD_INTV_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 23), false = soltar (codigo 24).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_SPD_INTV_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 23 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 24 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.bank_limit_sw
+  # Bank Angle Selector -- nodo VC_BANK_LIMIT_SW del modelo iFly.
+  # Selector/perilla de 40 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 26 sube, 25 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_BANK_LIMIT_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_BANK_LIMIT_SW_VAL,number) $value < if{ 26 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_BANK_LIMIT_SW_VAL,number) $value > if{ 25 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.heading_sw
+  # Heading Selector -- nodo VC_HEADING_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 28 sube, 27 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HEADING_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_HEADING_SW_VAL,number) $value < if{ 28 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_HEADING_SW_VAL,number) $value > if{ 27 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.vor_loc_sw
+  # VOR Localizer (LOC) Switch -- nodo VC_VOR_LOC_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 29), false = soltar (codigo 30).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_VOR_LOC_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 29 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 30 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.altidute_sw
+  # Altitude Selector (SEL) -- nodo VC_ALTIDUTE_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 32 sube, 31 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ALTIDUTE_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_ALTIDUTE_SW_VAL,number) $value < if{ 32 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_ALTIDUTE_SW_VAL,number) $value > if{ 31 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.alt_intv_sw
+  # Altitude Intervention (ALT INTV) Switch -- nodo VC_ALT_INTV_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 33), false = soltar (codigo 34).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ALT_INTV_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 33 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 34 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.vertspeed_sw
+  # Vertical Speed Thumbwheel -- nodo VC_VERTSPEED_SW del modelo iFly.
+  # Selector/perilla de 120 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 35 sube, 36 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_VERTSPEED_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_VERTSPEED_SW_VAL,number) $value < if{ 35 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_VERTSPEED_SW_VAL,number) $value > if{ 36 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.cws_a_sw
+  # Control Wheel Steering Engage (CWS ENGAGE) Switch -- nodo VC_CWS_A_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 37), false = soltar (codigo 38).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CWS_A_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 37 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 38 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.cws_b_sw
+  # Control Wheel Steering Engage (CWS ENGAGE) Switch -- nodo VC_CWS_B_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 39), false = soltar (codigo 40).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_CWS_B_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 39 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 40 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.fd_left_sw
+  # Flight Director (F/D) Switch -- nodo VC_FD_left_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 42 sube, 41 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FD_left_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FD_left_SW_VAL,number) $value < if{ 42 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_FD_left_SW_VAL,number) $value > if{ 41 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.fd_right_sw
+  # Flight Director (F/D) Switch -- nodo VC_FD_right_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 44 sube, 43 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_FD_right_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_FD_right_SW_VAL,number) $value < if{ 44 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_FD_right_SW_VAL,number) $value > if{ 43 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.n1_sw
+  # N1 Switch -- nodo VC_N1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 45), false = soltar (codigo 46).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_N1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 45 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 46 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.speed_sw
+  # SPEED Switch -- nodo VC_SPEED_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_SPEED_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 47 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 48 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.lvl_chg_sw
+  # Level Change (LVL CHG) Switch -- nodo VC_LVL_CHG_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 49), false = soltar (codigo 50).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_LVL_CHG_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 49 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 50 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.hdg_sel_sw
+  # Heading Select (HDG SEL) Switch -- nodo VC_HDG_SEL_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 51), false = soltar (codigo 52).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_HDG_SEL_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 51 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 52 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.app_sw
+  # Approach (APP) Switch -- nodo VC_APP_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 53), false = soltar (codigo 54).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_APP_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 53 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 54 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.alt_hld_sw
+  # Altitude Hold (ALT HLD) Switch -- nodo VC_ALT_HLD_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 55), false = soltar (codigo 56).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_ALT_HLD_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 55 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 56 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.vs_sw
+  # Vertical Speed (V/S) Switch -- nodo VC_VS_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 57), false = soltar (codigo 58).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_VS_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 57 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 58 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.disengage_bar_sw
+  # Autopilot Disengage (DISENGAGE) Bar -- nodo VC_DISENGAGE_Bar_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 60 sube, 59 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_DISENGAGE_Bar_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_DISENGAGE_Bar_SW_VAL,number) $value < if{ 60 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_DISENGAGE_Bar_SW_VAL,number) $value > if{ 59 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.ap_1_indicators_light
+  # Autopilot (A/P) Disengage Light -- nodo VC_AP_1_Indicators_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 61), false = soltar (codigo 62).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AP_1_Indicators_Light_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 61 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 62 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.ap_2_indicators_light
+  # Autopilot (A/P) Disengage Light -- nodo VC_AP_2_Indicators_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AP_2_Indicators_Light_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 64 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.at_1_indicators_light
+  # Autothrottle (A/T) Disengage Light -- nodo VC_AT_1_Indicators_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 65), false = soltar (codigo 66).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AT_1_Indicators_Light_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 65 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 66 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.at_2_indicators_light
+  # Autothrottle (A/T) Disengage Light -- nodo VC_AT_2_Indicators_Light del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 67), false = soltar (codigo 68).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AT_2_Indicators_Light_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 67 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 68 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.ap_at_test_1_sw
+  # Autothrottle (A/T) Disengage Light -- nodo VC_AP_AT_Test_1_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 69 sube, 70 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AP_AT_Test_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AP_AT_Test_1_SW_VAL,number) $value < if{ 69 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_AP_AT_Test_1_SW_VAL,number) $value > if{ 70 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.ap_at_test_2_sw
+  # Autothrottle (A/T) Disengage Light -- nodo VC_AP_AT_Test_2_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 71 sube, 72 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AP_AT_Test_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AP_AT_Test_2_SW_VAL,number) $value < if{ 71 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_AP_AT_Test_2_SW_VAL,number) $value > if{ 72 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: autoflight.autothrottle_disconnect_1_sw
+  # Autothrottle Disengage Switch -- nodo VC_Autothrottle_Disconnect_1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 73), false = soltar (codigo 74).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Autothrottle_Disconnect_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 73 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 74 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.autothrottle_disconnect_2_sw
+  # Autothrottle Disengage Switch -- nodo VC_Autothrottle_Disconnect_2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 75), false = soltar (codigo 76).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Autothrottle_Disconnect_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 75 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 76 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.autopilot_disconnect_1_sw
+  # Autopilot Disengage Switch -- nodo VC_Autopilot_Disconnect_1_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 77), false = soltar (codigo 78).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Autopilot_Disconnect_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 77 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 78 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.autopilot_disconnect_2_sw
+  # Autopilot Disengage Switch -- nodo VC_Autopilot_Disconnect_2_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 79), false = soltar (codigo 80).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Autopilot_Disconnect_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 79 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 80 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: autoflight.automaticflight_light_stab_out_trim
+  # Stabilizer Out Of Trim (STAB OUT OF TRIM) Light -- nodo VC_AUTOMATICFLIGHT_LIGHT_STAB_OUT_TRIM del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 83), false = soltar (codigo 84).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AUTOMATICFLIGHT_LIGHT_STAB_OUT_TRIM_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 83 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 84 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50

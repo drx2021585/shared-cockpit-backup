@@ -1,0 +1,124 @@
+# Detalle expandido de manifest.yaml capabilities — usado por la UI (Gestor de
+# aeronaves) para mostrar el % de compatibilidad, y por QA para saber qué
+# probar. Igual que en pmdg-737-900, este archivo es documentación: la fuente
+# de verdad que lee server/api es manifest.yaml.
+#
+# 1053 controles en total (controls/*.yaml), todos generados mecánicamente
+# desde el modelo interior real del addon: 982 con read+write pareados y 71
+# writeOnly (los que no tienen L-Var de estado en el modelo).
+#
+# NADA fue validado EN VIVO contra MSFS + iFly todavía. Ver NOTAS-SDK.md para
+# el checklist de validación pendiente y para el estado del SDK propio de iFly.
+
+systems:
+  flightControls:
+    level: partial
+    controls: [flap_lever, speedbrake_lever, stab_trim, aileron_trim, rudder_trim, yaw_damper, flight_control_switches]
+    # controls/flight-controls.yaml: 36 controles (35 read+write, 1 writeOnly).
+    # controls/gear.yaml: 22 más (tren, freno de parking, autobrake, steering,
+    # extensión manual). Los ejes continuos (yoke/rudder/throttle) NO están
+    # aquí: los maneja el canal rápido del bridge por SimConnect estándar, no
+    # las L-Vars de iFly.
+    missing: [live_verification, continuous_axes_use_standard_simconnect]
+  autopilot:
+    level: partial
+    controls: [mcp_course_1, mcp_course_2, mcp_ias_mach, mcp_heading, mcp_altitude, mcp_vertical_speed, mcp_mode_buttons, fd_switches, at_arm]
+    # controls/autoflight.yaml: 43 controles (41 read+write, 2 writeOnly).
+    # Los selectores del MCP (curso, IAS/MACH, heading, altitud, V/S) son
+    # perillas de muchos pasos: una escritura avanza un paso, así que fijar un
+    # heading nuevo desde el otro asiento converge en varios eventos, no en uno.
+    # Esa es la limitación real de iFly, no una simplificación del perfil.
+    missing: [live_verification, absolute_set_not_exposed_by_ifly]
+  electrical:
+    level: partial
+    controls: [battery, standby_power, gen_switches, apu_gen, bus_transfer, ground_power, idg_disconnect, meters]
+    # controls/electrical.yaml: 30 controles, todos read+write.
+    missing: [live_verification]
+  hydraulics:
+    level: partial
+    controls: [eng_hyd_pumps, elec_hyd_pumps, standby_rudder]
+    # controls/hydraulics.yaml: 10 controles, todos read+write.
+    missing: [live_verification]
+  radios:
+    level: partial
+    controls: [rtp_1, rtp_2, rtp_3, acp_1, acp_2, acp_3, adf, service_interphone, cvr]
+    # controls/communications.yaml: 182 controles (152 read+write, 30
+    # writeOnly). Incluye los 3 paneles de audio completos (16 receptores con
+    # su volumen cada uno) y los 3 radio tuning panels.
+    missing: [live_verification]
+  mcdu:
+    level: partial
+    controls: [cdu_1_keyboard, cdu_2_keyboard]
+    # Los dos CDU viven en controls/navigation.yaml (243 controles en total,
+    # junto con IRS, transponder, ADF y los selectores de fuente NAV/FMC).
+    # Los teclados son botones momentáneos read+write: se sincroniza la
+    # pulsación y la soltada, igual que el patrón writeOnly aprobado para el
+    # PMDG pero con confirmación de estado, porque iFly SÍ expone la L-Var de
+    # la tecla.
+    # NO hay screens/: el contenido de la pantalla del CDU de iFly no se
+    # expone como L-Var. Espejarla requiere el SDK propio (NOTAS-SDK.md).
+    missing: [cdu_screen_mirror_needs_ifly_sdk, live_verification]
+  failures:
+    level: none
+    controls: []
+    missing: [ifly_failure_system_not_reachable_without_sdk]
+
+  # --- Secciones sin categoría propia en manifest.schema.json (capabilities.<enum>
+  # solo admite flightControls/autopilot/electrical/hydraulics/radios/mcdu/
+  # failures). Mismo criterio que en pmdg-737-900: viven solo aquí.
+  air:
+    level: partial
+    controls: []
+    # controls/air.yaml: 40 controles read+write (packs, bleeds, isolation,
+    # recirc, trim air, presurización, selectores de temperatura).
+    missing: [live_verification]
+  antiIce:
+    level: partial
+    controls: []
+    # controls/anti-ice.yaml: 42 controles read+write (window heat, probe heat,
+    # wing anti-ice, engine anti-ice, limpiaparabrisas, rain repellent).
+    missing: [live_verification]
+  engine:
+    level: partial
+    controls: []
+    # controls/engine.yaml: 24 controles read+write (start switches, start
+    # levers, APU, ignition).
+    missing: [live_verification, n1_thrust_axes_use_standard_simconnect]
+  fuel:
+    level: partial
+    controls: []
+    # controls/fuel.yaml: 20 controles read+write (6 bombas, crossfeed, flow).
+    missing: [live_verification]
+  fireProtection:
+    level: partial
+    controls: []
+    # controls/fire-protection.yaml: 32 controles read+write (fire handles con
+    # su unlock y rotación, test, APU, cargo).
+    missing: [live_verification]
+  instruments:
+    level: partial
+    controls: []
+    # controls/instruments.yaml: 78 controles (77 read+write) — EFIS de ambos
+    # pilotos, DSPY, ISFD, registrador de vuelo.
+    missing: [live_verification]
+  warnings:
+    level: partial
+    controls: []
+    # controls/warnings.yaml: 27 controles read+write (master caution, recall,
+    # GPWS, inhibidores).
+    missing: [live_verification]
+  efb:
+    level: partial
+    controls: []
+    # controls/efb.yaml: 78 controles (68 read+write, 10 writeOnly) — las dos
+    # tablets. Es el candidato más claro a EXCLUIR de la sincronización real:
+    # es una UI personal por piloto, no un control compartido de cabina.
+    missing: [live_verification, probably_should_not_be_synced_at_all]
+  cabinMisc:
+    level: partial
+    controls: []
+    # controls/misc.yaml: 146 controles (125 read+write, 21 writeOnly) —
+    # asientos, ventanillas, viseras, luces de lectura, ganchos, mesas.
+    # Cosméticos, pero son parte real de la cabina y el modelo los expone
+    # igual que cualquier otro control.
+    missing: [live_verification, cosmetic_only]

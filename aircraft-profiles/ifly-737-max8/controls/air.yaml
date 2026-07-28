@@ -1,0 +1,810 @@
+# GENERADO MECANICAMENTE por tools/generate_ifly_profile.py -- no editar a mano.
+#
+# Fuente: SimObjects/Airplanes/iFly 737-MAX8/model/iFly737Max_INTERIOR.xml del
+# paquete iFly 737 MAX 8 v1.1.0.0 realmente instalado (copia de referencia de
+# Darwin en apps/desktop-ui/recurso/ifly-aircraft-737max8/). Cada control sale
+# del <Component> real: la L-Var de estado del <ANIM_CODE> y los codigos de
+# comando del <CallbackCode>.
+#
+# Sistema: Aire acondicionado y presurizacion
+# Mecanismo de iFly (verificado leyendo el XML, no supuesto): la cabina NO tiene
+# eventos H:/K:/B:. Un clic escribe un CODIGO ENTERO en la L-Var de trigger del
+# sistema (L:VC_Air_Systems_trigger_VAL) y el WASM de iFly hace el resto,
+# publicando el resultado en L:VC_<control>_VAL.
+#
+#   Lectura  : L:VC_<control>_VAL via FSUIPC7 (FsuipcLVarClient, area
+#              "SharedCockpitBridge_LVars" -- 'field' es el nombre crudo de la
+#              L-Var, que es exactamente lo que espera ReadLVar).
+#   Escritura: calculator code RPN ejecutado por MSFSVariableServices de FSUIPC7
+#              (write.type: calculatorCode, mecanismo ya confirmado en vivo para
+#              el PMDG). El RPN compara el estado real contra el valor pedido y
+#              solo entonces dispara el codigo -- por eso esto respeta la regla
+#              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
+#
+# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
+# selector de varias posiciones hacen falta varias escrituras (cada cambio de
+# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
+# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
+# verificada en vivo: si en algun control resultara invertida, la escritura da
+# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
+# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+
+- id: air.equipment_cooling_supply_sw
+  # Equipment (EQUIP) COOLING SUPPLY Switch -- nodo VC_Equipment_COOLING_SUPPLY_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 1 sube, 2 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Equipment_Cooling_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Equipment_Cooling_1_SW_VAL,number) $value < if{ 1 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Equipment_Cooling_1_SW_VAL,number) $value > if{ 2 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.equipment_cooling_exhaust_sw
+  # Equipment (EQUIP) COOLING EXHAUST Switch -- nodo VC_Equipment_COOLING_EXHAUST_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 3 sube, 4 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Equipment_Cooling_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Equipment_Cooling_2_SW_VAL,number) $value < if{ 3 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Equipment_Cooling_2_SW_VAL,number) $value > if{ 4 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.altitude_horn_cutout_sw
+  # Altitude (ALT) HORN CUTOUT Switch -- nodo VC_Altitude_HORN_Cutout_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 5), false = soltar (codigo 6).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Altitude_HORN_Cutout_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 5 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 6 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.high_altitude_landing_sw
+  # High Altitude Landing Switch -- nodo VC_High_Altitude_Landing_SW del modelo iFly.
+  dataType: number
+  authority: shared
+  # Unico codigo de comando (7): iFly avanza el control a su siguiente
+  # posicion. Se dispara SOLO si el estado real difiere del pedido, asi que
+  # converge al valor del otro piloto en vez de alternar a ciegas.
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_High_Altitude_Landing_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_High_Altitude_Landing_SW_VAL,number) $value != if{ 7 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
+
+- id: air.air_temp_source_8900bbj2_sw
+  # AIR Temperature (TEMP) Source Selector -- nodo VC_AIR_TEMP_Source_8900BBJ2_SW del modelo iFly.
+  # Selector/perilla de 60 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 8 sube, 9 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIR_TEMP_Source_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_AIR_TEMP_Source_SW_VAL,number) $value < if{ 8 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_AIR_TEMP_Source_SW_VAL,number) $value > if{ 9 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.trim_air_sw
+  # TRIM AIR Switch -- nodo VC_TRIM_AIR_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 10 sube, 11 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_TRIM_AIR_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_TRIM_AIR_SW_VAL,number) $value < if{ 10 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_TRIM_AIR_SW_VAL,number) $value > if{ 11 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.temperature_selector_1_sw
+  # Temperature Selector -- nodo VC_Temperature_Selector_1_SW del modelo iFly.
+  # Selector/perilla de 70 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 12 sube, 13 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Temperature_Selector_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Temperature_Selector_1_SW_VAL,number) $value < if{ 12 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Temperature_Selector_1_SW_VAL,number) $value > if{ 13 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.temperature_selector_2_sw
+  # Temperature Selector -- nodo VC_Temperature_Selector_2_SW del modelo iFly.
+  # Selector/perilla de 70 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 15 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Temperature_Selector_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Temperature_Selector_2_SW_VAL,number) $value < if{ 14 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Temperature_Selector_2_SW_VAL,number) $value > if{ 15 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.temperature_selector_3_sw
+  # Temperature Selector -- nodo VC_Temperature_Selector_3_SW del modelo iFly.
+  # Selector/perilla de 70 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 16 sube, 17 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Temperature_Selector_3_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Temperature_Selector_3_SW_VAL,number) $value < if{ 16 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Temperature_Selector_3_SW_VAL,number) $value > if{ 17 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.recircfan_l_sw
+  # Recirculation (RECIRC) FAN Switches -- nodo VC_RecircFan_L_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 18 sube, 19 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RecircFan_L_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RecircFan_L_SW_VAL,number) $value < if{ 18 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_L_SW_VAL,number) $value > if{ 19 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.recircfan_r_sw
+  # Recirculation (RECIRC) FAN Switches -- nodo VC_RecircFan_R_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 20 sube, 21 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_RecircFan_R_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_RecircFan_R_SW_VAL,number) $value < if{ 20 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_R_SW_VAL,number) $value > if{ 21 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.air_systems_test_sw
+  # Wing-Body Overheat (OVHT) TEST Switch -- nodo VC_Air_Systems_Test_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 22), false = soltar (codigo 23).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Air_Systems_Test_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 22 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 23 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.pack_1_sw
+  # Air Conditioning PACK Switch -- nodo VC_Pack_1_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 24 sube, 25 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Pack_1_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Pack_1_SW_VAL,number) $value < if{ 24 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_1_SW_VAL,number) $value > if{ 25 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.pack_2_sw
+  # Air Conditioning PACK Switch -- nodo VC_Pack_2_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 26 sube, 27 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Pack_2_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Pack_2_SW_VAL,number) $value < if{ 26 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_2_SW_VAL,number) $value > if{ 27 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.isolation_valve_sw
+  # ISOLATION VALVE Switch -- nodo VC_Isolation_Valve_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 28 sube, 29 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Isolation_Valve_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Isolation_Valve_SW_VAL,number) $value < if{ 28 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Isolation_Valve_SW_VAL,number) $value > if{ 29 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.trip_reset_sw
+  # TRIP RESET Switch -- nodo VC_TRIP_Reset_SW del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 30), false = soltar (codigo 31).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_TRIP_Reset_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 30 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 31 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.engine_1_bleed_air_sw
+  # Engine BLEED Air Switches -- nodo VC_Engine_1_Bleed_Air_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 32 sube, 33 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_1_Bleed_Air_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value < if{ 32 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value > if{ 33 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.engine_2_bleed_air_sw
+  # Engine BLEED Air Switches -- nodo VC_Engine_2_Bleed_Air_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 34 sube, 35 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Engine_2_Bleed_Air_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value < if{ 34 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value > if{ 35 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.apu_bleed_air_sw
+  # APU BLEED Air Switch -- nodo VC_APU_Bleed_Air_SW del modelo iFly.
+  # Selector/perilla de 10 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 36 sube, 37 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_APU_Bleed_Air_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_APU_Bleed_Air_SW_VAL,number) $value < if{ 36 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_APU_Bleed_Air_SW_VAL,number) $value > if{ 37 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.flight_altitude_sw
+  # Flight Altitude Selector -- nodo VC_Flight_Altitude_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 39 sube, 38 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Flight_Altitude_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Flight_Altitude_SW_VAL,number) $value < if{ 39 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Flight_Altitude_SW_VAL,number) $value > if{ 38 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.landing_altitude_sw
+  # Landing Altitude Selector -- nodo VC_Landing_Altitude_SW del modelo iFly.
+  # Selector/perilla de 360 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 41 sube, 40 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Landing_Altitude_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Landing_Altitude_SW_VAL,number) $value < if{ 41 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Landing_Altitude_SW_VAL,number) $value > if{ 40 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.outflow_valve_sw
+  # Outflow Valve Switch (spring-loaded to center) -- nodo VC_Outflow_Valve_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 43 sube, 42 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Outflow_Valve_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Outflow_Valve_SW_VAL,number) $value < if{ 43 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Outflow_Valve_SW_VAL,number) $value > if{ 42 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.pressurization_mode_sw
+  # Pressurization Mode Selector -- nodo VC_Pressurization_Mode_SW del modelo iFly.
+  # Selector/perilla de 20 pasos. Escritura direccional: un solo
+  # paso hacia el valor pedido por escritura (codigo 45 sube, 44 baja); si ya
+  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_Pressurization_Mode_SW_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:VC_Pressurization_Mode_SW_VAL,number) $value < if{ 45 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pressurization_Mode_SW_VAL,number) $value > if{ 44 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 150
+
+- id: air.airsystem_light_zone_temp_1
+  # ZONE TEMP Lights -- nodo VC_AIRSYSTEM_LIGHT_ZONE_TEMP_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_ZONE_TEMP_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 47 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 48 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_zone_temp_2
+  # ZONE TEMP Lights -- nodo VC_AIRSYSTEM_LIGHT_ZONE_TEMP_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 49), false = soltar (codigo 50).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_ZONE_TEMP_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 49 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 50 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_zone_temp_3
+  # ZONE TEMP Lights -- nodo VC_AIRSYSTEM_LIGHT_ZONE_TEMP_3 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 51), false = soltar (codigo 52).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_ZONE_TEMP_3_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 51 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 52 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_dual_bleed
+  # DUAL BLEED Light -- nodo VC_AIRSYSTEM_LIGHT_DUAL_BLEED del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 53), false = soltar (codigo 54).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_DUAL_BLEED_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 53 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 54 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_pack_1
+  # PACK Light -- nodo VC_AIRSYSTEM_LIGHT_PACK_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 55), false = soltar (codigo 56).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_PACK_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 55 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 56 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_pack_2
+  # PACK Light -- nodo VC_AIRSYSTEM_LIGHT_PACK_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 57), false = soltar (codigo 58).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_PACK_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 57 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 58 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_wingbody_ovweheat_1
+  # WING–BODY OVERHEAT Light -- nodo VC_AIRSYSTEM_LIGHT_WINGBODY_OVWEHEAT_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 59), false = soltar (codigo 60).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_WINGBODY_OVWEHEAT_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 59 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 60 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_wingbody_ovweheat_2
+  # WING–BODY OVERHEAT Light -- nodo VC_AIRSYSTEM_LIGHT_WINGBODY_OVWEHEAT_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 61), false = soltar (codigo 62).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_WINGBODY_OVWEHEAT_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 61 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 62 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_bleed_1
+  # BLEED Light -- nodo VC_AIRSYSTEM_LIGHT_BLEED_1 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 63), false = soltar (codigo 64).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_BLEED_1_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 63 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 64 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_bleed_2
+  # BLEED Light -- nodo VC_AIRSYSTEM_LIGHT_BLEED_2 del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 65), false = soltar (codigo 66).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_BLEED_2_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 65 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 66 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_auto_fail
+  # AUTO FAIL Light -- nodo VC_AIRSYSTEM_LIGHT_AUTO_FAIL del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 67), false = soltar (codigo 68).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_AUTO_FAIL_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 67 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 68 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_off_sched_descent
+  # OFF Schedule (SCHED) DESCENT Light -- nodo VC_AIRSYSTEM_LIGHT_OFF_SCHED_DESCENT del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 69), false = soltar (codigo 70).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_OFF_SCHED_DESCENT_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 69 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 70 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_altn
+  # Alternate (ALTN) Light -- nodo VC_AIRSYSTEM_LIGHT_ALTN del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 71), false = soltar (codigo 72).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_ALTN_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 71 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 72 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_manual
+  # MANUAL Light -- nodo VC_AIRSYSTEM_LIGHT_MANUAL del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 73), false = soltar (codigo 74).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_MANUAL_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 73 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 74 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_supply_off
+  # Equipment Cooling Supply OFF Light -- nodo VC_AIRSYSTEM_LIGHT_SUPPLY_OFF del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 75), false = soltar (codigo 76).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_SUPPLY_OFF_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 75 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 76 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_exhaust_off
+  # Equipment Cooling Exhaust OFF Light -- nodo VC_AIRSYSTEM_LIGHT_EXHAUST_OFF del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 77), false = soltar (codigo 78).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_EXHAUST_OFF_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 77 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 78 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
+
+- id: air.airsystem_light_equip_smoke
+  # Equipment Cooling EQUIP SMOKE Light -- nodo VC_AIRSYSTEM_LIGHT_EQUIP_SMOKE del modelo iFly.
+  # Boton momentaneo: true = pulsar (codigo 79), false = soltar (codigo 80).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "L:VC_AIRSYSTEM_LIGHT_EQUIP_SMOKE_VAL"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ 79 (>L:VC_Air_Systems_trigger_VAL,number) } els{ 80 (>L:VC_Air_Systems_trigger_VAL,number) }"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 50
