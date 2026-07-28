@@ -344,10 +344,17 @@ function createWindow() {
     height: 800,
     backgroundColor: "#0a0a0a",
     autoHideMenuBar: true,
-    // Ícono de la ventana en ejecución (barra de tareas / Alt+Tab) -- el
-    // logo. Sin esto Windows muestra el ícono genérico de Electron ahí
-    // aunque el .exe instalado ya use el logo (ver build.win.icon abajo).
-    icon: path.join(__dirname, "..", "logos", "We Connect - Logo.png"),
+    // Ícono de la ventana en ejecución (barra de tareas / Alt+Tab). Sin esto
+    // Windows muestra el ícono genérico de Electron ahí. Usa el mismo
+    // app-icon.ico que el .exe y el instalador (ver build.win.icon y
+    // build.nsis en package.json) en vez del PNG del lockup completo: ese
+    // logo es blanco sobre transparente y trae el texto "WeConnect / Two
+    // pilots - One cockpit", que a 32px queda invisible sobre una barra de
+    // tareas clara e ilegible en cualquier caso. app-icon.ico es el
+    // monograma VC sobre cuadrado oscuro, y trae 7 resoluciones (16..256)
+    // para que Windows no tenga que reescalar. Se regenera con
+    // tools/make_app_icon.ps1.
+    icon: path.join(__dirname, "..", "logos", "app-icon.ico"),
     // Sin marco nativo de Windows (sin la X/cuadrado/guion de Windows) -- la
     // barra de título la dibuja la propia UI (ver src/components/TitleBar.tsx),
     // estilo macOS (3 puntos de color a la izquierda). Los botones de esa

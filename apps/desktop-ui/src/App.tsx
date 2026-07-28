@@ -12,10 +12,16 @@ import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import type { Session } from "./lib/apiClient";
+import { prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
+
+const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
 
 export function App() {
   const [view, setView] = useState<ViewId>("home");
-  const [pilotName, setPilotName] = useState("");
+  const [pilotName, setPilotName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(PILOT_NAME_STORAGE_KEY) ?? "";
+  });
   const [createdSession, setCreatedSession] = useState<Session | null>(null);
   const [createdSessionPilotName, setCreatedSessionPilotName] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -25,6 +31,10 @@ export function App() {
   const [communityPath, setCommunityPath] = useState<string | null>(null);
 
   useEffect(() => {
+    prefetchAircraftProfiles();
+  }, []);
+
+  useEffect(() => {
     const setup = window.weconnectSetup;
     if (!setup) return; // build web puro: no hay carpeta Community que pedir
     setup.getConfig().then((config) => {
@@ -32,6 +42,10 @@ export function App() {
       if (!config.firstLaunchCompleted) setShowFirstLaunchSetup(true);
     });
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(PILOT_NAME_STORAGE_KEY, pilotName);
+  }, [pilotName]);
 
   useEffect(() => {
     // electron/main.cjs hace un chequeo silencioso al abrir la app

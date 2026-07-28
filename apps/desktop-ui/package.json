@@ -53,11 +53,16 @@
       }
     ],
     "win": {
-      "icon": "logos/We Connect - Logo.png",
+      "icon": "logos/app-icon.ico",
       "target": [
         "nsis"
-      ],
-      "signAndEditExecutable": false
+      ]
+    },
+    "nsis": {
+      "installerIcon": "logos/app-icon.ico",
+      "uninstallerIcon": "logos/app-icon.ico",
+      "installerHeaderIcon": "logos/app-icon.ico",
+      "shortcutName": "We Connect"
     },
     "publish": [
       {
