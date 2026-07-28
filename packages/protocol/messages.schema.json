@@ -47,7 +47,7 @@
         "type": { "const": "aircraft.snapshot" },
         "sessionId": { "type": "string" },
         "revision": { "type": "integer" },
-        "profile": { "type": "string", "description": "id del perfil de aeronave, ej. cessna-172" },
+        "profile": { "type": "string", "description": "id del perfil de aeronave, ej. pmdg-737-900" },
         "systems": {
           "type": "object",
           "properties": {

@@ -41,6 +41,9 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
   if (text.includes("ALTER TABLE session_participants ADD COLUMN")) {
     return { rows: [] };
   }
+  if (text.includes("ALTER TABLE aircraft_profiles ADD COLUMN")) {
+    return { rows: [] };
+  }
   if (text.includes("SET creator_pilot_name = (")) {
     return { rows: [] };
   }

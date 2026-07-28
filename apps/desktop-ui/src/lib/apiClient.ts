@@ -24,6 +24,13 @@ export interface AircraftProfile {
   coverage: number;
   capabilities: Record<string, string>;
   compatibility: { msfs2020: boolean; msfs2024: boolean };
+  /**
+   * ¿El perfil se probó contra MSFS de verdad? Es un eje aparte de `coverage`:
+   * un perfil generado automáticamente puede ser mecánicamente muy completo
+   * (coverage alto) y no haberse volado nunca. Perfiles viejos servidos por un
+   * backend anterior a este campo llegan sin él — se trata como no verificado.
+   */
+  verified?: boolean;
 }
 
 export interface SessionParticipant {

@@ -76,6 +76,13 @@ async function init() {
   await pool.query(
     "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sim TEXT NOT NULL DEFAULT 'msfs2020'"
   );
+  // verified: ¿el perfil se probó en el sim de verdad? Sale de `verification`
+  // en manifest.yaml (ver server/api/src/profiles.ts). Default false porque el
+  // lado seguro es no afirmar que algo está probado. Va aparte de `coverage` a
+  // propósito: coverage mide completitud mecánica, esto mide evidencia real.
+  await pool.query(
+    "ALTER TABLE aircraft_profiles ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT false"
+  );
   await pool.query("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS creator_pilot_name TEXT");
   // control_owner / control_requested_by guardan `seat` ('captain' |
   // 'first_officer'), NO pilotName. Esto es intencional: packages/synchronization-core
@@ -124,17 +131,33 @@ export const dbReady = init().catch((err) => {
   throw err;
 });
 
-/** Reemplaza el catálogo de perfiles con lo escaneado realmente de disco. */
+/**
+ * Reemplaza el catálogo de perfiles con lo escaneado realmente de disco.
+ *
+ * "Reemplaza" incluye BORRAR: hasta 2026-07-28 esta función solo hacía
+ * INSERT/UPDATE, así que un perfil eliminado de aircraft-profiles/ seguía
+ * vivo en la base para siempre y la UI lo seguía ofreciendo (el endpoint
+ * /api/aircraft-profiles lee de aquí, no del disco). Eso se notó al sacar
+ * cessna-172: borrar la carpeta no bastaba.
+ *
+ * Las sesiones tienen FK contra aircraft_profiles, así que un perfil retirado
+ * se lleva por delante las sesiones que lo usaban. Es correcto: sin perfil en
+ * disco el bridge no puede mapear un solo control de esa aeronave, o sea que
+ * esas sesiones ya no se pueden volar. Son salas efímeras de join code, no
+ * datos históricos que valga la pena conservar.
+ */
 export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
   await dbReady;
+  await pruneRemovedAircraftProfiles(profiles.map((p) => p.id));
   for (const p of profiles) {
     await pool.query(
-      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024, verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, developer=excluded.developer, version=excluded.version,
          coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
-         msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024`,
+         msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024,
+         verified=excluded.verified`,
       [
         p.id,
         p.name,
@@ -144,9 +167,51 @@ export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
         JSON.stringify(p.capabilities),
         p.compatibility.msfs2020,
         p.compatibility.msfs2024,
+        p.verified,
       ]
     );
   }
+}
+
+/**
+ * Borra del catálogo los perfiles que ya no existen en disco, junto con las
+ * sesiones (y sus participantes) que dependían de ellos. Si no hay ningún
+ * perfil en disco no borra nada: eso casi siempre significa que el escaneo
+ * falló (ruta mal resuelta en un deploy, carpeta no copiada al contenedor), y
+ * vaciar el catálogo entero por un scan vacío sería mucho peor que dejarlo
+ * desactualizado.
+ */
+async function pruneRemovedAircraftProfiles(keepIds: string[]) {
+  if (keepIds.length === 0) {
+    console.warn(
+      "[db] scan de aircraft-profiles vacío — no se poda el catálogo (probable error de ruta, no un catálogo realmente vacío)"
+    );
+    return;
+  }
+
+  const { rows: stale } = await pool.query(
+    "SELECT id FROM aircraft_profiles WHERE NOT (id = ANY($1::text[]))",
+    [keepIds]
+  );
+  if (stale.length === 0) return;
+
+  const staleIds = stale.map((r: any) => r.id);
+  const { rows: doomedSessions } = await pool.query(
+    "SELECT id FROM sessions WHERE aircraft_profile_id = ANY($1::text[])",
+    [staleIds]
+  );
+  if (doomedSessions.length > 0) {
+    const sessionIds = doomedSessions.map((r: any) => r.id);
+    await pool.query("DELETE FROM session_participants WHERE session_id = ANY($1::text[])", [
+      sessionIds,
+    ]);
+    await pool.query("DELETE FROM sessions WHERE id = ANY($1::text[])", [sessionIds]);
+  }
+  await pool.query("DELETE FROM aircraft_profiles WHERE id = ANY($1::text[])", [staleIds]);
+
+  console.log(
+    `[db] perfiles retirados del catálogo: ${staleIds.join(", ")} (${doomedSessions.length} sesión/es dependientes eliminadas)`
+  );
 }
 
 export async function listAircraftProfiles() {
@@ -160,6 +225,7 @@ export async function listAircraftProfiles() {
     coverage: r.coverage,
     capabilities: JSON.parse(r.capabilities_json),
     compatibility: { msfs2020: !!r.msfs2020, msfs2024: !!r.msfs2024 },
+    verified: !!r.verified,
   }));
 }
 

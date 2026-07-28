@@ -83,7 +83,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// <summary>
     /// Última (sequence, timestamp de llegada al bridge) observada por control
     /// para mensajes entrantes ORIGIN=REMOTE de controles authority=exclusive
-    /// (ej. flight.yoke.pitch/roll, flight.rudder en el 737/C172). Defensa en
+    /// (ej. flight.yoke.pitch/roll, flight.rudder en el 737). Defensa en
     /// profundidad barata: el árbitro real de autoridad vive en server/api (ver
     /// contexto de la tarea), este diccionario NO bloquea ni decide nada, solo
     /// permite loggear como warning una señal de que el filtro de autoridad del
@@ -256,7 +256,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// <summary>
     /// Telemetría de diagnóstico pura (no bloquea ni decide autoridad -- eso vive
     /// en server/api, ver contexto de la tarea): para controles authority=exclusive
-    /// (flight.yoke.pitch/roll, flight.rudder en 737 y C172), registra un warning
+    /// (flight.yoke.pitch/roll, flight.rudder en el 737), registra un warning
     /// si una sequence decreciente para el MISMO control llega en rápida sucesión
     /// (menos de <see cref="ExclusiveSequenceAnomalyWindow"/> desde la última
     /// observada), lo que sugeriría que el gate de autoridad del servidor dejó

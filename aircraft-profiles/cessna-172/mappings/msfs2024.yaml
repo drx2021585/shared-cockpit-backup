@@ -1,5 +1,0 @@
-# Overrides específicos de MSFS2024. Pendiente de validar en el simulador real
-# por aircraft-profiles-agent — el C172 de MSFS2024 puede tener variantes de
-# panel (G1000 vs analógica) que requieran detection.yaml más específico.
-
-overrides: []

@@ -1,17 +1,31 @@
-# Cómo el bridge decide "esta aeronave cargada es un PMDG 737-900/900ER con
-# este perfil". titleContains hace match contra la variable ATC MODEL / título
-# de la aeronave activa.
+# Cómo el bridge decide "esta aeronave cargada es un PMDG 737 NG y le
+# corresponde este perfil". titleContains hace match contra la variable ATC
+# MODEL / título de la aeronave activa, por substring case-insensitive (ver
+# ProfileMatcher.cs).
 #
-# NOTA (Fase 7, bloqueada pendiente SDK oficial de PMDG): estos valores son
-# placeholders razonables ("PMDG 737-900", "PMDG 737-900ER") y deben
-# confirmarse contra el título real que expone MSFS para ambas variantes antes
-# de considerarse definitivos.
+# Cubre toda la familia NG con cuatro entradas, porque las subvariantes se
+# forman agregando sufijos al mismo prefijo:
+#
+#   "PMDG 737-600"  -> 737-600
+#   "PMDG 737-700"  -> 737-700 y derivados por sufijo (BBJ, BDSF, C, W...)
+#   "PMDG 737-800"  -> 737-800 y variantes de carga (BCF, BDSF, BBJ2...)
+#   "PMDG 737-900"  -> 737-900 y 737-900ER
+#
+# El 737 MAX queda deliberadamente fuera: es otra cabina y va a su propio
+# perfil si PMDG lo publica.
+#
+# Pendiente de confirmación en el sim: solo el 900 se verificó en vivo. El
+# resto asume que PMDG mantiene el prefijo "PMDG 737-<variante>" en todos los
+# títulos de la familia.
 
 titleContains:
+  - "PMDG 737-600"
+  - "PMDG 737-700"
+  - "PMDG 737-800"
   - "PMDG 737-900"
-  - "PMDG 737-900ER"
 
-# El 900 y el 900ER comparten perfil por ahora (mismo tipo, variante de
-# alcance/peso). Si en el futuro difieren en variables internas relevantes,
-# separar en perfiles/overrides distintos antes de subir capabilities.
+# Toda la familia NG comparte perfil: misma cabina, mismos controles, mismos
+# Event IDs del SDK. Si en el futuro alguna variante difiere en variables
+# internas relevantes, separarla en un perfil/override propio antes de subir
+# capabilities.
 fallbackToPartialMatch: true

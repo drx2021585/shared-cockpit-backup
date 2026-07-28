@@ -41,12 +41,12 @@ test("createSession: control_owner arranca en el seat del creador", async (t) =>
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
 
   const { session } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -63,11 +63,11 @@ test("requestControls: un segundo jugador puede solicitar control si no es el du
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -87,11 +87,11 @@ test("requestControls: rechaza si quien pide ya es el dueño actual", async (t) 
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -105,11 +105,11 @@ test("giveControls: incrementa control_revision exactamente en 1 y devuelve prev
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -142,11 +142,11 @@ test("giveControls: retorna null si quien la ejecuta no es el dueño actual", as
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -167,11 +167,11 @@ test("giveControls: retorna null si no hay solicitud pendiente", async (t) => {
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -191,11 +191,11 @@ test("leaveSession: reasigna control_owner al otro asiento activo si el que se v
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -227,11 +227,11 @@ test("leaveSession limpia control_owner/control_requested_by cuando el dueño se
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo en solitario",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",
@@ -254,11 +254,11 @@ test("leaveSession: no toca control_owner si quien se va no era el dueño", asyn
   const db = await freshDb(t);
   await db.pool.query(
     "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    ["cessna-172", "Cessna 172", "Textron", "1.0", 80, "{}", true, true]
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
   );
   const { session: created } = await db.createSession({
     sessionName: "Vuelo de prueba",
-    aircraftProfileId: "cessna-172",
+    aircraftProfileId: "pmdg-737-900",
     hostPilotName: "Alice",
     hostSeat: "captain",
     sim: "msfs2020",

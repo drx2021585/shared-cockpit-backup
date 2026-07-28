@@ -88,7 +88,7 @@ test("canRelayControlMessage: un control captain-only (autopilot) descarta al fi
 
   // autopilot.master es authority:captain-only en
   // aircraft-profiles/pmdg-737-900/controls/autopilot.yaml (y en
-  // cessna-172), no forma parte de flight_controls -- cambio de
+  // ifly-737-max8), no forma parte de flight_controls -- cambio de
   // comportamiento esperado documentado en packages/protocol/README.md,
   // punto 3: antes de este cambio esto pasaba sin gate, ahora se enforza.
   const fromFirstOfficer = canRelayControlMessage(state, "first_officer", "autopilot.master", 1);

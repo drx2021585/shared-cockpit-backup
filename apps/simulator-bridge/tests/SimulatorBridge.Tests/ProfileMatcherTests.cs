@@ -23,33 +23,33 @@ public class ProfileMatcherTests
     [Fact]
     public void ExactSubstringMatch_PicksCorrectProfile()
     {
-        var cessna = MakeProfile("cessna-172", new[] { "Cessna Skyhawk", "C172" });
+        var ifly = MakeProfile("ifly-737-max8", new[] { "iFly 737 MAX 8", "737 MAX" });
         var pmdg = MakeProfile("pmdg-737-900", new[] { "PMDG 737-900", "PMDG 737-900ER" });
 
-        var result = ProfileMatcher.Match(new[] { cessna, pmdg }, "Cessna Skyhawk G1000 Asobo");
+        var result = ProfileMatcher.Match(new[] { ifly, pmdg }, "iFly 737 MAX 8 Ryanair");
 
         Assert.NotNull(result.Profile);
-        Assert.Equal("cessna-172", result.Profile!.ProfileId);
+        Assert.Equal("ifly-737-max8", result.Profile!.ProfileId);
         Assert.False(result.IsPartialMatch);
     }
 
     [Fact]
     public void MatchIsCaseInsensitive()
     {
-        var cessna = MakeProfile("cessna-172", new[] { "Cessna Skyhawk" });
+        var ifly = MakeProfile("ifly-737-max8", new[] { "iFly 737 MAX 8" });
 
-        var result = ProfileMatcher.Match(new[] { cessna }, "cessna skyhawk g1000");
+        var result = ProfileMatcher.Match(new[] { ifly }, "ifly 737 max 8 ryanair");
 
         Assert.NotNull(result.Profile);
-        Assert.Equal("cessna-172", result.Profile!.ProfileId);
+        Assert.Equal("ifly-737-max8", result.Profile!.ProfileId);
     }
 
     [Fact]
     public void NoMatch_ReturnsNullProfile_DoesNotGuess()
     {
-        var cessna = MakeProfile("cessna-172", new[] { "Cessna Skyhawk" }, fallback: false);
+        var ifly = MakeProfile("ifly-737-max8", new[] { "iFly 737 MAX 8" }, fallback: false);
 
-        var result = ProfileMatcher.Match(new[] { cessna }, "Airbus A320 Neo FlyByWire");
+        var result = ProfileMatcher.Match(new[] { ifly }, "Airbus A320 Neo FlyByWire");
 
         Assert.Null(result.Profile);
     }
@@ -79,9 +79,9 @@ public class ProfileMatcherTests
     [Fact]
     public void EmptyTitle_NeverMatches()
     {
-        var cessna = MakeProfile("cessna-172", new[] { "Cessna Skyhawk" });
+        var ifly = MakeProfile("ifly-737-max8", new[] { "iFly 737 MAX 8" });
 
-        var result = ProfileMatcher.Match(new[] { cessna }, "");
+        var result = ProfileMatcher.Match(new[] { ifly }, "");
 
         Assert.Null(result.Profile);
     }

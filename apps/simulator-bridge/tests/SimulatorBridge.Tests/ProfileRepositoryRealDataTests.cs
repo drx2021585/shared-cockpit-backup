@@ -21,54 +21,70 @@ public class ProfileRepositoryRealDataTests
     }
 
     [Fact]
-    public void ListsBothExampleProfiles()
+    public void ListsRealProfiles()
     {
         var repo = new ProfileRepository(FindAircraftProfilesRoot());
         var ids = repo.ListProfileIds();
 
-        Assert.Contains("cessna-172", ids);
         Assert.Contains("pmdg-737-900", ids);
+        Assert.Contains("ifly-737-max8", ids);
     }
 
+    /// <summary>
+    /// El perfil pmdg-737-900 cubre TODA la familia 737 NG (el id de carpeta
+    /// quedó del -900 original por compatibilidad con sesiones ya guardadas en
+    /// la base; el nombre visible es "PMDG B737 NG"). Este test fija el
+    /// contrato de detección: las cuatro variantes base tienen que estar, y el
+    /// match por substring case-insensitive del ProfileMatcher se encarga de
+    /// los sufijos (-900ER, -800BCF, -700BBJ, etc.).
+    /// </summary>
     [Fact]
-    public void Cessna172_LoadsBeaconAndParkingBrakeControls_WithExplicitSetEvents()
+    public void Pmdg737Ng_DetectionCoversWholeNgFamily()
     {
         var repo = new ProfileRepository(FindAircraftProfilesRoot());
-        var profile = repo.LoadOne("cessna-172", SimulatorVersion.Msfs2020);
+        var profile = repo.LoadOne("pmdg-737-900", SimulatorVersion.Msfs2020);
 
-        var beacon = profile.FindControl("lights.beacon");
-        Assert.NotNull(beacon);
-        Assert.Equal(ControlDataType.Boolean, beacon!.DataType);
-        Assert.Equal(ReadType.Simvar, beacon.Read!.Type);
-        Assert.Equal("LIGHT BEACON", beacon.Read.Name);
-        Assert.NotNull(beacon.Write);
-        Assert.Equal(WriteType.InputEvent, beacon.Write!.Type);
-        Assert.Equal("BEACON_LIGHTS_SET", beacon.Write.Name);
-        Assert.True(beacon.Synchronization.ConfirmAfterWrite);
-
-        var parkingBrake = profile.FindControl("ground.parking_brake");
-        Assert.NotNull(parkingBrake);
-        Assert.Equal("BRAKE PARKING POSITION", parkingBrake!.Read!.Name);
-        Assert.NotNull(parkingBrake.Write);
-        Assert.Equal("PARKING_BRAKE_SET", parkingBrake.Write!.Name);
-    }
-
-    [Fact]
-    public void Cessna172_DetectionRuleMatchesManifestId()
-    {
-        var repo = new ProfileRepository(FindAircraftProfilesRoot());
-        var profile = repo.LoadOne("cessna-172", SimulatorVersion.Msfs2020);
-
-        Assert.Equal("cessna-172", profile.Manifest.Aircraft.Id);
-        Assert.Contains("Cessna Skyhawk", profile.Detection.TitleContains);
+        Assert.Equal("pmdg-737-900", profile.Manifest.Aircraft.Id);
+        Assert.Equal("PMDG B737 NG", profile.Manifest.Aircraft.Name);
+        Assert.Contains("PMDG 737-600", profile.Detection.TitleContains);
+        Assert.Contains("PMDG 737-700", profile.Detection.TitleContains);
+        Assert.Contains("PMDG 737-800", profile.Detection.TitleContains);
+        Assert.Contains("PMDG 737-900", profile.Detection.TitleContains);
         Assert.True(profile.Detection.FallbackToPartialMatch);
+    }
+
+    /// <summary>
+    /// Los títulos reales que expone MSFS traen librea y sufijo de variante
+    /// pegados al modelo ("PMDG 737-800BCF Cargo Livery"). Se comprueba contra
+    /// el perfil REAL del repo -- no un fixture -- que cada variante NG cae en
+    /// el mismo perfil, incluidas las de carga y el -900ER.
+    /// </summary>
+    [Theory]
+    [InlineData("PMDG 737-600 Lufthansa")]
+    [InlineData("PMDG 737-700 Southwest")]
+    [InlineData("PMDG 737-700BBJ House")]
+    [InlineData("PMDG 737-800 Ryanair")]
+    [InlineData("PMDG 737-800BCF Cargo Livery")]
+    [InlineData("PMDG 737-800BDSF Amazon Prime Air")]
+    [InlineData("PMDG 737-900 Alaska")]
+    [InlineData("PMDG 737-900ER United")]
+    public void Pmdg737Ng_MatchesEveryNgVariantTitle(string detectedTitle)
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profiles = repo.LoadAll(SimulatorVersion.Msfs2020, new ConsoleLog());
+
+        var result = ProfileMatcher.Match(profiles, detectedTitle);
+
+        Assert.NotNull(result.Profile);
+        Assert.Equal("pmdg-737-900", result.Profile!.ProfileId);
+        Assert.False(result.IsPartialMatch, $"'{detectedTitle}' debería calzar por substring exacto, no por fallback parcial.");
     }
 
     [Fact]
     public void FlightControlAxes_AreMarkedAsFastChannel_OverheadSwitchesAreNot()
     {
         var repo = new ProfileRepository(FindAircraftProfilesRoot());
-        var profile = repo.LoadOne("cessna-172", SimulatorVersion.Msfs2020);
+        var profile = repo.LoadOne("pmdg-737-900", SimulatorVersion.Msfs2020);
 
         var yoke = profile.FindControl("flight.yoke.pitch");
         Assert.NotNull(yoke);
@@ -85,8 +101,8 @@ public class ProfileRepositoryRealDataTests
     /// nombre sugiera un pulso TOGGLE crudo en vez de un SET explícito.
     /// </summary>
     [Theory]
-    [InlineData("cessna-172")]
     [InlineData("pmdg-737-900")]
+    [InlineData("ifly-737-max8")]
     public void NoControl_UsesRawToggleEventName(string profileId)
     {
         var repo = new ProfileRepository(FindAircraftProfilesRoot());
@@ -133,16 +149,6 @@ public class ProfileRepositoryRealDataTests
         {
             Assert.NotNull(control.Write);
         }
-    }
-
-    [Fact]
-    public void Cessna172_LoadsRealProfile_WithoutThrowing()
-    {
-        var repo = new ProfileRepository(FindAircraftProfilesRoot());
-        var profile = repo.LoadOne("cessna-172", SimulatorVersion.Msfs2020);
-
-        Assert.NotEmpty(profile.Controls);
-        Assert.All(profile.Controls, c => Assert.False(c.ReadOnly, "cessna-172 no debería tener controles readOnly hoy."));
     }
 
     /// <summary>
@@ -254,9 +260,67 @@ public class ProfileRepositoryRealDataTests
 
         Assert.True(profiles.Count >= 2);
 
-        var cessna = profiles.Single(p => p.ProfileId == "cessna-172");
         var pmdg = profiles.Single(p => p.ProfileId == "pmdg-737-900");
-        Assert.NotEmpty(cessna.Controls);
+        var ifly = profiles.Single(p => p.ProfileId == "ifly-737-max8");
         Assert.NotEmpty(pmdg.Controls);
+        Assert.NotEmpty(ifly.Controls);
+    }
+
+    /// <summary>
+    /// El iFly 737 MAX 8 es el primer perfil que usa write.type=calculatorCode
+    /// masivamente y el primero con read.nativeType=float (sus L-Vars de estado
+    /// son posiciones continuas, no bytes de un struct C). LoadOne se llama
+    /// directo -- no LoadAll -- justamente porque LoadAll se traga las
+    /// excepciones por perfil: si el mapeo de nativeType o el parseo del RPN se
+    /// rompiera, este test tiene que fallar en vez de degradarse en silencio.
+    /// </summary>
+    [Fact]
+    public void Ifly737Max8_LoadsRealProfile_WithLvarReadsAndCalculatorCodeWrites()
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profile = repo.LoadOne("ifly-737-max8", SimulatorVersion.Msfs2020);
+
+        Assert.True(profile.Controls.Count >= 1000,
+            $"Se esperaban ~1053 controles generados desde el modelo real de iFly, hubo {profile.Controls.Count}.");
+        Assert.Contains("iFly 737-MAX8", profile.Detection.TitleContains);
+
+        foreach (var control in profile.Controls)
+        {
+            // Todo control de este perfil escribe por calculator code: iFly no
+            // expone eventos H:/K:/B: (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
+            Assert.NotNull(control.Write);
+            Assert.Equal(WriteType.CalculatorCode, control.Write!.Type);
+            Assert.Contains("_trigger_VAL", control.Write.Name);
+
+            if (control.WriteOnly)
+            {
+                Assert.Null(control.Read);
+            }
+            else
+            {
+                Assert.NotNull(control.Read);
+                Assert.Equal(ReadType.ClientDataArea, control.Read!.Type);
+                Assert.Equal("SharedCockpitBridge_LVars", control.Read.AreaName);
+                Assert.Equal(ClientDataNativeType.Float, control.Read.NativeType);
+                Assert.StartsWith("L:VC_", control.Read.Field);
+            }
+        }
+
+        // Selector posicional: el RPN compara el estado real contra $value y da
+        // un paso en la dirección correcta -- nunca dispara a ciegas.
+        var autobrake = profile.FindControl("gear.autobrake_sw");
+        Assert.NotNull(autobrake);
+        Assert.Equal(ControlDataType.Number, autobrake!.DataType);
+        Assert.Equal("L:VC_Autobrake_SW_VAL", autobrake.Read!.Field);
+        Assert.Contains("$value <", autobrake.Write!.Name);
+        Assert.Contains("$value >", autobrake.Write.Name);
+        Assert.Contains("(>L:VC_Gear_trigger_VAL,number)", autobrake.Write.Name);
+        Assert.True(autobrake.Synchronization.ConfirmAfterWrite);
+
+        // Control de código único: se dispara solo si el estado difiere del pedido.
+        var crossfeed = profile.FindControl("fuel.fuel_crossfeed_sw");
+        Assert.NotNull(crossfeed);
+        Assert.Contains("$value !=", crossfeed!.Write!.Name);
+        Assert.Contains("(>L:VC_Fuel_trigger_VAL,number)", crossfeed.Write.Name);
     }
 }

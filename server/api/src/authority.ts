@@ -48,7 +48,7 @@ const PROFILES_DIR = join(REPO_ROOT, "aircraft-profiles");
  * interesan estos dos valores de authority aquí -- "shared"/"exclusive" no
  * pasan por este mapa ("exclusive" ya tiene su lista estática arriba,
  * "shared" no tiene gate). Si el mismo controlId aparece en más de un perfil
- * (ej. "autopilot.master" en pmdg-737-900 y cessna-172) se asume que declara
+ * (ej. "autopilot.master" en pmdg-737-900 e ifly-737-max8) se asume que declara
  * la misma authority en todos -- hoy es cierto (ver capabilities de ambos
  * perfiles); si algún día diverge, gana la última carpeta escaneada, que no
  * es un comportamiento intencional, solo el límite de un mapa global sin
@@ -93,7 +93,6 @@ const SEAT_RESTRICTED_CONTROLS = scanSeatRestrictedControls();
 /**
  * Los únicos 6 controles `authority: exclusive` que existen hoy en los
  * manifests reales (`aircraft-profiles/pmdg-737-900/controls/
- * flight-controls.yaml` y `aircraft-profiles/cessna-172/controls/
  * flight-controls.yaml`). Lista estática a propósito: con un solo grupo no
  * hace falta leer YAML de perfiles en tiempo real (ver packages/protocol/
  * README.md, punto 1). Si algún día aparece un control `exclusive` fuera de

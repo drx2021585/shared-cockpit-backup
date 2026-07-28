@@ -2,27 +2,47 @@ schemaVersion: 1
 
 aircraft:
   id: pmdg-737-900
-  name: PMDG 737-900 / 900ER
+  name: PMDG B737 NG
   developer: PMDG
 
 compatibility:
   msfs2020: true
   msfs2024: false
 
+# ¿Se voló este perfil contra MSFS de verdad? Alimenta la etiqueta "verificado"
+# de la UI y se reporta SEPARADO del % de cobertura, que solo mide completitud
+# mecánica (ver computeCoverage en server/api/src/profiles.ts).
+# live-tested: hay sincronización confirmada en vivo entre dos jugadores (ver
+# commit 1829063, alerón AXIS_AILERONS_SET, y docs/GUIA-PRUEBA-EN-VIVO.md).
+verification: live-tested
+
 versions:
   minimum: "1.0.0"
   tested:
     - "1.0.0"
 
-# titleContains: valores placeholder razonables sin confirmar todavía contra el
-# sim real. Pendiente de validación por aircraft-profiles-agent (ver Fase 7 del
-# plan maestro, bloqueada hasta que Darwin provea el SDK/headers oficiales de
-# PMDG). Confirmar el título ATC MODEL exacto que expone MSFS para el 900 y el
-# 900ER antes de subir capabilities por encima de "partial".
+# titleContains cubre TODA la familia 737 NG de PMDG, no solo el 900. El match
+# es substring case-insensitive (ver ProfileMatcher.cs), así que las cuatro
+# entradas base alcanzan para todas las subvariantes:
+#
+#   "PMDG 737-600"  -> 737-600
+#   "PMDG 737-700"  -> 737-700, y sus derivados por sufijo (BBJ, BDSF, C, W...)
+#   "PMDG 737-800"  -> 737-800, y sus derivados de carga (BCF, BDSF, BBJ2...)
+#   "PMDG 737-900"  -> 737-900 y 737-900ER (el ER es sufijo del mismo string)
+#
+# Todas comparten cabina NG y el mismo set de controles/Event IDs, por eso van
+# a un solo perfil en vez de cinco casi idénticos. El 737 MAX NO entra aquí
+# (cabina distinta): si PMDG lo saca, va a su propio perfil.
+#
+# Pendiente: confirmar contra el sim real el título ATC MODEL exacto de cada
+# variante. Solo el 900 está verificado en vivo; el resto se apoya en que PMDG
+# usa el mismo prefijo "PMDG 737-<variante>" en toda la familia.
 detection:
   titleContains:
+    - "PMDG 737-600"
+    - "PMDG 737-700"
+    - "PMDG 737-800"
     - "PMDG 737-900"
-    - "PMDG 737-900ER"
 
 # Nivel de cobertura por sistema. Este perfil usa mayormente SimConnect
 # estándar (simvars/eventos K:), NO la Client Data Area / SDK oficial de PMDG

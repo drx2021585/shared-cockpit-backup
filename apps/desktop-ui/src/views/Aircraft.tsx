@@ -5,6 +5,14 @@ import type { AircraftProfile } from "../lib/apiClient";
  * Estado derivado de la cobertura real (no una etiqueta inventada por
  * aeronave): >=80% listo para volar, 40-79% soporte parcial, <40% soporte
  * temprano. El umbral es arbitrario pero la fuente (coverage) es real.
+ *
+ * OJO al leer esto junto al badge de "not tested": coverage mide completitud
+ * MECÁNICA (cuántos controles sincronizan en ambos sentidos), no si el perfil
+ * se voló alguna vez. Por eso un perfil generado a máquina puede tener más
+ * cobertura que uno probado en vivo, y por eso "no probado" se muestra como
+ * etiqueta separada en vez de descontarse del porcentaje — descontarlo
+ * escondería la diferencia en un solo número que no dice cuál de las dos cosas
+ * falta.
  */
 function statusFor(coverage: number): { label: string; color: string } {
   if (coverage >= 80) return { label: "Ready to fly", color: "#4ade80" };
@@ -68,6 +76,7 @@ export function Aircraft() {
                 <span className="status-label" style={{ color: status.color }}>
                   {status.label}
                 </span>
+                {!ac.verified && <span className="badge-untested">Not tested in the sim yet</span>}
               </div>
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${ac.coverage}%` }} />
