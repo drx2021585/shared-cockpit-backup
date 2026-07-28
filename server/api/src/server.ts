@@ -128,7 +128,7 @@ app.post("/api/sessions", rateLimit("create-session", 10, 5 * 60_000), async (re
   if (sim !== "msfs2020" && sim !== "msfs2024") {
     return res.status(400).json({ error: "invalid sim" });
   }
-  if (hostSeat !== "captain" && hostSeat !== "first_officer") {
+  if (hostSeat !== "captain" && hostSeat !== "first_officer" && hostSeat !== "observer") {
     return res.status(400).json({ error: "invalid seat" });
   }
   if (password !== undefined && password !== "" &&

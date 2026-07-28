@@ -242,7 +242,7 @@ export interface CreateSessionInput {
   aircraftProfileId: string;
   password?: string;
   hostPilotName: string;
-  hostSeat: "captain" | "first_officer";
+  hostSeat: "captain" | "first_officer" | "observer";
   sim: "msfs2020" | "msfs2024";
 }
 
@@ -270,6 +270,13 @@ export async function createSession(input: CreateSessionInput) {
 
   // control_owner arranca con el seat del host (no su pilotName) — ver
   // comentario en init() sobre por qué esta columna guarda seat.
+  //
+  // Si el host se queda de observador (arma la sala sin volar), el dueño no
+  // puede ser "observer": un observador nunca tiene controles (ver el gate de
+  // authority.ts, que ya descarta ese seat). Se siembra el asiento del capitán,
+  // que queda vacante hasta que alguien lo tome — así el estado inicial es
+  // explícito acá en vez de depender del fallback defensivo de authority.ts.
+  const initialControlOwner = input.hostSeat === "observer" ? "captain" : input.hostSeat;
   await pool.query(
     `INSERT INTO sessions (
        id, join_code, session_name, aircraft_profile_id, password, status, sim,
@@ -284,7 +291,7 @@ export async function createSession(input: CreateSessionInput) {
       input.password ? hashPassword(input.password) : null,
       input.sim,
       input.hostPilotName,
-      input.hostSeat,
+      initialControlOwner,
     ]
   );
 

@@ -59,6 +59,68 @@ test("createSession: control_owner arranca en el seat del creador", async (t) =>
   assert.equal(session!.creatorPilotName, "Alice");
 });
 
+test("createSession: un host observador no queda como dueño de los controles", async (t) => {
+  const db = await freshDb(t);
+  await db.pool.query(
+    "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
+  );
+
+  const { session } = await db.createSession({
+    sessionName: "Sala de instructor",
+    aircraftProfileId: "pmdg-737-900",
+    hostPilotName: "Alice",
+    hostSeat: "observer",
+    sim: "msfs2020",
+  });
+
+  assert.ok(session);
+  // El observador nunca puede ser dueño (lo descarta el gate de authority.ts):
+  // el asiento del capitán queda sembrado y vacante hasta que alguien lo tome.
+  assert.equal(session!.controlOwner, "captain");
+  // Pero el host SÍ es participante, y con su seat real.
+  assert.equal(session!.participants.length, 1);
+  assert.equal(session!.participants[0].seat, "observer");
+  assert.equal(session!.creatorPilotName, "Alice");
+  // Un observador no cuenta como piloto: la sesión sigue esperando a los dos.
+  assert.equal(session!.status, "waiting");
+});
+
+test("joinSession: dos pilotos entran igual a una sesión creada por un observador", async (t) => {
+  const db = await freshDb(t);
+  await db.pool.query(
+    "INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    ["pmdg-737-900", "PMDG B737 NG", "PMDG", "1.0", 80, "{}", true, true]
+  );
+
+  const { session } = await db.createSession({
+    sessionName: "Sala de instructor",
+    aircraftProfileId: "pmdg-737-900",
+    hostPilotName: "Alice",
+    hostSeat: "observer",
+    sim: "msfs2020",
+  });
+
+  const bob = await db.joinSession({
+    joinCode: session!.joinCode,
+    pilotName: "Bob",
+    seat: "captain",
+  });
+  const carol = await db.joinSession({
+    joinCode: session!.joinCode,
+    pilotName: "Carol",
+    seat: "first_officer",
+  });
+
+  // El observador no ocupa cupo: los dos asientos de vuelo siguen disponibles.
+  assert.equal(bob.ok, true);
+  assert.equal(carol.ok, true, "el observador no debería contar para el límite de 2 pilotos");
+
+  const after = await db.getSessionByCode(session!.joinCode);
+  assert.equal(after!.participants.length, 3);
+  assert.equal(after!.controlOwner, "captain");
+});
+
 test("requestControls: un segundo jugador puede solicitar control si no es el dueño", async (t) => {
   const db = await freshDb(t);
   await db.pool.query(

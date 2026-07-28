@@ -106,7 +106,11 @@ export async function createSession(input: {
   aircraftProfileId: string;
   password?: string;
   hostPilotName: string;
-  hostSeat: "captain" | "first_officer";
+  // El anfitrión también puede quedarse como observador (instructor/streamer
+  // que arma la sala sin volar). En ese caso el servidor siembra el dueño de
+  // los controles en el asiento del capitán, que queda libre hasta que alguien
+  // lo tome.
+  hostSeat: "captain" | "first_officer" | "observer";
   sim: "msfs2020" | "msfs2024";
 }) {
   const session = await request<Session>("/api/sessions", {

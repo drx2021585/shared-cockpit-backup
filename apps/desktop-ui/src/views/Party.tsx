@@ -26,7 +26,7 @@ export function Party({
   const [sim, setSim] = useState<"msfs2020" | "msfs2024">("msfs2020");
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
-  const [seat, setSeat] = useState<"captain" | "first_officer">("captain");
+  const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("captain");
   const [ipBlurred, setIpBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +151,19 @@ export function Party({
               >
                 First officer
               </button>
+              <button
+                className={`seat-option ${seat === "observer" ? "active" : ""}`}
+                onClick={() => setSeat("observer")}
+              >
+                Observer
+              </button>
             </div>
+            {seat === "observer" && (
+              <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 8 }}>
+                You'll host without flying. Controls start on the captain's seat, so
+                whoever joins as captain gets them.
+              </p>
+            )}
           </div>
 
           {error && <div style={{ color: "#e24c4b", fontSize: 13 }}>{error}</div>}

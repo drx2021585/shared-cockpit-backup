@@ -91,7 +91,7 @@ export const screens: ScreenCard[] = [
       "Session name",
       "Private join code (auto-generated)",
       "Optional password",
-      "Your starting seat: captain or first officer",
+      "Your starting seat: captain, first officer, or observer",
     ],
   },
   {
