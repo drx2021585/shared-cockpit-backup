@@ -33,6 +33,47 @@
 #      deben revalidarse en vivo (signo/rango) antes de confiar en ellos para
 #      vuelo real -- no se hizo hoy por prudencia (yoke con avión en tierra es
 #      menos observable/riesgoso que confirmarlo en pleno vuelo).
+#
+# ACTUALIZACIÓN 2026-07-27 (misma noche, tras publish/deploy real por el
+# orquestador contra la sesión activa de MSFS+PMDG, avión en tierra):
+#   - flight.yoke.pitch (elevator): CONFIRMADO funcionando en vivo con el build
+#     publicado real (control.axis value=0.2 por el WebSocket del bridge,
+#     readback de ELEVATOR POSITION se movió claramente hacia el valor
+#     enviado: -0.15 -> +0.033 -> +0.08). K:AXIS_ELEVATOR_SET es correcto.
+#   - flight.rudder: ya confirmado antes (ver arriba), no se retesteó.
+#   - flight.yoke.roll (aileron): NO se movió en esa misma prueba (readback de
+#     AILERON POSITION fijo en 0 con +0.6/-0.6/0, sin bridge.error). Causa
+#     real encontrada por simulator-bridge-agent vía el header oficial del SDK
+#     (C:\MSFS 2024 SDK\WASM\include\MSFS\Types\MSFS_EventsEnum.h):
+#       #define KEY_AXIS_ELEVATOR_SET   (KEY_ID_MIN + 226)
+#       #define KEY_AXIS_AILERONS_SET   (KEY_ID_MIN + 227)   <- PLURAL "AILERONS"
+#       #define KEY_AXIS_RUDDER_SET     (KEY_ID_MIN + 228)
+#     El Event ID real es "AXIS_AILERONS_SET" (plural), NO "AXIS_AILERON_SET"
+#     (singular) como se usaba abajo -- a diferencia de elevator/rudder, que sí
+#     son singulares. Un K:event con nombre no registrado en SimConnect es un
+#     no-op silencioso (sin excepción, sin error reportado por el bridge), lo
+#     que explica exactamente el síntoma observado. Corregido abajo a
+#     "AXIS_AILERONS_SET".
+#
+# ACTUALIZACIÓN 2026-07-28 (misma sesión, avión ya en tierra, MSFS+FSUIPC7
+# reabiertos tras el cierre): "flight.yoke.roll" CONFIRMADO funcionando en
+# vivo con "AXIS_AILERONS_SET" (plural) — control.axis value=0.6 por el
+# WebSocket del bridge, readback de AILERON POSITION llegó a 0.5999..;
+# vuelto a 0 -> readback -0.0000243 (centrado). Los 3 ejes (yoke.pitch,
+# yoke.roll, flight.rudder) quedan confirmados en vivo con el mismo nivel de
+# confianza. Hipótesis (1)/(2)/(4) de abajo ya no aplican (el fix del nombre
+# del evento fue la causa raíz real, no hacía falta descartar autopilot ni
+# hardware).
+#   - Hipótesis descartadas/pendientes para el aileron (documentado para no
+#     repetir la investigación): (1) ¿AILERON POSITION es un read real? no se
+#     pudo re-verificar en vivo tras el cierre de MSFS, pendiente. (2)
+#     ¿autopilot/control wheel steering re-centrando el input? no se pudo
+#     probar en vivo, pendiente (AP suele estar OFF en tierra, pero no se
+#     confirmó el estado real en esa sesión). (4) ¿hardware con eje de alerón
+#     asignado peleando el valor? C:\FSUIPC7\FSUIPC7.ini no tiene ninguna
+#     asignación de joystick/axis (solo "AxisCalibration=No"), así que no hay
+#     interferencia a nivel FSUIPC -- no se pudo descartar una asignación
+#     nativa de MSFS (Opciones > Controles) sin la sim corriendo.
 
 - id: flight.yoke.pitch
   dataType: number
@@ -42,9 +83,12 @@
     name: "ELEVATOR POSITION"
   write:
     type: calculatorCode
-    # PENDIENTE DE VALIDAR EN VIVO (solo se confirmó el patrón general y el
-    # rudder, ver nota de archivo arriba). Rango esperado K:AXIS_ELEVATOR_SET:
-    # -16384..16384; "min max" clampea antes de escribir.
+    # CONFIRMADO EN VIVO 2026-07-27 contra el build publicado real: value=0.2
+    # por control.axis movió ELEVATOR POSITION claramente hacia el valor
+    # enviado (-0.15 -> +0.033 -> +0.08). Signo/escala exactos (vs. el caso
+    # rudder, que sí tiene el signo verificado con dos puntos) no se
+    # recalibraron con precisión numérica, pero la dirección de movimiento es
+    # correcta y consistente con la fórmula del rudder.
     name: "$value -16384 * -16384 16384 min max (>K:AXIS_ELEVATOR_SET)"
   synchronization:
     mode: polled
@@ -60,9 +104,16 @@
     name: "AILERON POSITION"
   write:
     type: calculatorCode
-    # PENDIENTE DE VALIDAR EN VIVO (solo se confirmó el patrón general y el
-    # rudder, ver nota de archivo arriba).
-    name: "$value -16384 * -16384 16384 min max (>K:AXIS_AILERON_SET)"
+    # FIX 2026-07-27 (NO reverificado en vivo todavía -- ver nota de archivo
+    # arriba): el Event ID real es "AXIS_AILERONS_SET" (PLURAL), confirmado
+    # contra el header oficial del SDK (MSFS_EventsEnum.h,
+    # KEY_AXIS_AILERONS_SET). El nombre anterior "AXIS_AILERON_SET" (singular)
+    # no existe como evento registrado -> no-op silencioso, que es exactamente
+    # el síntoma reportado (readback fijo en 0, sin bridge.error). Pendiente:
+    # re-probar en vivo con la sim arriba de nuevo antes de confiar en el
+    # signo/escala (se asume la misma fórmula que elevator/rudder, no
+    # verificada para aileron específicamente).
+    name: "$value -16384 * -16384 16384 min max (>K:AXIS_AILERONS_SET)"
   synchronization:
     mode: polled
     debounceMs: 0
