@@ -54,6 +54,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_SERVICE_INTERPHONE_SWITCH"
+    parameter: "$value"
     semantics: "sets the SERVICE INTERPHONE switch to the explicit boolean state being written (COMM_ServiceInterphoneSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -158,6 +159,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FLTREC_SWITCH"
+    parameter: "$value"
     semantics: "sets the FLIGHT RECORDER switch to the explicit boolean state being written (FLTREC_SwNormal: true NORMAL, false TEST, per PMDG_NG3_SDK.h comment); Parameter=1 NORMAL / Parameter=0 TEST"
   synchronization:
     mode: event
@@ -206,6 +208,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_WIPER_LEFT_CONTROL"
+    parameter: "$value"
     semantics: "sets the LEFT WIPER control to the explicit numeric position being written (OH_WiperLSelector: 0 PARK, 1 INT, 2 LOW, 3 HIGH, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -226,6 +229,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_WIPER_RIGHT_CONTROL"
+    parameter: "$value"
     semantics: "sets the RIGHT WIPER control to the explicit numeric position being written (OH_WiperRSelector: 0 PARK, 1 INT, 2 LOW, 3 HIGH); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -246,6 +250,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NO_SMOKING_LIGHT_SWITCH"
+    parameter: "$value"
     semantics: "sets the NO SMOKING switch to the explicit numeric position being written (COMM_NoSmokingSelector: 0 OFF, 1 AUTO, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -266,6 +271,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FASTEN_BELTS_LIGHT_SWITCH"
+    parameter: "$value"
     semantics: "sets the FASTEN BELTS switch to the explicit numeric position being written (COMM_FastenBeltsSelector: 0 OFF, 1 AUTO, 2 ON); Parameter must carry the absolute target position"
   synchronization:
     mode: event

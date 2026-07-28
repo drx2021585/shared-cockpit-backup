@@ -290,3 +290,28 @@ systems:
     # OXY_Needle) sigue readOnly. Sigue sin confirmación EN VIVO -- nivel se
     # mantiene "partial" (6/29 escribibles).
     missing: [cabin_signs_writes_not_verified_live, oxy_sw_normal_no_safe_candidate]
+  warnings:
+    level: partial
+    controls: []
+    # NOTA 2026-07-27: subido de "none" a "partial" -- SOLO de lectura, a
+    # pedido explícito del usuario (master caution, fire warn, ovht det).
+    # controls/warnings.yaml (archivo nuevo) agrega 5 controles readOnly:
+    # true (WARN_annunFIRE_WARN[2], WARN_annunMASTER_CAUTION[2],
+    # WARN_annunOVHT_DET) -- offset real YA transcrito en
+    # PmdgNg3DataLayout.cs (tramo "Warnings" del glareshield, entre
+    # LTS_WheelWellSw y EFIS_MinsSelBARO, PMDG_NG3_SDK.h líneas 313-327), NO
+    # requirió extender el layout. Candidatos de Event ID de escritura
+    # existen para fire warn/master caution (EVT_FIRE_WARN_LIGHT_LEFT/RIGHT,
+    # EVT_MASTER_CAUTION_LIGHT_LEFT/RIGHT) pero el comentario original del
+    # header dice literalmente "... Switch Toggle" para los 4 -- regla
+    # anti-TOGGLE, se dejan solo de lectura a propósito. WARN_annunOVHT_DET
+    # no tiene candidato de anunciador (el switch físico FIRE_OvhtDetSw[2]
+    # vive en la sección "Fire protection panel", offset NO transcrito, ver
+    # EVENT_IDS_PENDIENTES.md). El resto del tramo "Warnings" (FLT_CONT/IRS/
+    # FUEL/ELEC/APU/ANTI_ICE/HYD/DOORS/ENG/OVERHEAD/AIR_COND) también tiene
+    # offset real ya transcrito pero no se agregó (fuera del pedido de esta
+    # sesión) -- candidato fácil para una sesión futura. No existe categoría
+    # "warnings" en packages/profile-schema/manifest.schema.json -- mismo
+    # caso que "lights"/"fuel"/"fms"/"air"/"cabinMisc": solo vive aquí, NO en
+    # manifest.yaml. Sigue sin confirmación EN VIVO.
+    missing: [warnings_writes_blocked_by_anti_toggle, ovht_det_switch_offset_not_transcribed, remaining_warn_annunciators_out_of_scope]

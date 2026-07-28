@@ -1,0 +1,102 @@
+# Anunciadores del glareshield (sección "Warnings" de PMDG_NG3_Data,
+# PMDG_NG3_SDK.h líneas 313-327), agregados 2026-07-27 a pedido explícito del
+# usuario (master caution, fire warn, ovht det). Todo el tramo "Warnings"
+# tiene offset REAL transcrito en
+# apps/simulator-bridge/.../PmdgNg3DataLayout.cs (justo antes de la sección
+# "EFIS control panels", ver OrderedFields líneas 283-297 -- entre
+# LTS_WheelWellSw y EFIS_MinsSelBARO) -- NO requirió extender el layout.
+#
+# Solo se agregan aquí los 3 anunciadores pedidos (fire warn, master caution,
+# ovht det). El resto del tramo "Warnings" (WARN_annunFLT_CONT/IRS/FUEL/ELEC/
+# APU/ANTI_ICE/HYD/DOORS/ENG/OVERHEAD/AIR_COND) también tiene offset real ya
+# transcrito y podría agregarse en una sesión futura con el mismo patrón
+# readOnly de abajo -- no se agregó por estar fuera del pedido de esta sesión.
+#
+# Los 3 son readOnly: true a propósito. Existe un candidato de Event ID de
+# escritura para fire warn/master caution
+# (EVT_FIRE_WARN_LIGHT_LEFT/RIGHT=THIRD_PARTY_EVENT_ID_MIN+347/439,
+# EVT_MASTER_CAUTION_LIGHT_LEFT/RIGHT=THIRD_PARTY_EVENT_ID_MIN+348/438), pero
+# el comentario original del header dice literalmente "... Switch Toggle"
+# para los 4 -- regla anti-TOGGLE del proyecto: nunca declarar un write para
+# un Event cuyo comentario sugiera TOGGLE. Se dejan solo de lectura. Para
+# WARN_annunOVHT_DET no existe siquiera un candidato de Event ID de
+# anunciador (el switch físico real es FIRE_OvhtDetSw[2], un campo DISTINTO
+# que vive en la sección "Fire protection panel" del struct, offset NO
+# transcrito todavía -- ver EVENT_IDS_PENDIENTES.md).
+#
+# Sigue sin confirmación EN VIVO contra MSFS+PMDG real, igual que el resto
+# del perfil.
+
+- id: warnings.annun_fire_warn_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunFIRE_WARN"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: warnings.annun_fire_warn_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunFIRE_WARN"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: warnings.annun_master_caution_1
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunMASTER_CAUTION"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: warnings.annun_master_caution_2
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunMASTER_CAUTION"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: warnings.annun_ovht_det
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "WARN_annunOVHT_DET"
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

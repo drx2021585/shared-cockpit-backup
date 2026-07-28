@@ -35,18 +35,24 @@
 # (beacon/nav/landing/strobe/logo) permanecen sin cambios en overhead.yaml:
 # no tienen Event ID de PMDG_NG3_Control confirmado todavía.
 
-# GAP conocido, NO resuelto en este archivo (fuera de mi alcance -- coordinar
-# con simconnect-bridge-agent, ver también EVENT_IDS_PENDIENTES.md):
-# apps/simulator-bridge/.../ProfileModels.cs y ProfileRepository.cs tratan
-# `write.parameter` de un control clientDataEvent como un string ESTÁTICO
-# (Parameter = dto.Parameter, sin sustitución dinámica del valor deseado). No
-# existe hoy un mecanismo para que Parameter valga "0 si se apaga, 1 si se
-# enciende" según el valor boolean que el usuario está fijando -- por eso este
-# control deliberadamente NO declara `parameter` fijo aquí (fijar
-# `parameter: 1` rompería la mitad de los casos, ej. apagar la luz). El bridge
-# necesita, antes de que este control funcione de punta a punta, resolver
-# Parameter dinámicamente a partir del valor boolean que se está escribiendo
-# (0/1) -- esto le corresponde a simconnect-bridge-agent, no a este perfil.
+# RESUELTO 2026-07-27 (simconnect-bridge-agent): el bridge ahora soporta
+# `write.parameter: "$value"` para write.type: clientDataEvent -- ver
+# apps/simulator-bridge/.../Bridge/BridgeService.cs
+# (ResolveWriteEventParameter/DynamicParameterPlaceholder). Cuando 'parameter'
+# vale literalmente "$value", el bridge sustituye Control.Parameter por el
+# valor ABSOLUTO que el cliente está escribiendo en ese momento (0/1 para
+# boolean, la posición entera para number), en vez de transmitir siempre
+# Parameter=0 como antes (bug real: todos los controles de este archivo con
+# write.type clientDataEvent SIN 'parameter' fijo -- taxi, dome_white_sw,
+# emer_exit_selector, landing_lt_*, runway_turnoff_sw_*, position_sw,
+# anti_collision_sw, wing_sw, wheel_well_sw -- ignoraban el valor real
+# escrito por el usuario y solo apagaban/fijaban la posición 0). No requiere
+# cambio de esquema: packages/profile-schema/control.schema.json ya admite
+# 'parameter' como integer|string, "$value" es simplemente la única cadena no
+# numérica que el bridge reconoce con esta semántica especial. Los botones
+# momentáneos del CDU (controls/mcdu.yaml, `parameter: 1` literal) NO se ven
+# afectados: solo se activa la sustitución dinámica cuando el valor es
+# exactamente la cadena "$value".
 
 # El control de diagnóstico temporal que vivió aquí (ROTOR_BRAKE param 11701
 # crudo) confirmó en vivo contra MSFS real 2026-07-27 que ROTOR_BRAKE es un
@@ -69,6 +75,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_TAXI"
+    parameter: "$value"
     semantics: "sets the overhead taxi light switch to the explicit boolean state being written (Parameter=1 ON / Parameter=0 OFF, per PMDG_NG3_ConnectionTest.cpp toggleTaxiLightSwitch()); Parameter fixes the final state, this is not a raw toggle pulse"
   synchronization:
     mode: event
@@ -154,6 +161,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_DOME_SWITCH"
+    parameter: "$value"
     semantics: "sets the DOME light switch to the explicit numeric position being written (LTS_DomeWhiteSw: 0 DIM, 1 OFF, 2 BRIGHT, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -216,6 +224,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_EMER_EXIT_LIGHT_SWITCH"
+    parameter: "$value"
     semantics: "sets the EMERGENCY EXIT LIGHTS selector to the explicit numeric position being written (LTS_EmerExitSelector: 0 OFF, 1 ARMED, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Guard (EVT_OH_EMER_EXIT_LIGHT_GUARD) not modeled"
   synchronization:
     mode: event
@@ -237,6 +246,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_L_RETRACT"
+    parameter: "$value"
     semantics: "sets the LEFT retractable landing light switch to the explicit numeric position being written (LTS_LandingLtRetractableSw[0]: 0 RETRACT, 1 EXTEND, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -258,6 +268,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_R_RETRACT"
+    parameter: "$value"
     semantics: "sets the RIGHT retractable landing light switch to the explicit numeric position being written (LTS_LandingLtRetractableSw[1]: 0 RETRACT, 1 EXTEND, 2 ON); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -279,6 +290,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_L_FIXED"
+    parameter: "$value"
     semantics: "sets the LEFT fixed landing light switch to the explicit boolean state being written (LTS_LandingLtFixedSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -300,6 +312,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_R_FIXED"
+    parameter: "$value"
     semantics: "sets the RIGHT fixed landing light switch to the explicit boolean state being written (LTS_LandingLtFixedSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -321,6 +334,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_L_TURNOFF"
+    parameter: "$value"
     semantics: "sets the LEFT runway turnoff light switch to the explicit boolean state being written (LTS_RunwayTurnoffSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -342,6 +356,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_R_TURNOFF"
+    parameter: "$value"
     semantics: "sets the RIGHT runway turnoff light switch to the explicit boolean state being written (LTS_RunwayTurnoffSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -362,6 +377,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_POS_STROBE"
+    parameter: "$value"
     semantics: "sets the POSITION/STROBE light switch to the explicit numeric position being written (LTS_PositionSw: 0 STEADY, 1 OFF, 2 STROBE&STEADY, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -382,6 +398,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_ANT_COL"
+    parameter: "$value"
     semantics: "sets the ANTI-COLLISION (beacon) light switch to the explicit boolean state being written (LTS_AntiCollisionSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -402,6 +419,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_WING"
+    parameter: "$value"
     semantics: "sets the WING light switch to the explicit boolean state being written (LTS_WingSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -422,9 +440,208 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_LIGHTS_WHEEL_WELL"
+    parameter: "$value"
     semantics: "sets the WHEEL WELL light switch to the explicit boolean state being written (LTS_WheelWellSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
     debounceMs: 100
     confirmAfterWrite: true
     timeoutMs: 1000
+
+# --- Perillas de brillo del panel inferior, 2026-07-27 (LTS_*BrtKnob,
+# PMDG_NG3_SDK.h línea 422-430). Offset de lectura NUEVO (tramo "Glareshield
+# en adelante" recién transcrito en PmdgNg3DataLayout.cs). readOnly: true a
+# propósito: los candidatos de escritura (EVT_LWRMAIN_CAPT_*_BRT/
+# EVT_LWRMAIN_FO_*_BRT, EVT_EVENT_IDS_FULL.txt líneas 1037-1053) NO tienen
+# comentario en absoluto en el header (ni siquiera nombran "Sets X"), evidencia
+# más débil todavía que los descartados de EFIS/DU selector en
+# controls/efis.yaml -- ver EVENT_IDS_PENDIENTES.md.
+- id: lights.main_panel_knob_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_MainPanelKnob"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.main_panel_knob_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_MainPanelKnob"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.background_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_BackgroundKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.afds_flood_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_AFDSFloodKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.outbd_du_brt_knob_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_OutbdDUBrtKnob"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.outbd_du_brt_knob_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_OutbdDUBrtKnob"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.inbd_du_brt_knob_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_InbdDUBrtKnob"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.inbd_du_brt_knob_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_InbdDUBrtKnob"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.inbd_du_map_brt_knob_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_InbdDUMapBrtKnob"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.inbd_du_map_brt_knob_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_InbdDUMapBrtKnob"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.upper_du_brt_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_UpperDUBrtKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.lower_du_brt_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LowerDUBrtKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: lights.lower_du_map_brt_knob
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "LTS_LowerDUMapBrtKnob"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

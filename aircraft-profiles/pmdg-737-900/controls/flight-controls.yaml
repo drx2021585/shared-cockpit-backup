@@ -6,6 +6,33 @@
 # Ejes continuos → canal rápido (polled), authority: exclusive.
 # Discretos (flaps handle, gear, spoilers) → canal confiable (event) con
 # confirmAfterWrite, SIEMPRE SET explícito, nunca TOGGLE crudo.
+#
+# CORREGIDO 2026-07-27 por simulator-bridge-agent (BUG REAL, verificado en vivo
+# contra MSFS 2024 + PMDG 737-900 real, avión en tierra):
+#   1. El RPN anterior "(A:X POSITION, position) 0 (>K:X_SET)" empujaba la
+#      posición leída SIN USARLA y luego un "0" fijo -- el elevador/alerón/
+#      rudder SIEMPRE se fijaba a 0 sin importar el valor real que se estaba
+#      sincronizando. Reemplazado por el marcador "$value" (mismo mecanismo ya
+#      usado por write.type=clientDataEvent, ver BridgeService.
+#      ResolveCalculatorCodeTemplate/DynamicParameterPlaceholder), que el
+#      bridge sustituye por el valor numérico absoluto real en cada escritura.
+#   2. K:ELEVATOR_SET / K:AILERON_SET / K:RUDDER_SET (eventos K: legacy) NO
+#      mueven ninguna superficie en el PMDG NG3 -- confirmado en vivo:
+#      "3000 (>K:RUDDER_SET)" dejó A:RUDDER POSITION en 0.0000 (antes==durante).
+#      PMDG NG3 solo escucha los eventos de EJE real K:AXIS_*_SET (igual que
+#      un joystick real conectado). "8000 (>K:AXIS_RUDDER_SET)" SÍ movió el
+#      rudder a A:RUDDER POSITION=-0.4883, y "-8000 (>K:AXIS_RUDDER_SET)" a
+#      +0.4883 (relación lineal confirmada con dos puntos): position ≈
+#      -(param/16384), rango param [-16384, 16384]. El RPN de abajo hace esa
+#      escala/inversión de signo directamente en RPN ("$value -16384 * ..."),
+#      clampeado a [-16384, 16384] con "min max" de RPN estándar.
+#   3. Elevator/aileron usan la MISMA familia de eventos AXIS_*_SET y se aplicó
+#      la misma fórmula por consistencia (convención estándar de SimConnect
+#      para axis controls -- ver SimConnect SDK docs, "Event IDs" / "Axis
+#      Events"), pero SOLO el rudder se verificó en vivo hoy. Aileron/elevator
+#      deben revalidarse en vivo (signo/rango) antes de confiar en ellos para
+#      vuelo real -- no se hizo hoy por prudencia (yoke con avión en tierra es
+#      menos observable/riesgoso que confirmarlo en pleno vuelo).
 
 - id: flight.yoke.pitch
   dataType: number
@@ -15,7 +42,10 @@
     name: "ELEVATOR POSITION"
   write:
     type: calculatorCode
-    name: "(A:ELEVATOR POSITION, position) 0 (>K:ELEVATOR_SET)"
+    # PENDIENTE DE VALIDAR EN VIVO (solo se confirmó el patrón general y el
+    # rudder, ver nota de archivo arriba). Rango esperado K:AXIS_ELEVATOR_SET:
+    # -16384..16384; "min max" clampea antes de escribir.
+    name: "$value -16384 * -16384 16384 min max (>K:AXIS_ELEVATOR_SET)"
   synchronization:
     mode: polled
     debounceMs: 0
@@ -30,7 +60,9 @@
     name: "AILERON POSITION"
   write:
     type: calculatorCode
-    name: "(A:AILERON POSITION, position) 0 (>K:AILERON_SET)"
+    # PENDIENTE DE VALIDAR EN VIVO (solo se confirmó el patrón general y el
+    # rudder, ver nota de archivo arriba).
+    name: "$value -16384 * -16384 16384 min max (>K:AXIS_AILERON_SET)"
   synchronization:
     mode: polled
     debounceMs: 0
@@ -45,7 +77,10 @@
     name: "RUDDER POSITION"
   write:
     type: calculatorCode
-    name: "(A:RUDDER POSITION, position) 0 (>K:RUDDER_SET)"
+    # CONFIRMADO EN VIVO 2026-07-27 (MSFS 2024 + PMDG 737-900 real, avión en
+    # tierra): param=8000 -> A:RUDDER POSITION=-0.4883; param=-8000 ->
+    # +0.4883. position ≈ -(param/16384) -> param ≈ -(position*16384).
+    name: "$value -16384 * -16384 16384 min max (>K:AXIS_RUDDER_SET)"
   synchronization:
     mode: polled
     debounceMs: 0
@@ -85,6 +120,24 @@
     confirmAfterWrite: true
     timeoutMs: 1000
 
+# BUG REAL CORREGIDO (2026-07-27): este control usaba write.type=inputEvent,
+# name="GEAR_SET" (evento K: estándar de MSFS con Parameter 0/1 explícito).
+# Evidencia real (apps/desktop-ui/recurso/definitions/FS2020/aircraft/
+# "PMDG Simulations - Boeing 737NG Series.yaml", la implementación de
+# referencia probada de YourControls -- misma fuente ya usada verbatim para
+# native_toggle.landing_gear_lever_unlock, L:switch_4552_73X): el PMDG NG3 NO
+# escucha K:GEAR_SET para su gear lever -- su lógica (heredada de FSX/P3D)
+# solo hookea los dos K:events legacy separados y deterministas K:GEAR_UP /
+# K:GEAR_DOWN ("Gear Lever Up" -> "1 (>K:GEAR_UP)" cuando L:switch_455_73X==0;
+# "Gear Lever Down" -> "1 (>K:GEAR_DOWN)" cuando L:switch_455_73X==60). Esto
+# explicaba el síntoma reportado "sube pero no baja": K:GEAR_SET(0) coincide
+# con el comportamiento por defecto del sim base (sube), pero PMDG nunca
+# procesa K:GEAR_SET(1) para bajar el tren porque su gauge nunca escucha ese
+# evento. Corregido usando la convención nueva de BridgeService
+# (ResolveInputEventPulse): 'name' con separador '|' declara dos K:events
+# nativos separados, elegidos según el valor booleano absoluto (SET_ON/SET_OFF
+# explícito, no un toggle -- ver CLAUDE.md raíz). true (gear down) -> primer
+# evento; false (gear up) -> segundo evento.
 - id: flight.gear
   dataType: boolean
   authority: shared
@@ -93,7 +146,7 @@
     name: "GEAR HANDLE POSITION"
   write:
     type: inputEvent
-    name: "GEAR_SET"
+    name: "GEAR_DOWN|GEAR_UP"
   synchronization:
     mode: event
     debounceMs: 100
@@ -198,6 +251,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_SPOILER_A_SWITCH"
+    parameter: "$value"
     semantics: "sets the SPOILER A switch to the explicit boolean state being written (FCTL_Spoiler_Sw[0]); Parameter=1/0 explicit. Guard (EVT_OH_SPOILER_A_GUARD) not modeled"
   synchronization:
     mode: event
@@ -219,6 +273,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_SPOILER_B_SWITCH"
+    parameter: "$value"
     semantics: "sets the SPOILER B switch to the explicit boolean state being written (FCTL_Spoiler_Sw[1]); Parameter=1/0 explicit. Guard (EVT_OH_SPOILER_B_GUARD) not modeled"
   synchronization:
     mode: event
@@ -239,6 +294,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_YAW_DAMPER"
+    parameter: "$value"
     semantics: "sets the YAW DAMPER switch to the explicit boolean state being written (FCTL_YawDamper_Sw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -259,6 +315,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ALT_FLAPS_MASTER_SWITCH"
+    parameter: "$value"
     semantics: "sets the ALTERNATE FLAPS master switch to the explicit boolean state being written (FCTL_AltnFlaps_Sw_ARM); Parameter=1/0 explicit. Guard (EVT_OH_ALT_FLAPS_MASTER_GUARD) not modeled"
   synchronization:
     mode: event
@@ -279,6 +336,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ALT_FLAPS_POS_SWITCH"
+    parameter: "$value"
     semantics: "sets the ALTERNATE FLAPS position switch to the explicit numeric position being written (FCTL_AltnFlaps_Control_Sw: 0 UP, 1 OFF, 2 DOWN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event

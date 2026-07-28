@@ -44,6 +44,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_CROSSFEED"
+    parameter: "$value"
     semantics: "sets the CROSSFEED selector to the explicit boolean state being written (FUEL_CrossFeedSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -65,6 +66,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_1_FORWARD"
+    parameter: "$value"
     semantics: "sets the LEFT FWD fuel pump switch to the explicit boolean state being written (FUEL_PumpFwdSw[0], header comment '38 - FUEL PUMP LEFT FWD Switch'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -86,6 +88,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_2_FORWARD"
+    parameter: "$value"
     semantics: "sets the RIGHT FWD fuel pump switch to the explicit boolean state being written (FUEL_PumpFwdSw[1], header comment '39 - FUEL PUMP RIGHT FWD Switch'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -107,6 +110,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_1_AFT"
+    parameter: "$value"
     semantics: "sets the LEFT AFT fuel pump switch to the explicit boolean state being written (FUEL_PumpAftSw[0], header comment '37 - FUEL PUMP LEFT AFT Switch'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -128,6 +132,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_2_AFT"
+    parameter: "$value"
     semantics: "sets the RIGHT AFT fuel pump switch to the explicit boolean state being written (FUEL_PumpAftSw[1], header comment '40 - FUEL PUMP RIGHT AFT Switch'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -149,6 +154,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_L_CENTER"
+    parameter: "$value"
     semantics: "sets the LEFT CENTER fuel pump switch to the explicit boolean state being written (FUEL_PumpCtrSw[0], header comment '45 - FUEL PUMP CENTER LEFT Switch'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -170,6 +176,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_PUMP_R_CENTER"
+    parameter: "$value"
     semantics: "sets the RIGHT CENTER fuel pump switch to the explicit boolean state being written (FUEL_PumpCtrSw[1]); header comment for this define also literally reads '46 - FUEL PUMP CENTER LEFT Switch', which looks like a copy/paste typo in the PMDG header (should read RIGHT) -- matched by the event NAME (_R_CENTER) instead of the mislabeled comment; Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -191,6 +198,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_AUX_FWD_A"
+    parameter: "$value"
     semantics: "sets the AUX FUEL A FWD switch to the explicit boolean state being written (FUEL_AuxFwd[0], header comment 'AUX FUEL A FWD'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -212,6 +220,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_AUX_FWD_B"
+    parameter: "$value"
     semantics: "sets the AUX FUEL B FWD switch to the explicit boolean state being written (FUEL_AuxFwd[1], header comment 'AUX FUEL B FWD'); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -233,6 +242,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_AUX_AFT_A"
+    parameter: "$value"
     semantics: "sets the AUX FUEL A AFT switch to the explicit boolean state being written (FUEL_AuxAft[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -254,6 +264,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_AUX_AFT_B"
+    parameter: "$value"
     semantics: "sets the AUX FUEL B AFT switch to the explicit boolean state being written (FUEL_AuxAft[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -274,6 +285,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_FWD_BLD"
+    parameter: "$value"
     semantics: "sets the FWD AUX BLEED switch to the explicit boolean state being written (FUEL_FWDBleed); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -294,6 +306,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_AFT_BLD"
+    parameter: "$value"
     semantics: "sets the AFT AUX BLEED switch to the explicit boolean state being written (FUEL_AFTBleed); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -314,6 +327,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_FUEL_GND_XFR_SW"
+    parameter: "$value"
     semantics: "sets the GND TRANSFER switch to the explicit boolean state being written (FUEL_GNDXfr); matched by NAME (the _SW suffix) despite the header's own comments for EVT_OH_FUEL_GND_XFR_GUARD/EVT_OH_FUEL_GND_XFR_SW looking swapped ('2018 - GND TRANSFER' / '2019 - GND TRANSFER GUARD') -- used the symbol name, not the possibly mislabeled comment; Parameter=1/0 explicit"
   synchronization:
     mode: event

@@ -168,6 +168,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_DC_METER"
+    parameter: "$value"
     semantics: "sets the DC SOURCE meter selector knob to the explicit numeric position being written (ELEC_DCMeterSelector: 0 STBY PWR ... 7 TEST, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position, not a relative step"
   synchronization:
     mode: event
@@ -188,6 +189,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_AC_METER"
+    parameter: "$value"
     semantics: "sets the AC SOURCE meter selector knob to the explicit numeric position being written (ELEC_ACMeterSelector: 0 STBY PWR ... 6 TEST, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -208,6 +210,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_BATTERY_SWITCH"
+    parameter: "$value"
     semantics: "sets the BAT selector to the explicit numeric position being written (ELEC_BatSelector: 0 OFF, 1 BAT, 2 ON, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position, this is not a raw toggle"
   synchronization:
     mode: event
@@ -228,6 +231,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_CAB_UTIL"
+    parameter: "$value"
     semantics: "sets the CAB UTIL switch to the explicit boolean state being written (ELEC_CabUtilSw, marked [-800/900 only] in the header, matches this -900/900ER profile); Parameter=1 ON / Parameter=0 OFF"
   synchronization:
     mode: event
@@ -248,6 +252,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_IFE"
+    parameter: "$value"
     semantics: "sets the IFE/PASS switch to the explicit boolean state being written (ELEC_IFEPassSeatSw, marked [-800/900 only] in the header); Parameter=1 ON / Parameter=0 OFF"
   synchronization:
     mode: event
@@ -313,7 +318,8 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_DISCONNECT_1_SWITCH"
-    semantics: "sets the left GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[0]); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_DISCONNECT_1_GUARD) not modeled -- may need to be raised first in the real cockpit, not verified live"
+    parameter: "$value"
+    semantics: "sets the left GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[0]); Parameter=1/0 explicit. Guard cover (EVT_OH_ELEC_DISCONNECT_1_GUARD) intentionally NOT synchronized: PMDG_NG3_Data has no readable field for guard position, and the proven reference implementation (YourControls, apps/desktop-ui/recurso/definitions/FS2020/aircraft/'PMDG Simulations - Boeing 737NG Series.yaml', 'GEN DRIVE DISC Left/Right Guard (keep var)') declares this guard as local-only ('type: var', no write) -- confirmed by design, not a pending gap. See EVENT_IDS_PENDIENTES.md 2026-07-27 'Guardas físicas' section."
   synchronization:
     mode: event
     debounceMs: 100
@@ -334,7 +340,8 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_DISCONNECT_2_SWITCH"
-    semantics: "sets the right GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[1]); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_DISCONNECT_2_GUARD) not modeled, not verified live"
+    parameter: "$value"
+    semantics: "sets the right GEN DRIVE DISC switch to the explicit boolean state being written (ELEC_IDGDisconnectSw[1]); Parameter=1/0 explicit. Guard cover (EVT_OH_ELEC_DISCONNECT_2_GUARD) intentionally NOT synchronized -- same confirmed-by-design limitation as ELEC_IDGDisconnectSw[0], see that control's semantics and EVENT_IDS_PENDIENTES.md 2026-07-27 'Guardas físicas' section."
   synchronization:
     mode: event
     debounceMs: 100
@@ -354,7 +361,8 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_STBY_PWR_SWITCH"
-    semantics: "sets the STANDBY POWER selector to the explicit numeric position being written (ELEC_StandbyPowerSelector: 0 BAT, 1 OFF, 2 AUTO, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Guard (EVT_OH_ELEC_STBY_PWR_GUARD) not modeled"
+    parameter: "$value"
+    semantics: "sets the STANDBY POWER selector to the explicit numeric position being written (ELEC_StandbyPowerSelector: 0 BAT, 1 OFF, 2 AUTO, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Guard cover (EVT_OH_ELEC_STBY_PWR_GUARD) intentionally NOT synchronized: PMDG_NG3_Data has no readable field for guard position, and the proven reference implementation (YourControls, apps/desktop-ui/recurso/definitions/FS2020/aircraft/'PMDG Simulations - Boeing 737NG Series.yaml', 'STANDBY POWER Switch Guard (keep var)') declares this guard as local-only ('type: var', no write) -- confirmed by design, not a pending gap. See EVENT_IDS_PENDIENTES.md 2026-07-27 'Guardas físicas' section."
   synchronization:
     mode: event
     debounceMs: 100
@@ -388,6 +396,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_GRD_PWR_SWITCH"
+    parameter: "$value"
     semantics: "sets the GROUND POWER switch to the explicit boolean state being written (ELEC_GrdPwrSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -408,7 +417,8 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_BUS_TRANSFER_SWITCH"
-    semantics: "sets the BUS TRANSFER switch to the explicit boolean state being written (ELEC_BusTransSw_AUTO); Parameter=1/0 explicit. Guard (EVT_OH_ELEC_BUS_TRANSFER_GUARD) not modeled"
+    parameter: "$value"
+    semantics: "sets the BUS TRANSFER switch to the explicit boolean state being written (ELEC_BusTransSw_AUTO); Parameter=1/0 explicit. Guard cover (EVT_OH_ELEC_BUS_TRANSFER_GUARD) intentionally NOT synchronized: PMDG_NG3_Data has no readable field for guard position, and the proven reference implementation (YourControls, apps/desktop-ui/recurso/definitions/FS2020/aircraft/'PMDG Simulations - Boeing 737NG Series.yaml', 'BUS TRANSFER Guard (keep var)') declares this guard as local-only ('type: var', no write) -- confirmed by design, not a pending gap. See EVENT_IDS_PENDIENTES.md 2026-07-27 'Guardas físicas' section."
   synchronization:
     mode: event
     debounceMs: 100
@@ -429,6 +439,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_GEN1_SWITCH"
+    parameter: "$value"
     semantics: "sets the left GENERATOR switch to the explicit boolean state being written (ELEC_GenSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -450,6 +461,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_GEN2_SWITCH"
+    parameter: "$value"
     semantics: "sets the right GENERATOR switch to the explicit boolean state being written (ELEC_GenSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -471,6 +483,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_APU_GEN1_SWITCH"
+    parameter: "$value"
     semantics: "sets the left APU GENERATOR switch to the explicit boolean state being written (ELEC_APUGenSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -492,6 +505,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ELEC_APU_GEN2_SWITCH"
+    parameter: "$value"
     semantics: "sets the right APU GENERATOR switch to the explicit boolean state being written (ELEC_APUGenSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event

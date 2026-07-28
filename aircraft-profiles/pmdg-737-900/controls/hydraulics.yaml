@@ -139,6 +139,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_HYD_ENG1"
+    parameter: "$value"
     semantics: "sets the ENG 1 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_eng[0]); Parameter=1/0 explicit. Index0->ENG1 assumed by name match, not verified live"
   synchronization:
     mode: event
@@ -160,6 +161,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_HYD_ENG2"
+    parameter: "$value"
     semantics: "sets the ENG 2 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_eng[1]); Parameter=1/0 explicit. Index1->ENG2 assumed by name match, not verified live"
   synchronization:
     mode: event
@@ -181,6 +183,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_HYD_ELEC1"
+    parameter: "$value"
     semantics: "sets the ELEC 1 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_elec[0]); Parameter=1/0 explicit. Index0->ELEC1 assumed by matching the event name suffix number to the array index, not verified live"
   synchronization:
     mode: event
@@ -202,6 +205,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_HYD_ELEC2"
+    parameter: "$value"
     semantics: "sets the ELEC 2 hydraulic pump switch to the explicit boolean state being written (HYD_PumpSw_elec[1]); Parameter=1/0 explicit. Index1->ELEC2 assumed by matching the event name suffix number to the array index, not verified live"
   synchronization:
     mode: event

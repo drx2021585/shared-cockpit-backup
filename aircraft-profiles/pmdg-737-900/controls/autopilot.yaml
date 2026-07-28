@@ -147,16 +147,33 @@
 # con "#<id>" y el valor real transmitido como dwData en tiempo de escritura,
 # ver SimConnectNativeClient.TransmitSetEvent).
 #
-# NO se agrega bloque `read`: MCP_Course[2]/MCP_IASMach/MCP_Heading/
-# MCP_Altitude/MCP_VertSpeed SÍ existen como campos reales en
-# PMDG_NG3_SDK.h (struct PMDG_NG3_Data), pero NO están dentro del tramo
-# transcrito en PmdgNg3DataLayout.cs (que cubre "IRS_DisplaySelector hasta
-# LTS_WheelWellSw" + AFS_* al inicio) -- no hay offset real disponible hoy
-# para calcular su lectura sin inventar uno. Por eso estos controles son
-# writeOnly: true (no "no tienen estado", sino "el estado existe pero su
-# offset de lectura no ha sido transcrito todavía" -- ver
-# EVENT_IDS_PENDIENTES.md). Ampliar PmdgNg3DataLayout.cs con el tramo MCP_*
-# le corresponde a simconnect-bridge-agent/wasm-agent, no a este perfil.
+# ACTUALIZACIÓN 2026-07-27: PmdgNg3DataLayout.cs YA transcribe el tramo MCP_*
+# completo (offset real de MCP_Course[2]/MCP_IASMach/MCP_Heading/MCP_Altitude/
+# MCP_VertSpeed, PMDG_NG3_SDK.h líneas 338-346), pero el bloque `read` de
+# course/heading/altitude/vs SIGUE sin poder agregarse: esos 4 campos son
+# `unsigned short`/`short` (2 bytes) en el struct C real, y
+# packages/profile-schema/control.schema.json -> read.nativeType solo admite
+# el enum ["bool", "uchar", "uint", "char_array", "float", "int"] -- NO existe
+# "ushort"/"short". PmdgNg3DataLayout.LayoutFieldKind SÍ modela estos dos
+# tipos (igual que ya hacía con Float/Int) solo para que el offset acumulado
+# de los campos siguientes (MAIN_*, HGS_*, LTS_*BrtKnob) sea correcto -- pero
+# no hay forma honesta de declarar `read` para ellos sin inventar un
+# nativeType no soportado. Esto es un contrato compartido
+# (packages/profile-schema) y DEBE pasar por el orchestrator si se quiere
+# resolver (agregar "ushort"/"short" al enum + el parsing correspondiente en
+# el bridge), no se tocó en esta sesión -- ver EVENT_IDS_PENDIENTES.md.
+#
+# `mcp_ias_set`/`mcp_mach_set` tienen un bloqueo DISTINTO y más profundo,
+# incluso siendo `float` (nativeType SÍ soportado): ambos comparten el MISMO
+# campo `MCP_IASMach` (el comentario original del header dice literalmente
+# "Mach if < 10.0", es decir el mismo float representa IAS o Mach según el
+# modo activo del MCP, sin un campo separado que indique cuál de los dos
+# modos está activo en este tramo transcrito). Declarar `read` en ambos
+# controles apuntando al mismo campo mostraría el mismo valor crudo en los
+# dos (ej. "250" interpretado como IAS en un control y como Mach 2.50 en el
+# otro), lo cual sería activamente engañoso para el jugador remoto -- se deja
+# como writeOnly a propósito hasta encontrar un campo de modo confiable o
+# lógica adicional que distinga IAS vs Mach.
 #
 # EVT_MCP_MACH_SET: parameter*0.01 (enviar 78 para M0.78) -- el bridge hoy
 # transmite el valor crudo como dwData (TransmitSetEvent), así que quien

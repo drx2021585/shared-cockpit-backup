@@ -1,0 +1,306 @@
+# --- EFIS control panels + selectores del panel principal, 2026-07-27 ---
+#
+# Todos los controles de este archivo obtienen su offset de lectura del tramo
+# NUEVO transcrito en apps/simulator-bridge/.../PmdgNg3DataLayout.cs (sección
+# "Glareshield en adelante", desde EFIS_MinsSelBARO hasta MAIN_LightsSelector,
+# ver PMDG_NG3_SDK.h líneas 330-388). NINGUNO de estos controles tiene bloque
+# `write`: se revisó EVT_EVENT_IDS_FULL.txt (candidatos calculados
+# THIRD_PARTY_EVENT_ID_MIN + offset, comentario original del header) y NINGÚN
+# candidato confirma explícitamente semántica de SET absoluto ("Sets X..."),
+# a diferencia de los EVT_MCP_*_SET usados en controls/autopilot.yaml -- solo
+# nombran el switch físico (ej. "CAPT side MAIN PANEL DISPLAY UNITS (MAIN
+# PANEL DUs) Selector"). Por prudencia (mismo criterio que
+# lights.circuit_breaker_knob/overhead_panel_knob) se dejan readOnly: true.
+# Ver EVENT_IDS_PENDIENTES.md para el detalle y los Event ID candidatos por
+# campo, y para lo que falta para cerrar cada uno (confirmación en vivo de
+# semántica de SET explícito).
+#
+# NADA de esto fue confirmado EN VIVO contra MSFS+PMDG real todavía.
+
+- id: efis.mins_sel_baro_capt
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_MinsSelBARO"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.mins_sel_baro_fo
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_MinsSelBARO"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.baro_sel_hpa_capt
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_BaroSelHPA"
+    arrayIndex: 0
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.baro_sel_hpa_fo
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_BaroSelHPA"
+    arrayIndex: 1
+    nativeType: bool
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.vor_adf_sel1_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_VORADFSel1"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.vor_adf_sel1_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_VORADFSel1"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.vor_adf_sel2_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_VORADFSel2"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.vor_adf_sel2_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_VORADFSel2"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.mode_sel_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_ModeSel"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.mode_sel_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_ModeSel"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.range_sel_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_RangeSel"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.range_sel_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "EFIS_RangeSel"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+# --- Panel principal: selector de luces "TEST", selectores de fuente de DU,
+# selector de "disengage test" (líneas 376-388 del header). Mismo bloqueo de
+# escritura que EFIS_* de arriba -- ver EVENT_IDS_PENDIENTES.md. ---
+
+- id: efis.main_lights_selector
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_LightsSelector"
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.main_panel_du_sel_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_MainPanelDUSel"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.main_panel_du_sel_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_MainPanelDUSel"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.lower_du_sel_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_LowerDUSel"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.lower_du_sel_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_LowerDUSel"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.disengage_test_selector_capt
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_DisengageTestSelector"
+    arrayIndex: 0
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: efis.disengage_test_selector_fo
+  dataType: number
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "PMDG_NG3_Data"
+    field: "MAIN_DisengageTestSelector"
+    arrayIndex: 1
+    nativeType: uchar
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

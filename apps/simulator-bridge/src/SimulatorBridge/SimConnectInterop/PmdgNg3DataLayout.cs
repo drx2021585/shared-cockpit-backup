@@ -11,15 +11,17 @@ namespace SharedCockpit.Bridge.SimConnectInterop;
 /// alineados a offset múltiplo de 4, con padding insertado si hace falta).
 ///
 /// IMPORTANTE — alcance honesto de esta tabla:
-/// Solo se transcribió, EN ORDEN EXACTO, el primer tramo del struct real (desde
-/// "IRS_DisplaySelector" hasta "LTS_WheelWellSw", ver PMDG_NG3_SDK.h líneas
-/// ~42-307). Esto cubre los campos citados en los ejemplos oficiales del SDK
-/// (IRS_ModeSelector, FUEL_annunLOWPRESS_Aft, LTS_TaxiSw, LTS_LogoSw,
-/// LTS_AntiCollisionSw) y es suficiente para validar el mecanismo de lectura de
-/// punta a punta. El resto del struct (secciones "Glareshield" en adelante,
-/// aprox. 60% del total, incluyendo todo lo relativo a FMC/EFIS/motor/tren de
-/// aterrizaje visibles en cabina) NO está transcrito todavía. Agregar un campo
-/// nuevo requiere:
+/// Se transcribió, EN ORDEN EXACTO, desde "IRS_DisplaySelector" hasta
+/// "LTS_LowerDUMapBrtKnob" (ver PMDG_NG3_SDK.h líneas ~42-430). Esto cubre el
+/// primer tramo original (hasta "LTS_WheelWellSw", línea 307) MÁS la sección
+/// "Glareshield en adelante" hasta el final del bloque "Lower forward panel"
+/// (warnings WARN_*, panel EFIS_*, Mode Control Panel MCP_*, panel principal
+/// MAIN_*, HGS_* y las perillas de brillo LTS_*BrtKnob), incluyendo TODOS los
+/// campos intermedios aunque no se expongan como control legible (ver
+/// LayoutFieldKind.UShort/Short/Float/Int, bloqueados hoy por el enum
+/// nativeType de packages/profile-schema/control.schema.json). El resto del
+/// struct (desde GPWS_annunINOP en adelante, ver línea ~432) NO está
+/// transcrito todavía. Agregar un campo nuevo requiere:
 ///   1. Ubicarlo en PMDG_NG3_SDK.h y confirmar su posición exacta en la
 ///      declaración de PMDG_NG3_Data (el orden del struct importa: el offset de
 ///      cada campo depende de la suma acumulada de todos los campos anteriores).
@@ -46,6 +48,15 @@ internal static class PmdgNg3DataLayout
         Int,
         Float,
         Char,
+        /// <summary>unsigned short (2 bytes) -- ej. MCP_Course/MCP_Heading/MCP_Altitude. NO existe
+        /// como nativeType en packages/profile-schema/control.schema.json todavía (el enum solo
+        /// admite bool/uchar/uint/char_array/float/int) -- se modela aquí SOLO para que el offset
+        /// acumulado de los campos siguientes sea correcto; exponerlo como control real requiere
+        /// ampliar el esquema, coordinar con el orchestrator.</summary>
+        UShort,
+        /// <summary>short con signo (2 bytes) -- ej. MCP_VertSpeed. Mismo bloqueo que UShort: sin
+        /// nativeType equivalente en el esquema hoy.</summary>
+        Short,
     }
 
     public sealed record FieldDescriptor(string Name, LayoutFieldKind Kind, int ArrayLength = 1)
@@ -58,6 +69,8 @@ internal static class PmdgNg3DataLayout
             LayoutFieldKind.UInt => 4,
             LayoutFieldKind.Int => 4,
             LayoutFieldKind.Float => 4,
+            LayoutFieldKind.UShort => 2,
+            LayoutFieldKind.Short => 2,
             _ => throw new NotSupportedException(Kind.ToString()),
         };
 
@@ -265,8 +278,129 @@ internal static class PmdgNg3DataLayout
         new("LTS_WingSw", LayoutFieldKind.Bool),
         new("LTS_WheelWellSw", LayoutFieldKind.Bool),
 
-        // --- Fin del tramo transcrito. Resto de PMDG_NG3_Data (secciones
-        // Glareshield en adelante) NO está mapeado -- ver comentario de clase. ---
+        // --- Sección "Glareshield" en adelante (PMDG_NG3_SDK.h línea ~310). ---
+
+        // Warnings
+        new("WARN_annunFIRE_WARN", LayoutFieldKind.Bool, 2),
+        new("WARN_annunMASTER_CAUTION", LayoutFieldKind.Bool, 2),
+        new("WARN_annunFLT_CONT", LayoutFieldKind.Bool),
+        new("WARN_annunIRS", LayoutFieldKind.Bool),
+        new("WARN_annunFUEL", LayoutFieldKind.Bool),
+        new("WARN_annunELEC", LayoutFieldKind.Bool),
+        new("WARN_annunAPU", LayoutFieldKind.Bool),
+        new("WARN_annunOVHT_DET", LayoutFieldKind.Bool),
+        new("WARN_annunANTI_ICE", LayoutFieldKind.Bool),
+        new("WARN_annunHYD", LayoutFieldKind.Bool),
+        new("WARN_annunDOORS", LayoutFieldKind.Bool),
+        new("WARN_annunENG", LayoutFieldKind.Bool),
+        new("WARN_annunOVERHEAD", LayoutFieldKind.Bool),
+        new("WARN_annunAIR_COND", LayoutFieldKind.Bool),
+
+        // EFIS control panels (línea 329-335)
+        new("EFIS_MinsSelBARO", LayoutFieldKind.Bool, 2),
+        new("EFIS_BaroSelHPA", LayoutFieldKind.Bool, 2),
+        new("EFIS_VORADFSel1", LayoutFieldKind.UChar, 2),
+        new("EFIS_VORADFSel2", LayoutFieldKind.UChar, 2),
+        new("EFIS_ModeSel", LayoutFieldKind.UChar, 2),
+        new("EFIS_RangeSel", LayoutFieldKind.UChar, 2),
+
+        // Mode control panel (línea 337-370)
+        new("MCP_Course", LayoutFieldKind.UShort, 2),
+        new("MCP_IASMach", LayoutFieldKind.Float),
+        new("MCP_IASBlank", LayoutFieldKind.Bool),
+        new("MCP_IASOverspeedFlash", LayoutFieldKind.Bool),
+        new("MCP_IASUnderspeedFlash", LayoutFieldKind.Bool),
+        new("MCP_Heading", LayoutFieldKind.UShort),
+        new("MCP_Altitude", LayoutFieldKind.UShort),
+        new("MCP_VertSpeed", LayoutFieldKind.Short),
+        new("MCP_VertSpeedBlank", LayoutFieldKind.Bool),
+
+        new("MCP_FDSw", LayoutFieldKind.Bool, 2),
+        new("MCP_ATArmSw", LayoutFieldKind.Bool),
+        new("MCP_BankLimitSel", LayoutFieldKind.UChar),
+        new("MCP_DisengageBar", LayoutFieldKind.Bool),
+
+        new("MCP_annunFD", LayoutFieldKind.Bool, 2),
+        new("MCP_annunATArm", LayoutFieldKind.Bool),
+        new("MCP_annunN1", LayoutFieldKind.Bool),
+        new("MCP_annunSPEED", LayoutFieldKind.Bool),
+        new("MCP_annunVNAV", LayoutFieldKind.Bool),
+        new("MCP_annunLVL_CHG", LayoutFieldKind.Bool),
+        new("MCP_annunHDG_SEL", LayoutFieldKind.Bool),
+        new("MCP_annunLNAV", LayoutFieldKind.Bool),
+        new("MCP_annunVOR_LOC", LayoutFieldKind.Bool),
+        new("MCP_annunAPP", LayoutFieldKind.Bool),
+        new("MCP_annunALT_HOLD", LayoutFieldKind.Bool),
+        new("MCP_annunVS", LayoutFieldKind.Bool),
+        new("MCP_annunCMD_A", LayoutFieldKind.Bool),
+        new("MCP_annunCWS_A", LayoutFieldKind.Bool),
+        new("MCP_annunCMD_B", LayoutFieldKind.Bool),
+        new("MCP_annunCWS_B", LayoutFieldKind.Bool),
+
+        new("MCP_indication_powered", LayoutFieldKind.Bool),
+
+        // Forward panel (línea 373-405)
+        new("MAIN_NoseWheelSteeringSwNORM", LayoutFieldKind.Bool),
+        new("MAIN_annunBELOW_GS", LayoutFieldKind.Bool, 2),
+        new("MAIN_MainPanelDUSel", LayoutFieldKind.UChar, 2),
+        new("MAIN_LowerDUSel", LayoutFieldKind.UChar, 2),
+        new("MAIN_annunAP", LayoutFieldKind.Bool, 2),
+        new("MAIN_annunAP_Amber", LayoutFieldKind.Bool, 2),
+        new("MAIN_annunAT", LayoutFieldKind.Bool, 2),
+        new("MAIN_annunAT_Amber", LayoutFieldKind.Bool, 2),
+        new("MAIN_annunFMC", LayoutFieldKind.Bool, 2),
+        new("MAIN_DisengageTestSelector", LayoutFieldKind.UChar, 2),
+        new("MAIN_annunSPEEDBRAKE_ARMED", LayoutFieldKind.Bool),
+        new("MAIN_annunSPEEDBRAKE_DO_NOT_ARM", LayoutFieldKind.Bool),
+        new("MAIN_annunSPEEDBRAKE_EXTENDED", LayoutFieldKind.Bool),
+        new("MAIN_annunSTAB_OUT_OF_TRIM", LayoutFieldKind.Bool),
+        new("MAIN_LightsSelector", LayoutFieldKind.UChar),
+        new("MAIN_RMISelector1_VOR", LayoutFieldKind.Bool),
+        new("MAIN_RMISelector2_VOR", LayoutFieldKind.Bool),
+        new("MAIN_N1SetSelector", LayoutFieldKind.UChar),
+        new("MAIN_SpdRefSelector", LayoutFieldKind.UChar),
+        new("MAIN_FuelFlowSelector", LayoutFieldKind.UChar),
+        new("MAIN_AutobrakeSelector", LayoutFieldKind.UChar),
+        new("MAIN_annunANTI_SKID_INOP", LayoutFieldKind.Bool),
+        new("MAIN_annunAUTO_BRAKE_DISARM", LayoutFieldKind.Bool),
+        new("MAIN_annunLE_FLAPS_TRANSIT", LayoutFieldKind.Bool),
+        new("MAIN_annunLE_FLAPS_EXT", LayoutFieldKind.Bool),
+        new("MAIN_TEFlapsNeedle", LayoutFieldKind.Float, 2),
+        new("MAIN_annunGEAR_transit", LayoutFieldKind.Bool, 3),
+        new("MAIN_annunGEAR_locked", LayoutFieldKind.Bool, 3),
+        new("MAIN_GearLever", LayoutFieldKind.UChar),
+        new("MAIN_BrakePressNeedle", LayoutFieldKind.Float),
+        new("MAIN_annunCABIN_ALTITUDE", LayoutFieldKind.Bool),
+        new("MAIN_annunTAKEOFF_CONFIG", LayoutFieldKind.Bool),
+
+        // HGS (línea 407-418)
+        new("HGS_annun_AIII", LayoutFieldKind.Bool),
+        new("HGS_annun_NO_AIII", LayoutFieldKind.Bool),
+        new("HGS_annun_FLARE", LayoutFieldKind.Bool),
+        new("HGS_annun_RO", LayoutFieldKind.Bool),
+        new("HGS_annun_RO_CTN", LayoutFieldKind.Bool),
+        new("HGS_annun_RO_ARM", LayoutFieldKind.Bool),
+        new("HGS_annun_TO", LayoutFieldKind.Bool),
+        new("HGS_annun_TO_CTN", LayoutFieldKind.Bool),
+        new("HGS_annun_APCH", LayoutFieldKind.Bool),
+        new("HGS_annun_TO_WARN", LayoutFieldKind.Bool),
+        new("HGS_annun_Bar", LayoutFieldKind.Bool),
+        new("HGS_annun_FAIL", LayoutFieldKind.Bool),
+
+        // Lower forward panel (línea 420-430)
+        new("LTS_MainPanelKnob", LayoutFieldKind.UChar, 2),
+        new("LTS_BackgroundKnob", LayoutFieldKind.UChar),
+        new("LTS_AFDSFloodKnob", LayoutFieldKind.UChar),
+        new("LTS_OutbdDUBrtKnob", LayoutFieldKind.UChar, 2),
+        new("LTS_InbdDUBrtKnob", LayoutFieldKind.UChar, 2),
+        new("LTS_InbdDUMapBrtKnob", LayoutFieldKind.UChar, 2),
+        new("LTS_UpperDUBrtKnob", LayoutFieldKind.UChar),
+        new("LTS_LowerDUBrtKnob", LayoutFieldKind.UChar),
+        new("LTS_LowerDUMapBrtKnob", LayoutFieldKind.UChar),
+
+        // --- Fin del tramo transcrito (LTS_LowerDUMapBrtKnob, línea 430). Resto
+        // de PMDG_NG3_Data (desde GPWS_annunINOP en adelante, línea ~432) NO
+        // está mapeado -- ver comentario de clase. ---
     };
 
     private static readonly Dictionary<string, (int Offset, FieldDescriptor Field)> ByName = BuildOffsets();

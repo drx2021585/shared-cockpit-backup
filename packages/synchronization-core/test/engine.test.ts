@@ -233,6 +233,54 @@ test("applyIncomingMessage: full A -> B -> A round trip never rebroadcasts and n
   }
 });
 
+test("applyIncomingMessage: full A -> B round trip for control.axis (continuous flight surface, e.g. speedbrake/flaps) never rebroadcasts and applies a fast stream in order", () => {
+  // Cobertura específica para el canal rápido (control.axis, 20-60Hz) del
+  // round trip A -> B -> (eco accidental) que ya existía para control.event
+  // pero faltaba para ejes continuos como speedbrake/flaps/rudder. Simula
+  // dos motores independientes (uno por cliente) igual que el test análogo
+  // de control.event.
+  function makeClientAuthority() {
+    const mgr = new AuthorityManager();
+    // "shared" porque flaps/speedbrake se sincronizan entre ambos asientos
+    // (a diferencia de yoke/rudder, declarados "exclusive" en el perfil real
+    // -- ver authority.test.ts para el caso exclusive sin dueño inicial).
+    mgr.registerGroup({ groupId: "flight", authority: "shared" });
+    return mgr;
+  }
+
+  const engineB = new SyncEngine({ authority: makeClientAuthority(), resolveGroup: (id) => id.split(".")[0] });
+
+  // Ráfaga de valores continuos que A generaría a alta frecuencia mientras
+  // el jugador mueve el speedbrake (0 -> 0.5 -> 1.0), cada uno con secuencia
+  // creciente.
+  const burstFromA: IncomingControlAxis[] = [0, 0.5, 1.0].map((value, i) => ({
+    type: "control.axis",
+    controlId: "flight.spoilers",
+    value,
+    source: "captain",
+    sequence: i + 1,
+    timestamp: 1000 + i * 20,
+  }));
+
+  for (const msg of burstFromA) {
+    const result = engineB.applyIncomingMessage(msg);
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.message.origin, "remote");
+      assert.equal(result.rebroadcast, false, "B nunca debe reenviar un eje continuo de A como si fuera un cambio local nuevo");
+      assert.equal(result.message.value, msg.value);
+    }
+  }
+
+  // Simula el peor caso de un bug de transporte: el último mensaje de la
+  // ráfaga hace eco de vuelta a B (A -> B -> A -> B). Debe rechazarse por
+  // secuencia duplicada, jamás reaplicarse (lo que invertiría/retrocedería
+  // la posición del speedbrake que B ya tiene).
+  const echoBack = engineB.applyIncomingMessage(burstFromA[burstFromA.length - 1]);
+  assert.equal(echoBack.ok, false);
+  if (!echoBack.ok) assert.equal(echoBack.reason, "duplicate-or-out-of-order");
+});
+
 test("applyIncomingMessage: applies a screen.snapshot, stamps origin remote, and never rebroadcasts it", () => {
   const engine = new SyncEngine({ authority: makeAuthority() });
 

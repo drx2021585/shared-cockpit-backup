@@ -56,6 +56,19 @@ using var pmdgClient = new PmdgClientDataClient();
 // confiar en un módulo WASM recién escrito. Mismo comportamiento de
 // fallback seguro que pmdgClient: si FSUIPC7 no está corriendo, BridgeService
 // omite esos controles con un warning sin crashear el resto del bridge.
+//
+// Este MISMO objeto también implementa ICalculatorCodeClient (ver
+// Bridge/ICalculatorCodeClient.cs) y se inyecta más abajo como
+// calculatorCodeClient -- confirmado en vivo (2026-07-27) que
+// FSUIPCClientDLL.MSFSVariableServices.ExecuteCalculatorCode() SÍ funciona
+// invocado desde este proceso externo, a través del módulo WASM/WAPI propio
+// de FSUIPC7 (John Dowson's WASM module). REQUIERE que "FSUIPC_WAPID.dll"
+// (en la instalación de Darwin: C:\FSUIPC7\Utils\FSUIPC_WAPID.dll) esté
+// copiado junto a SharedCockpit.Bridge.exe en el directorio de salida -- si
+// falta, MSFSVariableServices.Init()/Start() puede fallar o quedarse
+// IsRunning=false indefinidamente, y los controles calculatorCode se
+// reportan como BridgeError sin crashear el resto del bridge (ver
+// FsuipcLVarClient.TryConnect/ExecuteCalculatorCode).
 using var sharedCockpitWasmClient = new FsuipcLVarClient();
 
 BridgeWebSocketServer? server = null;
@@ -66,7 +79,13 @@ var bridge = new BridgeService(
     message => server?.Broadcast(message),
     simVersion,
     pmdgClient: pmdgClient,
-    sharedCockpitWasmClient: sharedCockpitWasmClient);
+    sharedCockpitWasmClient: sharedCockpitWasmClient,
+    // FsuipcLVarClient implementa también ICalculatorCodeClient (ver
+    // ICalculatorCodeClient.cs) -- mismo objeto/conexión FSUIPC7 que ya se usa
+    // para leer L-Vars, reutilizado para ejecutar calculator code (RPN) vía el
+    // módulo WASM/WAPI de FSUIPC7. Confirmado en vivo el 2026-07-27 contra
+    // MSFS 2024 + PMDG 737-900 real.
+    calculatorCodeClient: sharedCockpitWasmClient);
 
 // Token efímero opcional: We Connect (electron/main.cjs) lo genera al lanzar
 // este proceso y lo exige en el handshake WebSocket. Lanzado a mano sin la

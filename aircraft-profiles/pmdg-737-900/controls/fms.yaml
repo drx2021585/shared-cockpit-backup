@@ -211,6 +211,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_IRU_MSU_LEFT"
+    parameter: "$value"
     semantics: "sets the LEFT IRS Mode Selector Unit to the explicit numeric position being written (IRS_ModeSelector[0]: 0 OFF, 1 ALIGN, 2 NAV, 3 ATT, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position. Event is prefixed EVT_IRU_ (not EVT_OH_) but matches this field by name/semantics"
   synchronization:
     mode: event
@@ -232,6 +233,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_IRU_MSU_RIGHT"
+    parameter: "$value"
     semantics: "sets the RIGHT IRS Mode Selector Unit to the explicit numeric position being written (IRS_ModeSelector[1]: 0 OFF, 1 ALIGN, 2 NAV, 3 ATT); Parameter must carry the absolute target position. Event is prefixed EVT_IRU_ (not EVT_OH_) but matches this field by name/semantics"
   synchronization:
     mode: event
@@ -308,6 +310,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NAVDSP_VHF_NAV_SEL"
+    parameter: "$value"
     semantics: "sets the VHF NAV transfer switch to the explicit numeric position being written (NAVDIS_VHFNavSelector: 0 BOTH ON 1, 1 NORMAL, 2 BOTH ON 2, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -328,6 +331,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NAVDSP_IRS_SEL"
+    parameter: "$value"
     semantics: "sets the IRS transfer switch to the explicit numeric position being written (NAVDIS_IRSSelector: 0 BOTH ON L, 1 NORMAL, 2 BOTH ON R); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -348,6 +352,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NAVDSP_FMC_SEL"
+    parameter: "$value"
     semantics: "sets the FMC source select switch to the explicit numeric position being written (NAVDIS_FMCSelector: 0 BOTH ON L, 1 NORMAL, 2 BOTH ON R); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -368,6 +373,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NAVDSP_DISPLAYS_SOURCE_SEL"
+    parameter: "$value"
     semantics: "sets the DISPLAYS SOURCE selector to the explicit numeric position being written (NAVDIS_SourceSelector: 0 ALL ON 1, 1 AUTO, 2 ALL ON 2); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -388,6 +394,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_NAVDSP_CONTROL_PANEL_SEL"
+    parameter: "$value"
     semantics: "sets the CONTROL PANEL select switch to the explicit numeric position being written (NAVDIS_ControlPaneSelector: 0 BOTH ON 1, 1 NORMAL, 2 BOTH ON 2); Parameter must carry the absolute target position"
   synchronization:
     mode: event

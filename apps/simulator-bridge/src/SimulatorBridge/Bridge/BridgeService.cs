@@ -50,6 +50,21 @@ public sealed class BridgeService : IAsyncDisposable
     /// esos controles con un warning.
     /// </summary>
     private readonly IPmdgClientDataClient? _sharedCockpitWasmClient;
+
+    /// <summary>
+    /// Ejecutor de calculator code (RPN) para controles write.type=calculatorCode
+    /// (ej. flight.yoke.pitch/roll, flight.rudder en el 737 -- ver
+    /// ICalculatorCodeClient para el detalle de la verificación en vivo). En
+    /// Program.cs es el mismo objeto que _sharedCockpitWasmClient
+    /// (FsuipcLVarClient implementa ambas interfaces), pero se modela como una
+    /// dependencia separada para no acoplar BridgeService a esa implementación
+    /// concreta ni a que ambas capacidades vengan siempre del mismo cliente.
+    /// Null o no listo → se reporta BridgeError estructurado, nunca crashea ni
+    /// hace fallback a un TOGGLE/escritura no explícita.
+    /// </summary>
+    private readonly ICalculatorCodeClient? _calculatorCodeClient;
+    private bool _calculatorCodeUnavailableWarned;
+
     private readonly ProfileRepository _profileRepo;
     private readonly ILog _log;
     private readonly Action<JsonObject> _broadcast;
@@ -65,6 +80,28 @@ public sealed class BridgeService : IAsyncDisposable
     private long _sequence;
     private bool _pmdgUnavailableWarned;
 
+    /// <summary>
+    /// Última (sequence, timestamp de llegada al bridge) observada por control
+    /// para mensajes entrantes ORIGIN=REMOTE de controles authority=exclusive
+    /// (ej. flight.yoke.pitch/roll, flight.rudder en el 737/C172). Defensa en
+    /// profundidad barata: el árbitro real de autoridad vive en server/api (ver
+    /// contexto de la tarea), este diccionario NO bloquea ni decide nada, solo
+    /// permite loggear como warning una señal de que el filtro de autoridad del
+    /// servidor pudo haber fallado (dos mensajes del mismo control exclusivo con
+    /// sequence decreciente llegando en rápida sucesión -- indicio de que se
+    /// coló una escritura de un piloto sin autoridad vigente, sin dedupe).
+    /// </summary>
+    private readonly Dictionary<string, (long Sequence, long ObservedAtMs)> _lastExclusiveSequenceByControl = new();
+
+    /// <summary>
+    /// Ventana en la que una sequence decreciente para el mismo control
+    /// exclusive se considera "rápida sucesión" (señal de filtro de autoridad
+    /// del servidor posiblemente fallado) en vez de una reconexión/reset
+    /// legítimo y lento de sesión. Puramente para clasificar el log, no cambia
+    /// ningún comportamiento de escritura.
+    /// </summary>
+    private static readonly TimeSpan ExclusiveSequenceAnomalyWindow = TimeSpan.FromSeconds(2);
+
     public BridgeService(
         ISimConnectClient sim,
         ProfileRepository profileRepo,
@@ -75,7 +112,8 @@ public sealed class BridgeService : IAsyncDisposable
         TimeSpan? reconnectInterval = null,
         TimeSpan? pumpInterval = null,
         IPmdgClientDataClient? pmdgClient = null,
-        IPmdgClientDataClient? sharedCockpitWasmClient = null)
+        IPmdgClientDataClient? sharedCockpitWasmClient = null,
+        ICalculatorCodeClient? calculatorCodeClient = null)
     {
         _sim = sim;
         _profileRepo = profileRepo;
@@ -87,6 +125,7 @@ public sealed class BridgeService : IAsyncDisposable
         _pumpInterval = pumpInterval ?? TimeSpan.FromMilliseconds(33);
         _pmdgClient = pmdgClient;
         _sharedCockpitWasmClient = sharedCockpitWasmClient;
+        _calculatorCodeClient = calculatorCodeClient;
 
         _sim.Connected += OnConnected;
         _sim.Disconnected += OnDisconnected;
@@ -176,11 +215,19 @@ public sealed class BridgeService : IAsyncDisposable
 
     private void HandleIncomingControlEvent(IncomingControlEvent ce)
     {
+        // Regla no negociable (CLAUDE.md raíz): todo mensaje entrante por este
+        // WebSocket ya viene marcado Origin=Remote desde IncomingMessageParser, y
+        // se APLICA al sim (WriteControl) sin jamás reenviarse hacia _broadcast
+        // como si fuera un cambio local nuevo -- lo único que sale por _broadcast
+        // desde este flujo son BridgeError estructurados, nunca un eco del
+        // control.event/control.axis recibido.
         var control = RequireControlForWrite(ce.ControlId);
         if (control is null)
         {
             return;
         }
+
+        CheckExclusiveSequenceAnomaly(control, ce.Sequence, ce.Origin);
 
         object value = control.DataType switch
         {
@@ -201,7 +248,53 @@ public sealed class BridgeService : IAsyncDisposable
             return;
         }
 
+        CheckExclusiveSequenceAnomaly(control, ca.Sequence, ca.Origin);
+
         WriteControl(control, ca.Value);
+    }
+
+    /// <summary>
+    /// Telemetría de diagnóstico pura (no bloquea ni decide autoridad -- eso vive
+    /// en server/api, ver contexto de la tarea): para controles authority=exclusive
+    /// (flight.yoke.pitch/roll, flight.rudder en 737 y C172), registra un warning
+    /// si una sequence decreciente para el MISMO control llega en rápida sucesión
+    /// (menos de <see cref="ExclusiveSequenceAnomalyWindow"/> desde la última
+    /// observada), lo que sugeriría que el gate de autoridad del servidor dejó
+    /// pasar (sin dedupe) un mensaje de un piloto que no debería tener el control
+    /// en ese instante. También reafirma explícitamente que el mensaje sigue
+    /// marcado Origin=Remote en este punto -- nunca se trata como si fuera local.
+    /// </summary>
+    private void CheckExclusiveSequenceAnomaly(ControlDefinition control, long incomingSequence, MessageOrigin origin)
+    {
+        if (control.Authority != ControlAuthority.Exclusive)
+        {
+            return;
+        }
+
+        if (origin != MessageOrigin.Remote)
+        {
+            // No debería ocurrir nunca -- todo lo que llega por HandleIncoming
+            // viene de IncomingMessageParser, que siempre asigna Remote. Se deja
+            // como aserción loggeada en vez de silenciosa por si algún llamador
+            // futuro rompe esa garantía.
+            _log.Warn($"control exclusive '{control.Id}': mensaje entrante con Origin={origin} (se esperaba Remote) -- posible violación de la regla anti-eco del proyecto.");
+        }
+
+        var nowMs = NowMs();
+        if (_lastExclusiveSequenceByControl.TryGetValue(control.Id, out var last))
+        {
+            var elapsed = TimeSpan.FromMilliseconds(nowMs - last.ObservedAtMs);
+            if (incomingSequence < last.Sequence && elapsed <= ExclusiveSequenceAnomalyWindow)
+            {
+                _log.Warn(
+                    $"control exclusive '{control.Id}': sequence decreciente en rápida sucesión " +
+                    $"({incomingSequence} < {last.Sequence}, Δt={elapsed.TotalMilliseconds:F0}ms) -- posible fallo del " +
+                    "filtro de autoridad/dedupe en server/api dejando pasar una escritura sin autoridad vigente. " +
+                    "No se bloquea aquí (la decisión de autoridad es del servidor), solo se reporta para diagnóstico.");
+            }
+        }
+
+        _lastExclusiveSequenceByControl[control.Id] = (incomingSequence, nowMs);
     }
 
     private ControlDefinition? RequireControlForWrite(string controlId)
@@ -252,33 +345,29 @@ public sealed class BridgeService : IAsyncDisposable
             {
                 // SIEMPRE SET_ON/SET_OFF/SET_VALUE explícito -- nunca un pulso TOGGLE crudo
                 // (regla de oro anti-toggle, ver CLAUDE.md raíz y packages/protocol/README.md).
-                var dwData = value switch
-                {
-                    bool b => b ? 1u : 0u,
-                    double d => unchecked((uint)Math.Round(d)),
-                    string => 0u,
-                    _ => 0u,
-                };
-
-                _sim.TransmitSetEvent(control.Write.Name, dwData);
+                var (eventName, dwData) = ResolveInputEventPulse(control.Write.Name, control.DataType, value);
+                _sim.TransmitSetEvent(eventName, dwData);
                 break;
             }
 
             case WriteType.Hvar:
+                // H:vars siguen sin soporte: a diferencia de calculator code (ver
+                // WriteType.CalculatorCode más abajo), no hay un método directo
+                // "escribir H:var" en FSUIPCClientDLL/MSFSVariableServices -- se
+                // podría emular con calculator code ("(>H:xxx)") si algún perfil
+                // lo necesitara, pero ningún control declarado hoy usa Hvar para
+                // escritura. Se mantiene como error estructurado explícito en vez
+                // de fallar silenciosamente o hacer un TOGGLE.
+                _log.Warn($"control '{control.Id}': write.type={control.Write.Type} (H:var) no soportado todavía por este bridge.");
+                _broadcast(BridgeError.Build(control.Id, "write", $"write.type={control.Write.Type} no implementado"));
+                break;
+
             case WriteType.CalculatorCode:
-                // No soportado por un bridge SimConnect "puro": H:vars y calculator code
-                // (RPN) solo se pueden ejecutar dentro de un gauge/WASM module
-                // (execute_calculator_code), no vía las funciones estándar de
-                // SimConnect que usa este proceso. Esto es responsabilidad de
-                // wasm-agent (ver docs/plan-maestro.md Fase 1: "Agentes:
-                // simconnect-bridge-agent, wasm-agent"). Se reporta como error
-                // estructurado en vez de fallar silenciosamente o hacer un TOGGLE.
-                _log.Warn($"control '{control.Id}': write.type={control.Write.Type} requiere ejecución de calculator code vía WASM, no soportado por este proceso SimConnect puro.");
-                _broadcast(BridgeError.Build(control.Id, "write", $"write.type={control.Write.Type} requiere el bridge WASM (no implementado en Sprint 1)"));
+                WriteCalculatorCodeControl(control, value);
                 break;
 
             case WriteType.ClientDataEvent:
-                WriteClientDataEventControl(control);
+                WriteClientDataEventControl(control, value);
                 break;
 
             case WriteType.NativeEventValue:
@@ -310,6 +399,24 @@ public sealed class BridgeService : IAsyncDisposable
     }
 
     /// <summary>
+    /// Marcador reconocido en control.Write.Parameter (ver
+    /// packages/profile-schema/control.schema.json: 'parameter' ya admite
+    /// integer|string, así que esto NO requiere ningún cambio de esquema) para
+    /// indicar que el Parameter a transmitir NO es un literal estático sino que
+    /// debe sustituirse en tiempo de escritura por el valor ABSOLUTO que el
+    /// cliente está fijando ahora mismo (0/1 para boolean, posición entera para
+    /// number -- ej. selectores de N posiciones como lights.dome_white_sw: 0
+    /// DIM/1 OFF/2 BRIGHT). Esto es lo que faltaba para que un clientDataEvent
+    /// se comporte como un SET_VALUE real en vez de transmitir siempre
+    /// Parameter=0 (ver ResolveWriteEventParameter). Cualquier otro valor de
+    /// 'parameter' (incluido null) conserva el comportamiento histórico: un
+    /// literal estático fijo por control (ej. mcdu.*.key_* siempre transmiten
+    /// parameter: 1 sin importar el valor del press, porque son botones
+    /// momentáneos sin estado).
+    /// </summary>
+    private const string DynamicParameterPlaceholder = "$value";
+
+    /// <summary>
     /// Escribe un control write.type=clientDataEvent (SDK de terceros, ej. PMDG
     /// NG3). Regla anti-TOGGLE: control.Write.Semantics es obligatorio en el
     /// esquema (validado por tools/validate_profiles.py) precisamente para que un
@@ -317,7 +424,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// crashea si el SDK de terceros no está disponible: se loggea un warning y
     /// se reporta un BridgeError estructurado, sin afectar otros controles.
     /// </summary>
-    private void WriteClientDataEventControl(ControlDefinition control)
+    private void WriteClientDataEventControl(ControlDefinition control, object value)
     {
         // control.Write puede ser null si el control es readOnly; este método solo
         // se alcanza desde WriteControl tras verificar que no lo es, pero se
@@ -338,11 +445,183 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         var eventIdOrName = write.Event ?? string.Empty;
-        var ok = _pmdgClient!.WriteControlEvent(areaName, eventIdOrName, write.Parameter);
+        var resolvedParameter = ResolveWriteEventParameter(write.Parameter, control.DataType, value);
+        var ok = _pmdgClient!.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
         if (!ok)
         {
             _broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));
         }
+    }
+
+    /// <summary>
+    /// Escribe un control write.type=calculatorCode ejecutando el RPN declarado
+    /// en control.Write.Name a través de _calculatorCodeClient (en producción,
+    /// FsuipcLVarClient -- ver ICalculatorCodeClient para el detalle de la
+    /// verificación EN VIVO contra MSFS 2024 + PMDG 737-900 real). Igual que
+    /// WriteClientDataEventControl, nunca crashea si el ejecutor no está
+    /// disponible: se loggea un warning y se reporta un BridgeError
+    /// estructurado, sin afectar otros controles.
+    /// </summary>
+    private void WriteCalculatorCodeControl(ControlDefinition control, object value)
+    {
+        var write = control.Write;
+        if (write is null)
+        {
+            _log.Warn($"control '{control.Id}': write.type=calculatorCode sin bloque 'write' definido (readOnly). Se ignora.");
+            _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
+            return;
+        }
+
+        if (!EnsureCalculatorCodeClientReady(control.Id))
+        {
+            return;
+        }
+
+        var code = ResolveCalculatorCodeTemplate(write.Name, control.DataType, value);
+        var ok = _calculatorCodeClient!.ExecuteCalculatorCode(code);
+        if (!ok)
+        {
+            _broadcast(BridgeError.Build(control.Id, "write", $"calculatorCode '{code}' no se pudo ejecutar para el control '{control.Id}' (ver logs del bridge para el motivo)"));
+        }
+    }
+
+    /// <summary>
+    /// Sustituye el marcador DynamicParameterPlaceholder ("$value") dentro de un
+    /// template de RPN (control.Write.Name para calculatorCode) por el valor
+    /// ABSOLUTO que se está fijando ahora mismo, igual que
+    /// ResolveWriteEventParameter hace para clientDataEvent. La escala/signo
+    /// específicos de cada evento K: de destino (ej. AXIS_RUDDER_SET espera
+    /// -16384..16384, no -1..1) son responsabilidad del propio RPN declarado en
+    /// el perfil (puede incluir aritmética, ej. "$value -16384 * (>K:AXIS_RUDDER_SET)"),
+    /// no de este método -- ver ICalculatorCodeClient para la escala/signo real
+    /// confirmados en vivo para el 737. Si el template no contiene el marcador,
+    /// se ejecuta literal (permite RPN estático sin valor, ej. pulsos fijos).
+    /// </summary>
+    private static string ResolveCalculatorCodeTemplate(string template, ControlDataType dataType, object value)
+    {
+        if (!template.Contains(DynamicParameterPlaceholder, StringComparison.Ordinal))
+        {
+            return template;
+        }
+
+        var numeric = dataType switch
+        {
+            ControlDataType.Boolean => value is bool b ? (b ? 1d : 0d) : 0d,
+            ControlDataType.Number => value is double d ? d : 0d,
+            _ => 0d,
+        };
+
+        return template.Replace(
+            DynamicParameterPlaceholder,
+            numeric.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifica (y, si hace falta, intenta abrir) la conexión del ejecutor de
+    /// calculator code. Reporta como warning/BridgeError la primera vez que no
+    /// está disponible, sin reintentar en cada Pump (evita spam de logs) --
+    /// mismo patrón que EnsurePmdgClientReady.
+    /// </summary>
+    private bool EnsureCalculatorCodeClientReady(string controlId)
+    {
+        if (_calculatorCodeClient is null)
+        {
+            if (!_calculatorCodeUnavailableWarned)
+            {
+                _calculatorCodeUnavailableWarned = true;
+                _log.Warn("El perfil activo declara un control write.type=calculatorCode, pero el bridge no tiene ningún ICalculatorCodeClient inyectado (ver Program.cs). Esos controles no se sincronizarán.");
+            }
+
+            _broadcast(BridgeError.Build(controlId, "write", "ningún ejecutor de calculator code configurado en el bridge"));
+            return false;
+        }
+
+        if (_calculatorCodeClient.IsConnected)
+        {
+            return true;
+        }
+
+        if (_calculatorCodeClient.TryConnect(_appName))
+        {
+            return true;
+        }
+
+        if (!_calculatorCodeUnavailableWarned)
+        {
+            _calculatorCodeUnavailableWarned = true;
+            _log.Warn("No se pudo conectar el ejecutor de calculator code (¿FSUIPC7 no está corriendo?). Esos controles no se sincronizarán hasta la próxima reconexión.");
+        }
+
+        _broadcast(BridgeError.Build(controlId, "write", "no se pudo conectar el ejecutor de calculator code"));
+        return false;
+    }
+
+    /// <summary>
+    /// Marcador reconocido en control.Write.Name para write.type=inputEvent
+    /// (separador '|'): algunos addons de terceros (ej. PMDG NG3, confirmado
+    /// contra la implementación real de YourControls para el gear lever, ver
+    /// aircraft-profiles/pmdg-737-900/EVENT_IDS_PENDIENTES.md) NO escuchan un
+    /// único K:event *_SET parametrizable con 0/1 -- en su lugar solo hookean
+    /// dos K:events NATIVOS de SimConnect legacy y deterministas por separado
+    /// (ej. GEAR_UP / GEAR_DOWN), cada uno sin parámetro significativo. Un
+    /// perfil puede declarar esto con 'write.name: "EVENTO_SI_TRUE|EVENTO_SI_FALSE"'
+    /// (solo para dataType boolean); el bridge elige el evento según el valor
+    /// ABSOLUTO que se está fijando (nunca alterna/toggle -- sigue siendo un
+    /// SET_ON/SET_OFF explícito, solo que cada estado usa un K:event propio en
+    /// vez de un parámetro numérico sobre el mismo evento). Sin '|' en el
+    /// nombre, o para dataType distinto de boolean, se conserva el
+    /// comportamiento histórico de un único evento con dwData derivado del
+    /// valor.
+    /// </summary>
+    private static (string EventName, uint Data) ResolveInputEventPulse(string declaredName, ControlDataType dataType, object value)
+    {
+        if (dataType == ControlDataType.Boolean && declaredName.Contains('|'))
+        {
+            var parts = declaredName.Split('|', 2);
+            var isTrue = value is bool b && b;
+            // dwData=1 fijo para ambos casos: el K:event elegido ya codifica la
+            // dirección/acción determinística (ej. K:GEAR_DOWN vs K:GEAR_UP), el
+            // parámetro numérico no tiene semántica propia para este tipo de
+            // evento legacy (mismo patrón usado por la implementación de
+            // referencia de YourControls: "1 (>K:GEAR_UP)" / "1 (>K:GEAR_DOWN)").
+            return (isTrue ? parts[0] : parts[1], 1u);
+        }
+
+        var dwData = value switch
+        {
+            bool b2 => b2 ? 1u : 0u,
+            double d => unchecked((uint)Math.Round(d)),
+            string => 0u,
+            _ => 0u,
+        };
+
+        return (declaredName, dwData);
+    }
+
+    /// <summary>
+    /// Resuelve el valor final de Control.Parameter para un control
+    /// write.type=clientDataEvent. Ver DynamicParameterPlaceholder para la
+    /// convención completa. SIEMPRE transmite el valor ABSOLUTO deseado (nunca
+    /// un delta/pulso relativo), tanto en el caso dinámico como en el estático,
+    /// preservando la regla anti-TOGGLE del proyecto.
+    /// </summary>
+    private static string? ResolveWriteEventParameter(string? declaredParameter, ControlDataType dataType, object value)
+    {
+        if (!string.Equals(declaredParameter, DynamicParameterPlaceholder, StringComparison.Ordinal))
+        {
+            // Comportamiento histórico: literal estático (o null) definido en el perfil.
+            return declaredParameter;
+        }
+
+        var numeric = dataType switch
+        {
+            ControlDataType.Boolean => value is bool b ? (b ? 1 : 0) : 0,
+            ControlDataType.Number => value is double d ? unchecked((int)Math.Round(d)) : 0,
+            _ => 0,
+        };
+
+        return numeric.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private void OnConnected()

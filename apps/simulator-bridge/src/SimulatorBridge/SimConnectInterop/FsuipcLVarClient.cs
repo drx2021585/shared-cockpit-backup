@@ -37,13 +37,23 @@ namespace SharedCockpit.Bridge.SimConnectInterop;
 /// de este bridge (nunca crashea el resto del proceso).
 /// ====================================================================================
 /// </summary>
-public sealed class FsuipcLVarClient : IPmdgClientDataClient
+public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeClient
 {
     private const string AreaName = "SharedCockpitBridge_LVars";
 
     private sealed record TrackedField(string ControlId, string LVarName, double LastValue);
 
     private readonly Dictionary<string, TrackedField> _tracked = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// True una vez que MSFSVariableServices.Init()/Start() se llamaron sin
+    /// excepción (no implica que el módulo WASM/WAPI (FSUIPC_WAPID.dll) ya esté
+    /// respondiendo dentro del sim -- eso se verifica por separado en cada
+    /// ExecuteCalculatorCode vía MSFSVariableServices.IsRunning, porque el
+    /// arranque del WASM module dentro de MSFS puede tardar unos segundos más
+    /// que la apertura de la conexión FSUIPC7 misma).
+    /// </summary>
+    private bool _calculatorCodeInitAttempted;
 
     public bool IsConnected { get; private set; }
 
@@ -77,6 +87,31 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient
 
         IsConnected = true;
         Connected?.Invoke();
+
+        // Best-effort: arranca también el módulo WASM/WAPI de FSUIPC7 (John
+        // Dowson's WASM module, FSUIPC_WAPID.dll) para poder ejecutar calculator
+        // code (ver ICalculatorCodeClient). Si falla (ej. FSUIPC_WAPID.dll no
+        // está junto al .exe del bridge, o el WASM module no está en el sim), se
+        // reporta como warning y los controles calculatorCode simplemente no se
+        // sincronizan -- NO afecta la lectura de L-Vars (_tracked), que sigue
+        // funcionando igual que antes por el mecanismo clásico de FSUIPC7.
+        if (!_calculatorCodeInitAttempted)
+        {
+            _calculatorCodeInitAttempted = true;
+            try
+            {
+                MSFSVariableServices.Init();
+                MSFSVariableServices.Start();
+            }
+            catch (Exception ex)
+            {
+                Warning?.Invoke(
+                    "No se pudo iniciar MSFSVariableServices (módulo WASM/WAPI de FSUIPC7) para calculator code: " +
+                    $"{ex.Message}. ¿Está FSUIPC_WAPID.dll junto a SharedCockpit.Bridge.exe? La lectura de L-Vars vía " +
+                    "FSUIPC7 sigue funcionando igual; solo los controles write.type=calculatorCode no se podrán escribir.");
+            }
+        }
+
         return true;
     }
 
@@ -165,6 +200,46 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient
         // ya está probado funcionando.
         Warning?.Invoke($"FsuipcLVarClient: WriteControlEvent no soportado todavía (área '{areaName}').");
         return false;
+    }
+
+    /// <summary>
+    /// Ejecuta un RPN de calculator code a través del módulo WASM/WAPI de
+    /// FSUIPC7 (MSFSVariableServices.ExecuteCalculatorCode). Confirmado EN VIVO
+    /// (ver ICalculatorCodeClient) contra MSFS 2024 + PMDG 737-900 real: el
+    /// mecanismo funciona invocado desde este proceso EXTERNO, sin necesitar la
+    /// opción "Enable calculator code execution..." de MSFS ni un módulo WASM
+    /// propio del proyecto. Nunca lanza -- cualquier fallo se reporta por
+    /// Warning y devuelve false, igual que el resto de los métodos de escritura
+    /// del bridge.
+    /// </summary>
+    public bool ExecuteCalculatorCode(string code)
+    {
+        if (!IsConnected)
+        {
+            Warning?.Invoke($"ExecuteCalculatorCode('{code}') ignorado: la conexión a FSUIPC7 no está abierta.");
+            return false;
+        }
+
+        if (!MSFSVariableServices.IsRunning)
+        {
+            Warning?.Invoke(
+                $"ExecuteCalculatorCode('{code}') ignorado: el módulo WASM/WAPI de FSUIPC7 todavía no está listo " +
+                "(MSFSVariableServices.IsRunning=false). Verifique que FSUIPC_WAPID.dll esté junto al ejecutable " +
+                "del bridge y que el módulo WASM WAPI se haya cargado dentro del sim (puede tardar unos segundos " +
+                "tras iniciar MSFS/el bridge).");
+            return false;
+        }
+
+        try
+        {
+            MSFSVariableServices.ExecuteCalculatorCode(code);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Warning?.Invoke($"ExecuteCalculatorCode('{code}') falló: {ex.Message}");
+            return false;
+        }
     }
 
     public void Dispose()

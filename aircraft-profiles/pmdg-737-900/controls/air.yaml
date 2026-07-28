@@ -59,6 +59,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_EC_SUPPLY_SWITCH"
+    parameter: "$value"
     semantics: "sets the EQUIPMENT COOLING SUPPLY switch to the explicit boolean state being written (AIR_EquipCoolingSupplyNORM); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -79,6 +80,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_EC_EXHAUST_SWITCH"
+    parameter: "$value"
     semantics: "sets the EQUIPMENT COOLING EXHAUST switch to the explicit boolean state being written (AIR_EquipCoolingExhaustNORM); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -127,6 +129,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_AIRCOND_TEMP_SOURCE_SELECTOR_800"
+    parameter: "$value"
     semantics: "sets the AIRCOND TEMP SOURCE selector to the explicit numeric position being written (AIR_TempSourceSelector: positions 0..6, per PMDG_NG3_SDK.h comment); uses the '_800' event variant, header-documented as '-800/900 panel only', matching this -900/900ER profile; Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -147,6 +150,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_AIRCOND_TRIM_AIR_SWITCH_800"
+    parameter: "$value"
     semantics: "sets the TRIM AIR switch to the explicit boolean state being written (AIR_TrimAirSwitch); uses the '_800' event variant ('-800/900 panel only' per header); Parameter=1/0 explicit. NOTE: a separate EVT_OH_TRIM_AIR_SWITCH_TOGGLE(84832) exists but its comment 'user clicks a switch' suggests a raw toggle pulse, deliberately NOT used here (anti-TOGGLE rule)"
   synchronization:
     mode: event
@@ -255,6 +259,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_RECIRC_FAN_L_SWITCH"
+    parameter: "$value"
     semantics: "sets the LEFT recirculation fan switch to the explicit boolean state being written (AIR_RecircFanSwitch[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -276,6 +281,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_RECIRC_FAN_R_SWITCH"
+    parameter: "$value"
     semantics: "sets the RIGHT recirculation fan switch to the explicit boolean state being written (AIR_RecircFanSwitch[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -297,6 +303,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_PACK_L_SWITCH"
+    parameter: "$value"
     semantics: "sets the LEFT pack switch to the explicit numeric position being written (AIR_PackSwitch[0]); Parameter must carry the absolute target position (exact enumerated positions not confirmed in the transcribed header comment for this field, treated as a discrete selector by naming convention)"
   synchronization:
     mode: event
@@ -318,6 +325,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_PACK_R_SWITCH"
+    parameter: "$value"
     semantics: "sets the RIGHT pack switch to the explicit numeric position being written (AIR_PackSwitch[1]); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -339,6 +347,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_ENG_1_SWITCH"
+    parameter: "$value"
     semantics: "sets the ENG 1 bleed air switch to the explicit boolean state being written (AIR_BleedAirSwitch[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -360,6 +369,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_ENG_2_SWITCH"
+    parameter: "$value"
     semantics: "sets the ENG 2 bleed air switch to the explicit boolean state being written (AIR_BleedAirSwitch[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -380,6 +390,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_APU_SWITCH"
+    parameter: "$value"
     semantics: "sets the APU bleed air switch to the explicit boolean state being written (AIR_APUBleedAirSwitch); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -400,6 +411,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_BLEED_ISOLATION_VALVE_SWITCH"
+    parameter: "$value"
     semantics: "sets the ISOLATION VALVE switch to the explicit numeric position being written (AIR_IsolationValveSwitch); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -594,6 +606,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_PRESS_FLT_ALT_SET"
+    parameter: "$value"
     semantics: "sets the FLT ALT window to the explicit numeric value being written (AIR_FltAltWindow); dedicated '_SET' event (offset 14507), distinct from the rotary EVT_OH_PRESS_FLT_ALT_KNOB, treated as an absolute set. NOTE: AIR_FltAltWindow is marked 'WARNING obsolete - use AIR_DisplayFltAlt instead' as a READ field in the header, but the write event itself is current; prefer AIR_DisplayFltAlt for reading in new code"
   synchronization:
     mode: event
@@ -614,6 +627,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_PRESS_LAND_ALT_SET"
+    parameter: "$value"
     semantics: "sets the LAND ALT window to the explicit numeric value being written (AIR_LandAltWindow); dedicated '_SET' event (offset 14508), distinct from the rotary EVT_OH_PRESS_LAND_ALT_KNOB. NOTE: AIR_LandAltWindow is marked 'WARNING obsolete - use AIR_DisplayLandAlt instead' as a READ field, write event itself is current"
   synchronization:
     mode: event
@@ -634,6 +648,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_PRESS_VALVE_SWITCH"
+    parameter: "$value"
     semantics: "sets the outflow valve switch to the explicit numeric position being written (AIR_OutflowValveSwitch: 0 CLOSE, 1 NEUTRAL, 2 OPEN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -654,6 +669,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_PRESS_SELECTOR"
+    parameter: "$value"
     semantics: "sets the pressurization mode selector to the explicit numeric position being written (AIR_PressurizationModeSelector: 0 AUTO, 1 ALTN, 2 MAN, per PMDG_NG3_SDK.h comment); Parameter must carry the absolute target position"
   synchronization:
     mode: event
@@ -795,6 +811,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_WINDOW_HEAT_1"
+    parameter: "$value"
     semantics: "sets window heat switch 1 to the explicit boolean state being written (ICE_WindowHeatSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -816,6 +833,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_WINDOW_HEAT_2"
+    parameter: "$value"
     semantics: "sets window heat switch 2 to the explicit boolean state being written (ICE_WindowHeatSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -837,6 +855,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_WINDOW_HEAT_3"
+    parameter: "$value"
     semantics: "sets window heat switch 3 to the explicit boolean state being written (ICE_WindowHeatSw[2]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -858,6 +877,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_WINDOW_HEAT_4"
+    parameter: "$value"
     semantics: "sets window heat switch 4 to the explicit boolean state being written (ICE_WindowHeatSw[3]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -991,6 +1011,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_PROBE_HEAT_1"
+    parameter: "$value"
     semantics: "sets probe heat switch 1 to the explicit boolean state being written (ICE_ProbeHeatSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -1012,6 +1033,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_PROBE_HEAT_2"
+    parameter: "$value"
     semantics: "sets probe heat switch 2 to the explicit boolean state being written (ICE_ProbeHeatSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -1122,6 +1144,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_WING_ANTIICE"
+    parameter: "$value"
     semantics: "sets the WING anti-ice switch to the explicit boolean state being written (ICE_WingAntiIceSw); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -1143,6 +1166,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_ENGINE_ANTIICE_1"
+    parameter: "$value"
     semantics: "sets the ENG 1 anti-ice switch to the explicit boolean state being written (ICE_EngAntiIceSw[0]); Parameter=1/0 explicit"
   synchronization:
     mode: event
@@ -1164,6 +1188,7 @@
     type: clientDataEvent
     areaName: "PMDG_NG3_Control"
     event: "EVT_OH_ICE_ENGINE_ANTIICE_2"
+    parameter: "$value"
     semantics: "sets the ENG 2 anti-ice switch to the explicit boolean state being written (ICE_EngAntiIceSw[1]); Parameter=1/0 explicit"
   synchronization:
     mode: event

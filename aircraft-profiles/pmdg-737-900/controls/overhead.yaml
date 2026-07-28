@@ -21,7 +21,11 @@
 #
 # Un mismo id no puede repetirse en el mismo perfil. beacon/nav/landing/
 # strobe de abajo permanecen como placeholder porque no tienen Event ID
-# confirmado todavía.
+# confirmado todavía (sí funcionan hoy: BEACON_LIGHTS_SET/NAV_LIGHTS_SET/
+# LANDING_LIGHTS_SET/STROBES_SET son K:events estándar reales de MSFS que
+# el PMDG NG3 sí honra, a diferencia de "PARKING_BRAKE_SET" -- ver nota de
+# 2026-07-27 más abajo, donde "ground.parking_brake" se retiró de este
+# archivo por ser un placeholder roto para este addon).
 
 - id: lights.beacon
   dataType: boolean
@@ -83,17 +87,27 @@
     confirmAfterWrite: true
     timeoutMs: 1000
 
-- id: ground.parking_brake
-  dataType: boolean
-  authority: shared
-  read:
-    type: simvar
-    name: "BRAKE PARKING POSITION"
-  write:
-    type: inputEvent
-    name: "PARKING_BRAKE_SET"
-  synchronization:
-    mode: event
-    debounceMs: 100
-    confirmAfterWrite: true
-    timeoutMs: 1000
+# REMOVIDO 2026-07-27 (simconnect-bridge-agent, bug real reportado por Darwin:
+# el parking brake no sincronizaba entre jugadores). Este control ("ground.
+# parking_brake", simvar estándar "BRAKE PARKING POSITION" + evento
+# "PARKING_BRAKE_SET") era un placeholder genérico de SimConnect estándar que
+# NUNCA tuvo efecto real contra el PMDG 737: "PARKING_BRAKE_SET" no es un
+# K:event documentado por Microsoft/PMDG (el único evento estándar de MSFS
+# para el freno de parqueo es "PARKING_BRAKES", que es un TOGGLE puro, sin
+# variante _SET) y, aunque lo fuera, el PMDG NG3 ignora los K:events estándar
+# de sus propios interruptores de cabina (por eso existe el bus ROTOR_BRAKE,
+# ver controls/native-toggle-switches.yaml) -- TransmitClientEvent con ese
+# nombre simplemente no producía ningún cambio en el simulador, así que la
+# escritura se perdía en silencio y el estado divergía entre jugadores
+# (exactamente el síntoma reportado). El perfil YA tiene el control correcto
+# para este mismo interruptor físico, confirmado en vivo contra MSFS real
+# 2026-07-27: `native_toggle.parking_brake_lever` (controls/
+# native-toggle-switches.yaml), que lee L:switch_693_73X vía
+# SharedCockpitBridge_LVars y escribe con el bus ROTOR_BRAKE (param 69301,
+# write.type: nativeEventValue) -- mismo mecanismo ya validado en vivo para el
+# taxi light. Ese es el control que aircraft-profiles-agent/desktop-ui deben
+# usar para el parking brake del PMDG 737-900; no se recrea aquí un
+# mecanismo estándar duplicado porque, para este addon en particular, no
+# existe ningún K:event estándar que funcione. Un mismo id no puede
+# declararse dos veces en el mismo perfil, así que este bloque se retira en
+# vez de dejarlo como un segundo control fantasma que nunca escribe nada.
