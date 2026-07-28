@@ -182,10 +182,23 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.8",
+    version: "0.1.9",
     title: "Current build",
     commits: [
-      "The iFly 737 MAX 8 and MAX 8-200 were added to the aircraft list, with over a thousand cockpit controls mapped for shared-cockpit use.",
+      "The iFly B737 MAX 8 was added to the aircraft list, with over a thousand cockpit controls mapped for shared-cockpit use. It hasn't been tested in the simulator yet, and the app now says so on the aircraft card.",
+      "The PMDG profile now covers the whole 737 NG family — the 600, 700, 800, 900 and 900ER, including the cargo variants — instead of only the 900.",
+      "Each aircraft now shows its own coverage figure, measured from the controls that actually synchronize in both directions. Before, two aircraft could show the same percentage even when one had far more of its cockpit mapped.",
+      "The Cessna 172 was removed from the aircraft list for now.",
+      "We Connect now shows its own logo on the desktop shortcut and in the installer, not just in the running window.",
+      "The aircraft list loads faster, because the app starts fetching it as soon as it opens instead of waiting until you open the Aircraft screen.",
+      "The profile screen gained a version history you can expand to see what changed in each release.",
+    ],
+  },
+  {
+    version: "0.1.8",
+    title: "Published release",
+    date: "2026-07-27",
+    commits: [
       "The app now looks cleaner by hiding the visible scrollbars while keeping normal scrolling exactly the same.",
       "We Connect now shows its own logo correctly in the running desktop window and taskbar.",
       "Connection handling was updated behind the scenes to keep the online service more stable.",

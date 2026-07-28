@@ -118,6 +118,10 @@ Conseguir ese header es la mejora de mayor impacto pendiente para este avión.
 Por sistema, con MSFS + iFly cargado y FSUIPC7 corriendo:
 
 - [ ] El bridge reporta `Perfil detectado: 'ifly-737-max8'` al cargar el avión.
+      (La detección ya está verificada estáticamente contra los 7 títulos
+      reales de los 4 paquetes — ver `detection.yaml` y los tests
+      `Ifly737Max8_MatchesEveryRealAircraftTitle_*`. Lo que falta confirmar en
+      vivo es solo que MSFS reporte la simvar `TITLE` con ese mismo texto.)
 - [ ] Mover un switch en cabina emite el `control.event` correcto (probar uno
       simple: `fuel.fuel_crossfeed_sw`).
 - [ ] Escribir ese mismo control desde el otro asiento mueve el switch real.

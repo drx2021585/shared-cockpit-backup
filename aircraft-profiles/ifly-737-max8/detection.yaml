@@ -1,9 +1,13 @@
 # Como el bridge decide "la aeronave cargada es el iFly 737 MAX 8".
-# titleContains se compara contra el titulo / ATC MODEL de la aeronave activa.
+# titleContains se compara (substring, case-insensitive) contra la simvar TITLE,
+# que es literalmente el campo `title=` del aircraft.cfg -- ver
+# BridgeService.cs (`_sim.SubscribeString(TitleKey, "TITLE", ...)`) y
+# ProfileMatcher.cs. NO es ATC MODEL: el ATC MODEL de este avion es
+# "TT:ATCCOM.AC_MODEL B738.0.text" y no contendria nunca la cadena de abajo.
 #
-# Estos valores NO son placeholders: salen de leer los aircraft.cfg reales del
-# paquete instalado (apps/desktop-ui/recurso/ifly-aircraft-737max8*/). Los
-# titulos existentes hoy son:
+# Estos valores NO son placeholders: salen de leer los 7 aircraft.cfg reales de
+# los 4 paquetes instalados (apps/desktop-ui/recurso/ifly-aircraft-737max8*/).
+# Los titulos existentes hoy son:
 #
 #   iFly 737-MAX8 (166Seats)
 #   iFly 737-MAX8 (178Seats)
@@ -13,11 +17,20 @@
 #   iFly 737-MAX8 Southwest Airlines 'Independence One' N1776R (189Seats)
 #   iFly 737-MAX8 WestJet 'Blue Jays' C-GORP (189Seats)
 #
-# Todos comparten el mismo panel/iFly737-MAX.wasm y el mismo modelo interior,
-# asi que comparten L-Vars y codigos de comando -- un solo perfil los cubre.
+# Los 7 comparten cabina de verdad, no por suposicion: los modelos interiores
+# de las variantes (model.166Seat/, model.189Seat/, model.178Seat/, model.8200/)
+# son archivos de ~650 bytes que solo listan LODs de malla y hacen
+#   <IncludeBase RelativeFile="..\..\iFly 737-MAX8\Model\iFly737Max_INTERIOR.xml"/>
+# es decir, todos heredan EL MISMO modelo interior de 1.37 MB del que se generaron
+# los 1053 controles de controls/*.yaml. Los 3 paquetes de librea no traen ningun
+# XML de modelo: solo model.CFG + texturas. Un solo perfil los cubre a los 7.
 titleContains:
   - "iFly 737-MAX8"
 
-# Las variantes de asientos/libreas y el MAX 8-200 no difieren en ninguna L-Var
-# de cabina, asi que un match parcial es seguro aqui.
-fallbackToPartialMatch: true
+# false a proposito. Los 7 titulos empiezan literalmente por "iFly 737-MAX8", asi
+# que el match exacto por substring (paso 1 de ProfileMatcher) ya los cubre a
+# todos y el fallback parcial no aporta nada. Lo que si haria es agregar riesgo:
+# el paso 2 parte el titleContains en palabras sueltas, y la palabra "iFly" haria
+# que CUALQUIER otro producto de iFly (un 737-800, un futuro MAX 9) cargara este
+# perfil y disparara codigos de comando pensados para otro avion.
+fallbackToPartialMatch: false

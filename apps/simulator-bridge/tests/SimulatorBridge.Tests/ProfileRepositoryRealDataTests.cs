@@ -323,4 +323,52 @@ public class ProfileRepositoryRealDataTests
         Assert.Contains("$value !=", crossfeed!.Write!.Name);
         Assert.Contains("(>L:VC_Fuel_trigger_VAL,number)", crossfeed.Write.Name);
     }
+
+    /// <summary>
+    /// Los 7 títulos REALES que exponen los 4 paquetes iFly instalados (4
+    /// variantes de asientos/modelo + 3 libreas dedicadas), leídos de sus
+    /// aircraft.cfg. El bridge compara contra la simvar TITLE, que es
+    /// literalmente ese campo, así que este test es la comprobación de que la
+    /// detección funciona para todas las variantes sin depender del fallback
+    /// parcial -- que este perfil desactiva a propósito.
+    /// </summary>
+    [Theory]
+    [InlineData("iFly 737-MAX8 (178Seats)")]
+    [InlineData("iFly 737-MAX8 (166Seats)")]
+    [InlineData("iFly 737-MAX8 (189Seats)")]
+    [InlineData("iFly 737-MAX8200")]
+    [InlineData("iFly 737-MAX8 Caribbean Airlines 9Y-TTO (166Seats)")]
+    [InlineData("iFly 737-MAX8 Southwest Airlines 'Independence One' N1776R (189Seats)")]
+    [InlineData("iFly 737-MAX8 WestJet 'Blue Jays' C-GORP (189Seats)")]
+    public void Ifly737Max8_MatchesEveryRealAircraftTitle_WithoutPartialFallback(string title)
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profiles = repo.LoadAll(SimulatorVersion.Msfs2020, new ConsoleLog());
+
+        var result = ProfileMatcher.Match(profiles, title);
+
+        Assert.NotNull(result.Profile);
+        Assert.Equal("ifly-737-max8", result.Profile!.ProfileId);
+        Assert.False(result.IsPartialMatch,
+            "Debe casar por substring exacto: el perfil declara fallbackToPartialMatch: false " +
+            "justamente para que la palabra suelta 'iFly' no capture otros aviones de iFly.");
+    }
+
+    /// <summary>
+    /// El riesgo concreto que motivó apagar fallbackToPartialMatch: sin eso, la
+    /// palabra "iFly" del titleContains haría que cualquier otro producto de
+    /// iFly cargara este perfil y disparara códigos de comando pensados para el
+    /// MAX 8.
+    /// </summary>
+    [Fact]
+    public void Ifly737Max8_DoesNotCaptureOtherIflyAircraft()
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profiles = repo.LoadAll(SimulatorVersion.Msfs2020, new ConsoleLog());
+
+        var result = ProfileMatcher.Match(profiles, "iFly 737-800 Some Livery");
+
+        Assert.True(result.Profile is null || result.Profile.ProfileId != "ifly-737-max8",
+            $"Un iFly que NO es el MAX 8 no debe cargar este perfil (cargó '{result.Profile?.ProfileId}').");
+    }
 }
