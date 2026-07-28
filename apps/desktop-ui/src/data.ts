@@ -16,6 +16,13 @@ export interface FlowStep {
   hasNext: boolean;
 }
 
+export interface VersionHistoryEntry {
+  version: string;
+  title: string;
+  date?: string;
+  commits: string[];
+}
+
 export const heroTags = [
   "MSFS 2020 & 2024 · Windows PC",
   "2 players in 1 cockpit",
@@ -172,3 +179,50 @@ export const accentColor = "#50e8f4";
 
 // ---------------------------------------------------------------------------
 export const currentVersion = packageMetadata.version;
+
+export const versionHistory: VersionHistoryEntry[] = [
+  {
+    version: "0.1.8",
+    title: "Current build",
+    commits: [
+      "The iFly 737 MAX 8 and MAX 8-200 were added to the aircraft list, with over a thousand cockpit controls mapped for shared-cockpit use.",
+      "The app now looks cleaner by hiding the visible scrollbars while keeping normal scrolling exactly the same.",
+      "We Connect now shows its own logo correctly in the running desktop window and taskbar.",
+      "Connection handling was updated behind the scenes to keep the online service more stable.",
+      "Infrastructure updates were made to support a smoother and more maintainable live service.",
+    ],
+  },
+  {
+    version: "0.1.4",
+    title: "Published release",
+    date: "2026-07-27",
+    commits: [
+      "We Connect now prepares the simulator connection automatically when the app opens, so there are fewer setup steps before flying.",
+      "Version 0.1.4 was published with improvements focused on making aircraft data reading more reliable.",
+      "Switch and cockpit state reading for the PMDG 737 was improved to make shared-cockpit synchronization more dependable.",
+    ],
+  },
+  {
+    version: "0.1.3",
+    title: "Published release",
+    date: "2026-07-27",
+    commits: [
+      "Version 0.1.3 was published as a major step forward for the desktop app.",
+      "The PMDG 737 gained real shared-cockpit switch synchronization, making cockpit actions carry over more accurately between both pilots.",
+      "The Windows app now supports in-app updates, so new versions can be installed more easily.",
+      "We Connect gained its first real live connection between the app and the simulator for shared-cockpit use.",
+      "The online service was upgraded to support real shared sessions between pilots on different computers.",
+      "The desktop installer was improved so the app works more like a complete standalone product.",
+      "Support was added for the PMDG 737-900 and 737-900ER.",
+      "We Connect became available as a proper Windows desktop application.",
+    ],
+  },
+  {
+    version: "0.1.0",
+    title: "Initial release",
+    date: "2026-07-24",
+    commits: [
+      "This was the first foundation release for We Connect and the starting point of the project.",
+    ],
+  },
+];
