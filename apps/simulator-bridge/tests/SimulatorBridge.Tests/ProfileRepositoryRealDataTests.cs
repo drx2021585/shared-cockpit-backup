@@ -284,10 +284,17 @@ public class ProfileRepositoryRealDataTests
             $"Se esperaban ~1053 controles generados desde el modelo real de iFly, hubo {profile.Controls.Count}.");
         Assert.Contains("iFly 737-MAX8", profile.Detection.TitleContains);
 
-        foreach (var control in profile.Controls)
+        // controls/axes.yaml es la ÚNICA parte escrita a mano del perfil y la única
+        // que no pasa por L-Vars de iFly: las superficies de vuelo responden a
+        // SimConnect estándar. Se verifican aparte, más abajo.
+        var lvarControls = profile.Controls.Where(c => !c.Id.StartsWith("flight.", StringComparison.Ordinal)).ToList();
+        Assert.True(lvarControls.Count >= 1000);
+
+        foreach (var control in lvarControls)
         {
-            // Todo control de este perfil escribe por calculator code: iFly no
-            // expone eventos H:/K:/B: (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
+            // Todo control generado escribe por calculator code contra la L-Var de
+            // trigger de su sistema: iFly no expone eventos H:/K:/B: en la cabina
+            // (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
             Assert.NotNull(control.Write);
             Assert.Equal(WriteType.CalculatorCode, control.Write!.Type);
             Assert.Contains("_trigger_VAL", control.Write.Name);
@@ -322,6 +329,34 @@ public class ProfileRepositoryRealDataTests
         Assert.NotNull(crossfeed);
         Assert.Contains("$value !=", crossfeed!.Write!.Name);
         Assert.Contains("(>L:VC_Fuel_trigger_VAL,number)", crossfeed.Write.Name);
+    }
+
+    /// <summary>
+    /// Los tres ejes de superficies (controls/axes.yaml) tienen que quedar en el
+    /// canal RÁPIDO y con authority exclusive bajo los ids exactos que
+    /// server/api/src/authority.ts lista en FLIGHT_CONTROLS_EXCLUSIVE_IDS -- si
+    /// alguien los renombra, el traspaso de mando deja de aplicarse en silencio y
+    /// los dos pilotos pueden volar el avión a la vez.
+    /// </summary>
+    [Theory]
+    [InlineData("flight.yoke.pitch", "ELEVATOR POSITION", "AXIS_ELEVATOR_SET")]
+    [InlineData("flight.yoke.roll", "AILERON POSITION", "AXIS_AILERONS_SET")]
+    [InlineData("flight.rudder", "RUDDER POSITION", "AXIS_RUDDER_SET")]
+    public void Ifly737Max8_FlightAxes_AreExclusiveAndOnFastChannel(string id, string simvar, string axisEvent)
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profile = repo.LoadOne("ifly-737-max8", SimulatorVersion.Msfs2020);
+
+        var axis = profile.FindControl(id);
+        Assert.NotNull(axis);
+        Assert.Equal(ControlAuthority.Exclusive, axis!.Authority);
+        Assert.True(axis.UsesFastChannel, $"'{id}' debe ir por el canal rápido (synchronization.mode: polled).");
+        Assert.Equal(ReadType.Simvar, axis.Read!.Type);
+        Assert.Equal(simvar, axis.Read.Name);
+
+        // El nombre del evento importa hasta la 's': un K:event inexistente es un
+        // no-op silencioso, indistinguible de "el avión ignora el eje".
+        Assert.Contains($"(>K:{axisEvent})", axis.Write!.Name);
     }
 
     /// <summary>

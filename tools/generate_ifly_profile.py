@@ -165,6 +165,54 @@ def classify(events):
     return "single", ls, None
 
 
+def directional_codes(component_id, events):
+    """Devuelve (sube, baja) con excepciones validadas en vivo.
+
+    Regla general: WheelUp/WheelDown reflejan la direccion del control. El APU
+    switch resulto ser una excepcion en prueba viva: el XML declara
+    WheelUp=7/WheelDown=8, pero la escritura remota solo actua al invertir esa
+    polaridad. Se corrige aqui para que regenerar el perfil no reintroduzca el
+    bug.
+    """
+    kind, a, b = classify(events)
+    if kind != "positional":
+        return kind, a, b
+    if component_id == "VC_APU_SW":
+        return kind, b, a
+    return kind, a, b
+
+
+def custom_write_block(component_id, system_var, state):
+    """Excepciones validadas en vivo cuyo comportamiento no es lineal.
+
+    VC_APU_SW no se comporta como un selector monotónico 0<10<20. En la prueba
+    viva del 2026-07-28 sus transiciones reales fueron:
+      0 -> 10 -> 20 -> 10 -> 0
+    con dos códigos distintos:
+      8: OFF <-> ON
+      7: ON -> START
+    El retorno START -> ON lo hace iFly solo. Por eso la escritura correcta no
+    es "sube/baja por comparación numérica", sino una pequeña máquina de
+    estados que deja al confirmAfterWrite del bridge converger por reintentos.
+    """
+    if component_id != "VC_APU_SW":
+        return None
+    code = (
+        f"(L:{state},number) 0 == $value 10 == $value 20 == or and if{{ 8 (>L:{system_var},number) }} "
+        f"(L:{state},number) 10 == $value 20 == and if{{ 7 (>L:{system_var},number) }} "
+        f"(L:{state},number) 10 == $value 0 == and if{{ 8 (>L:{system_var},number) }}"
+    )
+    return {
+        "comment": [
+            "  # APU switch: NO es lineal. Validado en vivo: 8 hace OFF <-> ON, 7 hace",
+            "  # ON -> START y el retorno START -> ON lo hace iFly solo. Se modela como",
+            "  # maquina de estados para que confirmAfterWrite converja por reintentos.",
+        ],
+        "code": code,
+        "debounceMs": 150,
+    }
+
+
 def yaml_str(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -178,7 +226,7 @@ def build(rows, out_dir):
         system_var = r["system"]
         file_name, _ = SYSTEM_FILES[system_var]
         prefix = SYSTEM_IDS[system_var]
-        kind, a, b = classify(r["events"])
+        kind, a, b = directional_codes(r["componentId"], r["events"])
         state = r["stateLvar"]
 
         control_id = f"{prefix}.{snake(r['componentId'])}"
@@ -193,6 +241,28 @@ def build(rows, out_dir):
             f"- id: {control_id}",
             f"  # {tooltip} -- nodo {r['componentId']} del modelo iFly.",
         ]
+
+        custom_write = custom_write_block(r["componentId"], system_var, state) if state else None
+        if custom_write:
+            stats["custom_stateful"] += 1
+            lines += custom_write["comment"] + [
+                "  dataType: number",
+                "  authority: shared",
+                "  read:",
+                "    type: clientDataArea",
+                '    areaName: "SharedCockpitBridge_LVars"',
+                f'    field: "L:{state}"',
+                "    nativeType: float",
+                "  write:",
+                "    type: calculatorCode",
+                f"    name: {yaml_str(custom_write['code'])}",
+                "  synchronization:",
+                "    mode: event",
+                "    confirmAfterWrite: true",
+                f"    debounceMs: {custom_write['debounceMs']}",
+            ]
+            by_file[file_name].append("\n".join(lines))
+            continue
 
         if kind == "positional" and state:
             stats["positional"] += 1

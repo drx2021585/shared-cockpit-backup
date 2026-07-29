@@ -91,9 +91,27 @@
 
 - id: engine.apu_sw
   # APU Switch -- nodo VC_APU_SW del modelo iFly.
-  # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 7 sube, 8 baja); si ya
-  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
+  # APU switch. Dominio medido en vivo moviendolo a mano (2026-07-29):
+  # 0 = OFF, 10 = ON, 20 = START, y START es momentaneo -- iFly lo devuelve a
+  # ON solo, en ~1.2s.
+  #
+  # DOS correcciones sobre la version anterior de este control, ambas por
+  # observacion directa y no por la convencion del modelo:
+  #
+  # 1. POLARIDAD INVERTIDA respecto de la rueda. El <CallbackCode> dice
+  #    WheelUp=7 / WheelDown=8, pero en vivo disparar 7 desde ON bajo a OFF y
+  #    disparar 8 desde OFF subio a ON. Para ESTE control 8 sube y 7 baja.
+  #    (En gear.autobrake_sw la convencion de la rueda si se cumple: la
+  #    polaridad varia por control, no por sistema.)
+  #
+  # 2. COMPARACION POR BANDAS, no por igualdad. La L-Var esta ANIMADA: leyendo
+  #    durante el retorno de START a ON se observo 14.75. Con "current 10 ==" no
+  #    coincide ninguna rama a mitad de transicion y la escritura se pierde.
+  #    Bandas: <5 = OFF, 5..15 = ON, >15 = START.
+  #
+  # Nota: pedir 20 (START) casi nunca va a "confirmar", porque el switch no se
+  # queda ahi. Es correcto que asi sea -- el estado estable que comparten los
+  # dos pilotos es OFF/ON.
   dataType: number
   authority: shared
   read:
@@ -103,7 +121,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_APU_SW_VAL,number) $value < if{ 7 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) $value > if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    name: "(L:VC_APU_SW_VAL,number) 5 < $value 5 > and if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) 5 > (L:VC_APU_SW_VAL,number) 15 < and $value 15 > and if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) 5 > $value 5 < and if{ 7 (>L:VC_Engine_APU_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

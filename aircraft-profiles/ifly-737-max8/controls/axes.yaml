@@ -1,0 +1,124 @@
+# ESCRITO A MANO -- este archivo NO lo genera tools/generate_ifly_profile.py.
+#
+# Ejes continuos de superficies de vuelo. Son la unica parte del perfil del iFly
+# que NO pasa por las L-Vars del addon: las superficies responden a SimConnect
+# estandar, igual que un joystick fisico. El generador solo cubre los clickspots
+# de cabina del modelo interior, asi que sin este archivo el avion sincroniza
+# todos los interruptores pero NINGUN eje.
+#
+# Canal rapido: mode "polled" (BridgeService.UsesFastChannel se deriva de eso),
+# emite control.axis a 20-60 Hz en vez de control.event -- ver
+# packages/protocol/README.md.
+#
+# authority "exclusive" y estos IDS EXACTOS a proposito: server/api/src/authority.ts
+# tiene FLIGHT_CONTROLS_EXCLUSIVE_IDS como set estatico con exactamente
+# "flight.yoke.pitch", "flight.yoke.roll" y "flight.rudder". Reusar los mismos
+# ids hace que el traspaso de mando (un solo piloto vuela a la vez) funcione para
+# el iFly sin tocar el servidor.
+#
+# ---------------------------------------------------------------------------
+# El mecanismo viene del PMDG 737-900, donde SI esta confirmado en vivo
+# (ver aircraft-profiles/pmdg-737-900/controls/flight-controls.yaml para el
+# historial completo de esa validacion). Dos cosas que se aprendieron ahi y que
+# vale la pena no volver a descubrir:
+#
+#   - Los eventos K: legacy (K:RUDDER_SET, K:AILERON_SET...) NO mueven nada.
+#     Hay que usar la familia de EJE K:AXIS_*_SET, la misma que usa un joystick.
+#   - El evento del aleron es PLURAL: "AXIS_AILERONS_SET". Elevator y rudder son
+#     singulares. Un K:event con nombre inexistente es un no-op SILENCIOSO (sin
+#     excepcion y sin error reportado), asi que un typo ahi se ve exactamente
+#     igual que "el avion ignora el eje" -- costo una sesion entera de debug.
+#
+# ESTADO DE VALIDACION EN VIVO (2026-07-29, MSFS 2020 + iFly MAX 8-200):
+#
+#   SIGNO: correcto. Un valor positivo da una posicion positiva en los dos ejes.
+#   EVENTOS: correctos. AXIS_ELEVATOR_SET y AXIS_AILERONS_SET (plural) mueven las
+#            superficies del iFly de verdad.
+#   RUDDER: no se pudo medir. Habia un eje de HARDWARE asignado al timon
+#           (pedales o twist del joystick) reaplicando su posicion ~60 veces por
+#           segundo; se distinguia claro porque pitch y roll leian exactamente 0
+#           mientras el rudder oscilaba entre -0.033 y -0.039. No es un problema
+#           del perfil. Para medirlo hay que desasignar ese eje en MSFS.
+#
+#   ESCALA: ANOMALIA SIN RESOLVER, ojo con esto. En una primera prueba el
+#   elevador llego al valor pedido exacto (0.3 -> 0.29998) y el aleron tambien
+#   (0.6 -> 0.5999). Mas tarde, en la misma sesion y con el mismo binario, tres
+#   mediciones seguidas con recentrado entre cada una dieron exactamente la MITAD:
+#   0.2 -> 0.0999, 0.6 -> 0.2999, 1.0 -> 0.4999. Factor 0.5 limpio, no un recorte.
+#
+#   No se cambio la formula, a proposito: duplicar el factor a 32768 arreglaria
+#   el segundo caso y ROMPERIA el primero, y no sabemos cual de los dos estados
+#   del avion es el normal. Entre medio de las dos tandas se encendio y apago el
+#   APU y se movio el autobrake, asi que la sospecha razonable es que el estado
+#   de sistemas del avion (presion hidraulica) cambie el recorrido real de la
+#   superficie -- iFly modela hidraulica. Hay que reproducirlo con el avion en un
+#   estado conocido y estable antes de tocar nada.
+# ---------------------------------------------------------------------------
+
+- id: flight.yoke.pitch
+  # Elevador. authority exclusive: lo vuela un solo piloto a la vez.
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: ELEVATOR POSITION
+  write:
+    type: calculatorCode
+    name: $value -16384 * -16384 16384 min max (>K:AXIS_ELEVATOR_SET)
+  synchronization:
+    mode: polled
+    debounceMs: 0
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.yoke.roll
+  # Alerones. OJO: el evento es AXIS_AILERONS_SET, en PLURAL (ver cabecera).
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: AILERON POSITION
+  write:
+    type: calculatorCode
+    name: $value -16384 * -16384 16384 min max (>K:AXIS_AILERONS_SET)
+  synchronization:
+    mode: polled
+    debounceMs: 0
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.rudder
+  dataType: number
+  authority: exclusive
+  read:
+    type: simvar
+    name: RUDDER POSITION
+  write:
+    type: calculatorCode
+    name: $value -16384 * -16384 16384 min max (>K:AXIS_RUDDER_SET)
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+    timeoutMs: 200
+
+- id: flight.elevator_trim
+  # Trim del estabilizador. NO es exclusive ni canal rapido: es un ajuste
+  # discreto que cualquiera de los dos asientos puede tocar, y a diferencia de
+  # los ejes si tiene sentido confirmarlo despues de escribir.
+  #
+  # Distinto de flight_controls.stabilizer_trim_sw (controls/flight-controls.yaml),
+  # que es el INTERRUPTOR fisico del yugo via L-Var de iFly. Este es la posicion
+  # real del estabilizador via simvar.
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: ELEVATOR TRIM POSITION
+  write:
+    type: inputEvent
+    name: ELEVATOR_TRIM_SET
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 500

@@ -182,8 +182,21 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.9",
+    version: "0.1.10",
     title: "Current build",
+    commits: [
+      "The iFly B737 MAX 8 now synchronizes the flight controls — the control column and the ailerons were confirmed moving in the simulator, and only one pilot flies at a time.",
+      "Switches with several positions, like the autobrake selector, now reach the position the other pilot chose. Before, they stopped one notch short or never moved at all.",
+      "The APU switch was corrected after testing it in the simulator: it was sending the wrong command and turned the APU off when asked to start it.",
+      "If a control moves the wrong way, the app now notices and stops instead of pushing it further in the wrong direction.",
+      "The simulator connection is far more robust: a single unreadable cockpit variable used to shut the whole connection down mid-flight, and now it just skips that one control and keeps going.",
+      "When an aircraft profile can't be loaded, the app now says so by name, instead of leaving you with a confusing 'aircraft not recognized' message.",
+    ],
+  },
+  {
+    version: "0.1.9",
+    title: "Published release",
+    date: "2026-07-28",
     commits: [
       "The iFly B737 MAX 8 was added to the aircraft list, with over a thousand cockpit controls mapped for shared-cockpit use. It hasn't been tested in the simulator yet, and the app now says so on the aircraft card.",
       "The PMDG profile now covers the whole 737 NG family — the 600, 700, 800, 900 and 900ER, including the cargo variants — instead of only the 900.",

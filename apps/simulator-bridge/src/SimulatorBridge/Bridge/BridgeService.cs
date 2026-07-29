@@ -16,6 +16,21 @@ namespace SharedCockpit.Bridge.Bridge;
 /// </summary>
 public sealed class BridgeService : IAsyncDisposable
 {
+    private sealed record PendingWriteConfirmation(
+        ControlDefinition Control,
+        object DesiredValue,
+        long StartedAtMs,
+        long LastAttemptAtMs,
+        int Attempts)
+    {
+        /// <summary>
+        /// Distancia al valor pedido en la última lectura observada (solo para
+        /// dataType number). Sirve para detectar que el control se está ALEJANDO
+        /// del destino en vez de acercarse -- ver ObserveConfirmedValue.
+        /// </summary>
+        public double? LastDistance { get; init; }
+    }
+
     /// <summary>
     /// Sprint 1 no tiene concepto de sesión/multijugador todavía ("Resultado:
     /// app local que detecta MSFS y controla varios elementos, sin
@@ -75,10 +90,18 @@ public sealed class BridgeService : IAsyncDisposable
     private readonly ControlValueDebouncer _debouncer = new();
 
     private IReadOnlyList<AircraftProfile> _allProfiles = Array.Empty<AircraftProfile>();
+
+    /// <summary>
+    /// Carpetas de aircraft-profiles/ que existen en disco pero no se pudieron
+    /// cargar. Se conserva para poder mencionarlas cuando falla la detección,
+    /// no solo al arrancar (ver ReportProfilesThatFailedToLoad).
+    /// </summary>
+    private IReadOnlyList<string> _failedProfileIds = Array.Empty<string>();
     private AircraftProfile? _matchedProfile;
     private string? _lastTitle;
     private long _sequence;
     private bool _pmdgUnavailableWarned;
+    private readonly Dictionary<string, PendingWriteConfirmation> _pendingWriteConfirmations = new();
 
     /// <summary>
     /// Última (sequence, timestamp de llegada al bridge) observada por control
@@ -148,6 +171,47 @@ public sealed class BridgeService : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Un perfil que revienta al cargar (YAML mal formado, un enum que este
+    /// binario todavía no conoce, etc.) NO tumba el bridge: ProfileRepository.LoadAll
+    /// atrapa la excepción y sigue con los demás. El problema es que hasta acá eso
+    /// dejaba UNA línea de log fácil de perder, y lo que veía el usuario después era
+    /// un "no matching aircraft profile" que apunta al lugar equivocado (parece un
+    /// problema de detección cuando en realidad el perfil ni se cargó).
+    ///
+    /// Caso real que motivó esto (2026-07-28): un `SharedCockpit.Bridge.exe`
+    /// publicado antes de que ProfileEnumMapper soportara `nativeType: float`
+    /// descartaba en silencio el perfil entero del iFly 737 MAX 8 y reportaba
+    /// "no matching aircraft profile" con el avión correcto cargado.
+    ///
+    /// Comparar las carpetas que existen en disco contra las que efectivamente
+    /// se cargaron es suficiente para nombrar las que fallaron, sin cambiar el
+    /// contrato de ProfileRepository.
+    /// </summary>
+    private void ReportProfilesThatFailedToLoad()
+    {
+        var loaded = _allProfiles.Select(p => p.ProfileId).ToHashSet(StringComparer.Ordinal);
+        var failed = _profileRepo.ListProfileIds().Where(id => !loaded.Contains(id)).ToArray();
+        _failedProfileIds = failed;
+        if (failed.Length == 0)
+        {
+            return;
+        }
+
+        var list = string.Join(", ", failed);
+        _log.Error(
+            $"Perfiles que NO se pudieron cargar y por lo tanto nunca van a detectarse: {list}. " +
+            "Revise los errores de carga de más arriba en este log. Causa típica: el perfil declara algo " +
+            "que este build del bridge todavía no soporta -- republicar el bridge suele resolverlo.");
+
+        foreach (var id in failed)
+        {
+            _broadcast(BridgeError.Build(id, "load",
+                $"el perfil '{id}' existe en aircraft-profiles/ pero no se pudo cargar; no se va a detectar " +
+                "aunque la aeronave sea la correcta (ver logs del bridge para el motivo)"));
+        }
+    }
+
     public AircraftProfile? MatchedProfile => _matchedProfile;
     private string SimulatorVersionLabel =>
         _simVersion == SimulatorVersion.Msfs2020 ? "msfs2020" : "msfs2024";
@@ -156,6 +220,7 @@ public sealed class BridgeService : IAsyncDisposable
     {
         _allProfiles = _profileRepo.LoadAll(_simVersion, _log);
         _log.Info($"Perfiles cargados: {string.Join(", ", _allProfiles.Select(p => p.ProfileId))}");
+        ReportProfilesThatFailedToLoad();
 
         while (!ct.IsCancellationRequested)
         {
@@ -179,9 +244,17 @@ public sealed class BridgeService : IAsyncDisposable
                 }
             }
 
-            _sim.Pump();
-            _pmdgClient?.Pump();
-            _sharedCockpitWasmClient?.Pump();
+            // Cada Pump va aislado: el bridge es un proceso de fondo que la gente
+            // deja corriendo un vuelo entero, y una excepción imprevista en UNO de
+            // los clientes no puede llevarse puesto todo lo demás. Antes estas
+            // llamadas estaban desnudas y cualquier fallo se escapaba hasta
+            // Program.cs, que loguea y termina el proceso -- visto en vivo el
+            // 2026-07-28 con el perfil del iFly (982 L-Vars, una sola inexistente
+            // bastaba para tumbar el bridge en pleno vuelo).
+            PumpSafely("simconnect", () => _sim.Pump());
+            PumpSafely("client-data", () => _pmdgClient?.Pump());
+            PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
+            PumpSafely("write-confirmations", ProcessPendingWriteConfirmations);
 
             try
             {
@@ -194,6 +267,36 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         _sim.Disconnect();
+    }
+
+    /// <summary>
+    /// Nombres de las etapas de Pump que ya reportaron un fallo, para no repetir
+    /// el mismo warning 30 veces por segundo.
+    /// </summary>
+    private readonly HashSet<string> _pumpStagesWarned = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Ejecuta una etapa del ciclo de Pump sin dejar que una excepción imprevista
+    /// termine el proceso. La etapa que falla se reporta UNA vez (log + BridgeError
+    /// estructurado) y el ciclo sigue: es preferible un bridge con una etapa
+    /// degradada que un bridge muerto a mitad de un vuelo compartido. Si la etapa
+    /// se recupera sola, se vuelve a habilitar el aviso para el próximo fallo.
+    /// </summary>
+    private void PumpSafely(string stage, Action pump)
+    {
+        try
+        {
+            pump();
+            _pumpStagesWarned.Remove(stage);
+        }
+        catch (Exception ex)
+        {
+            if (_pumpStagesWarned.Add(stage))
+            {
+                _log.Error($"Fallo en la etapa '{stage}' del ciclo del bridge: {ex}. Se continúa con el resto.");
+                _broadcast(BridgeError.Build(stage, "pump", $"fallo en la etapa '{stage}': {ex.Message}"));
+            }
+        }
     }
 
     /// <summary>Aplica un mensaje entrante desde el WebSocket local (UI / sync-engine) escribiendo en el sim.</summary>
@@ -237,7 +340,10 @@ public sealed class BridgeService : IAsyncDisposable
             _ => ce.AsString(),
         };
 
-        WriteControl(control, value);
+        if (WriteControl(control, value))
+        {
+            RegisterPendingWriteConfirmation(control, value);
+        }
     }
 
     private void HandleIncomingControlAxis(IncomingControlAxis ca)
@@ -250,7 +356,10 @@ public sealed class BridgeService : IAsyncDisposable
 
         CheckExclusiveSequenceAnomaly(control, ca.Sequence, ca.Origin);
 
-        WriteControl(control, ca.Value);
+        if (WriteControl(control, ca.Value))
+        {
+            RegisterPendingWriteConfirmation(control, ca.Value);
+        }
     }
 
     /// <summary>
@@ -327,7 +436,7 @@ public sealed class BridgeService : IAsyncDisposable
         return control;
     }
 
-    private void WriteControl(ControlDefinition control, object value)
+    private bool WriteControl(ControlDefinition control, object value)
     {
         // RequireControlForWrite ya garantiza que control.Write no es null (controles
         // readOnly se descartan ahí), pero se deja explícito por robustez ante
@@ -336,7 +445,7 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _log.Warn($"control '{control.Id}': intento de escritura sin bloque 'write' definido (readOnly). Se ignora.");
             _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
-            return;
+            return false;
         }
 
         switch (control.Write.Type)
@@ -347,7 +456,7 @@ public sealed class BridgeService : IAsyncDisposable
                 // (regla de oro anti-toggle, ver CLAUDE.md raíz y packages/protocol/README.md).
                 var (eventName, dwData) = ResolveInputEventPulse(control.Write.Name, control.DataType, value);
                 _sim.TransmitSetEvent(eventName, dwData);
-                break;
+                return true;
             }
 
             case WriteType.Hvar:
@@ -360,20 +469,19 @@ public sealed class BridgeService : IAsyncDisposable
                 // de fallar silenciosamente o hacer un TOGGLE.
                 _log.Warn($"control '{control.Id}': write.type={control.Write.Type} (H:var) no soportado todavía por este bridge.");
                 _broadcast(BridgeError.Build(control.Id, "write", $"write.type={control.Write.Type} no implementado"));
-                break;
+                return false;
 
             case WriteType.CalculatorCode:
-                WriteCalculatorCodeControl(control, value);
-                break;
+                return WriteCalculatorCodeControl(control, value);
 
             case WriteType.ClientDataEvent:
-                WriteClientDataEventControl(control, value);
-                break;
+                return WriteClientDataEventControl(control, value);
 
             case WriteType.NativeEventValue:
-                WriteNativeEventValueControl(control);
-                break;
+                return WriteNativeEventValueControl(control);
         }
+
+        return false;
     }
 
     /// <summary>
@@ -385,17 +493,18 @@ public sealed class BridgeService : IAsyncDisposable
     /// viene fijado en el perfil (documentado en 'semantics'), porque el mecanismo
     /// es un pulso de toggle, no un SET_VALUE parametrizable en tiempo real.
     /// </summary>
-    private void WriteNativeEventValueControl(ControlDefinition control)
+    private bool WriteNativeEventValueControl(ControlDefinition control)
     {
         var write = control.Write!;
         if (write.Parameter is null || !uint.TryParse(write.Parameter, out var dwData))
         {
             _log.Warn($"control '{control.Id}': write.type=nativeEventValue con 'parameter' inválido o ausente ('{write.Parameter}').");
             _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}': parameter inválido para nativeEventValue"));
-            return;
+            return false;
         }
 
         _sim.TransmitSetEvent(write.Name, dwData);
+        return true;
     }
 
     /// <summary>
@@ -424,7 +533,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// crashea si el SDK de terceros no está disponible: se loggea un warning y
     /// se reporta un BridgeError estructurado, sin afectar otros controles.
     /// </summary>
-    private void WriteClientDataEventControl(ControlDefinition control, object value)
+    private bool WriteClientDataEventControl(ControlDefinition control, object value)
     {
         // control.Write puede ser null si el control es readOnly; este método solo
         // se alcanza desde WriteControl tras verificar que no lo es, pero se
@@ -435,13 +544,13 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _log.Warn($"control '{control.Id}': write.type=clientDataEvent sin bloque 'write' definido (readOnly). Se ignora.");
             _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
-            return;
+            return false;
         }
 
         var areaName = write.AreaName ?? string.Empty;
         if (!EnsurePmdgClientReady(_pmdgClient, areaName, control.Id, "write"))
         {
-            return;
+            return false;
         }
 
         var eventIdOrName = write.Event ?? string.Empty;
@@ -451,6 +560,8 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));
         }
+
+        return ok;
     }
 
     /// <summary>
@@ -462,19 +573,19 @@ public sealed class BridgeService : IAsyncDisposable
     /// disponible: se loggea un warning y se reporta un BridgeError
     /// estructurado, sin afectar otros controles.
     /// </summary>
-    private void WriteCalculatorCodeControl(ControlDefinition control, object value)
+    private bool WriteCalculatorCodeControl(ControlDefinition control, object value)
     {
         var write = control.Write;
         if (write is null)
         {
             _log.Warn($"control '{control.Id}': write.type=calculatorCode sin bloque 'write' definido (readOnly). Se ignora.");
             _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
-            return;
+            return false;
         }
 
         if (!EnsureCalculatorCodeClientReady(control.Id))
         {
-            return;
+            return false;
         }
 
         var code = ResolveCalculatorCodeTemplate(write.Name, control.DataType, value);
@@ -483,6 +594,169 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _broadcast(BridgeError.Build(control.Id, "write", $"calculatorCode '{code}' no se pudo ejecutar para el control '{control.Id}' (ver logs del bridge para el motivo)"));
         }
+
+        return ok;
+    }
+
+    private void RegisterPendingWriteConfirmation(ControlDefinition control, object value)
+    {
+        if (!control.Synchronization.ConfirmAfterWrite || control.WriteOnly || control.Read is null)
+        {
+            return;
+        }
+
+        var nowMs = NowMs();
+        _pendingWriteConfirmations[control.Id] = new PendingWriteConfirmation(
+            control,
+            value,
+            StartedAtMs: nowMs,
+            LastAttemptAtMs: nowMs,
+            Attempts: 1);
+    }
+
+    private void ProcessPendingWriteConfirmations()
+    {
+        if (_pendingWriteConfirmations.Count == 0)
+        {
+            return;
+        }
+
+        var nowMs = NowMs();
+        foreach (var pending in _pendingWriteConfirmations.Values.ToArray())
+        {
+            var elapsedMs = nowMs - pending.StartedAtMs;
+            var timeoutMs = ResolveConfirmTimeoutMs(pending.Control);
+            if (elapsedMs >= timeoutMs)
+            {
+                _pendingWriteConfirmations.Remove(pending.Control.Id);
+                _log.Warn(
+                    $"control '{pending.Control.Id}': no convergió al valor pedido '{pending.DesiredValue}' " +
+                    $"tras {pending.Attempts} intento(s) y {elapsedMs}ms.");
+                _broadcast(BridgeError.Build(
+                    pending.Control.Id,
+                    "confirmAfterWrite",
+                    $"el control no convergió al valor pedido tras {pending.Attempts} intento(s)"));
+                continue;
+            }
+
+            var retryIntervalMs = GetConfirmRetryIntervalMs(timeoutMs);
+            if (nowMs - pending.LastAttemptAtMs < retryIntervalMs)
+            {
+                continue;
+            }
+
+            if (!WriteControl(pending.Control, pending.DesiredValue))
+            {
+                _pendingWriteConfirmations.Remove(pending.Control.Id);
+                continue;
+            }
+
+            _pendingWriteConfirmations[pending.Control.Id] =
+                pending with { LastAttemptAtMs = nowMs, Attempts = pending.Attempts + 1 };
+        }
+    }
+
+    private void ObserveConfirmedValue(ControlDefinition control, object observedValue)
+    {
+        if (!_pendingWriteConfirmations.TryGetValue(control.Id, out var pending))
+        {
+            return;
+        }
+
+        if (ValuesEquivalent(control.DataType, pending.DesiredValue, observedValue))
+        {
+            _pendingWriteConfirmations.Remove(control.Id);
+            return;
+        }
+
+        // Detección de polaridad invertida. Los controles del iFly no aceptan un
+        // SET absoluto: cada escritura avanza UN paso, y la dirección la decide el
+        // RPN del perfil comparando el estado real contra el destino. Si ese RPN
+        // tuviera los códigos de subir/bajar cruzados, cada reintento alejaría el
+        // control un paso más -- con una ventana de 6 segundos serían ~9 pasos en
+        // la dirección equivocada antes de rendirse.
+        //
+        // Acá se corta apenas se ve que la distancia al destino CRECIÓ, y se
+        // reporta con un mensaje que dice el problema real (polaridad) en vez del
+        // genérico "no convergió".
+        if (control.DataType != ControlDataType.Number
+            || pending.DesiredValue is not double desired
+            || observedValue is not double observed)
+        {
+            return;
+        }
+
+        var distance = Math.Abs(desired - observed);
+        if (pending.LastDistance is double previous && distance > previous + 0.001d)
+        {
+            _pendingWriteConfirmations.Remove(control.Id);
+            _log.Warn(
+                $"control '{control.Id}': se ALEJÓ del valor pedido '{desired}' (de {previous} a {distance} de " +
+                "distancia). Se aborta la convergencia: los códigos de subir/bajar de este control parecen " +
+                "invertidos en el perfil.");
+            _broadcast(BridgeError.Build(
+                control.Id,
+                "confirmAfterWrite",
+                $"el control se alejó del valor pedido en vez de acercarse (polaridad invertida en el perfil); " +
+                "se abortó la convergencia para no seguir moviéndolo en la dirección equivocada"));
+            return;
+        }
+
+        _pendingWriteConfirmations[control.Id] = pending with { LastDistance = distance };
+    }
+
+    /// <summary>
+    /// Ventana de confirmación por defecto cuando el perfil NO declara
+    /// synchronization.timeoutMs (que es el caso de la enorme mayoría: 1053 de
+    /// 1053 controles del iFly 737 MAX 8 y 524 de 646 del PMDG 737).
+    ///
+    /// Antes esto era Math.Max(1, timeoutMs), que para un control sin timeoutMs
+    /// declarado dejaba una ventana de UN MILISEGUNDO: en el pump siguiente (33 ms
+    /// después) ya había expirado y el bridge abortaba con "no convergió tras 1
+    /// intento(s)" sin darle al simulador ninguna chance de moverse. Ese Math.Max
+    /// existía para evitar una ventana de 0, no para declarar que 1 ms fuese un
+    /// timeout razonable. Detectado en vivo el 2026-07-28 con engine.apu_sw del
+    /// iFly.
+    ///
+    /// El valor sale de medirlo en vivo (2026-07-29, iFly gear.autobrake_sw): cada
+    /// ExecuteCalculatorCode vía FSUIPC cuesta ~650 ms de ida y vuelta, MUCHO más
+    /// que el intervalo de reintento de 250 ms, así que el número real de pasos
+    /// que entran en la ventana es timeout/650, no timeout/250. Con 2000 ms solo
+    /// entraban 3 pasos y el autobrake se quedaba en 40 yendo a 50. 6000 ms da
+    /// ~9 pasos, suficiente para cualquier selector de detentes del 737.
+    ///
+    /// Esto importa porque en el iFly la confirmación por reintentos ES el lazo de
+    /// convergencia: sus selectores no aceptan un SET absoluto y avanzan de a un
+    /// paso por escritura (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
+    /// Alargar la ventana es seguro gracias a la detección de divergencia de
+    /// ObserveConfirmedValue: si el control se aleja del destino se aborta al
+    /// instante, sin gastar los 6 segundos dando pasos para el lado equivocado.
+    /// </summary>
+    private const int DefaultConfirmTimeoutMs = 6000;
+
+    private static int ResolveConfirmTimeoutMs(ControlDefinition control)
+    {
+        var declared = control.Synchronization.TimeoutMs;
+        return declared > 0 ? declared : DefaultConfirmTimeoutMs;
+    }
+
+    private static int GetConfirmRetryIntervalMs(int timeoutMs)
+    {
+        var candidate = timeoutMs / 4;
+        return Math.Clamp(candidate, 100, 250);
+    }
+
+    private static bool ValuesEquivalent(ControlDataType dataType, object expected, object observed) => dataType switch
+    {
+        ControlDataType.Boolean => expected is bool eb && observed is bool ob && eb == ob,
+        ControlDataType.Number => expected is double en && observed is double on && Math.Abs(en - on) <= 0.001d,
+        ControlDataType.String => string.Equals(expected?.ToString(), observed?.ToString(), StringComparison.Ordinal),
+        _ => Equals(expected, observed),
+    };
+
+    private void ClearPendingWriteConfirmations()
+    {
+        _pendingWriteConfirmations.Clear();
     }
 
     /// <summary>
@@ -627,6 +901,7 @@ public sealed class BridgeService : IAsyncDisposable
     private void OnConnected()
     {
         _log.Info("SimConnect conectado a MSFS.");
+        ClearPendingWriteConfirmations();
         _matchedProfile = null;
         _lastTitle = null;
         _pmdgUnavailableWarned = false;
@@ -637,6 +912,7 @@ public sealed class BridgeService : IAsyncDisposable
     private void OnDisconnected()
     {
         _log.Warn("SimConnect desconectado (¿se cerró MSFS?). Reintentando periódicamente.");
+        ClearPendingWriteConfirmations();
         _matchedProfile = null;
         _lastTitle = null;
         _broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
@@ -668,6 +944,7 @@ public sealed class BridgeService : IAsyncDisposable
             return;
         }
 
+        ObserveConfirmedValue(control, value);
         EmitDebounced(control, value);
     }
 
@@ -688,6 +965,7 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         object typedValue = control.DataType == ControlDataType.Boolean ? value != 0 : value;
+        ObserveConfirmedValue(control, typedValue);
         EmitDebounced(control, typedValue);
     }
 
@@ -718,11 +996,22 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _matchedProfile = null;
             _log.Warn($"Ningún perfil de aircraft-profiles/ coincide con el título detectado: '{title}'");
-            _broadcast(BridgeStatus.Build(true, null, title, "no matching aircraft profile", SimulatorVersionLabel));
+
+            // Si además hay perfiles rotos, decirlo ACÁ y no solo al arrancar: este
+            // es el momento en que el usuario mira, y "no matching" a secas manda a
+            // revisar detection.yaml cuando el problema real puede ser que el perfil
+            // correcto ni siquiera se cargó (ver ReportProfilesThatFailedToLoad).
+            var error = _failedProfileIds.Count == 0
+                ? "no matching aircraft profile"
+                : $"no matching aircraft profile (ojo: estos perfiles no se pudieron cargar y por eso " +
+                  $"nunca van a detectarse: {string.Join(", ", _failedProfileIds)})";
+
+            _broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel));
             return;
         }
 
         _matchedProfile = result.Profile;
+        ClearPendingWriteConfirmations();
         _log.Info($"Perfil detectado: '{result.Profile.ProfileId}' (partialMatch={result.IsPartialMatch}) para título '{title}'");
         _broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel));
         SubscribeControls(result.Profile);

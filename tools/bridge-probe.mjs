@@ -66,8 +66,13 @@ function parseValue(raw) {
   return Number.isNaN(n) ? raw : n;
 }
 
+/** Hora LOCAL, no UTC: estas líneas se comparan a ojo contra el log del bridge
+ *  y contra lo que se ve en la cabina, así que tienen que coincidir con el reloj
+ *  de la máquina. */
 function stamp() {
-  return new Date().toISOString().slice(11, 23);
+  const d = new Date();
+  const p = (n, w = 2) => String(n).padStart(w, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
 }
 
 let sequence = 0;
@@ -155,9 +160,12 @@ ws.addEventListener("error", () => {
     return;
   }
   console.error(
-    `${stamp()} [probe] no se pudo conectar a ws://localhost:${port}. ` +
-      "¿Está corriendo SharedCockpit.Bridge.exe? Si lo lanzó We Connect, exige token: " +
-      "cerrá We Connect y lanzá el bridge a mano (sin SHAREDCOCKPIT_BRIDGE_TOKEN acepta clientes locales sin token).",
+    `${stamp()} [probe] no se pudo conectar a ws://localhost:${port}: el bridge no está corriendo.\n` +
+      "\n  Arrancalo así (abre su propia ventana y te devuelve el prompt):\n" +
+      '    Start-Process "<repo>\\apps\\simulator-bridge\\src\\SimulatorBridge\\publish\\SharedCockpit.Bridge.exe"\n' +
+      "\n  Esperá a que diga \"Perfil detectado: ...\" y volvé a correr esta sonda.\n" +
+      "  Si en cambio lo lanzó We Connect, ese exige token: cerrá We Connect y arrancalo a mano\n" +
+      "  (sin SHAREDCOCKPIT_BRIDGE_TOKEN el bridge acepta clientes locales sin token).",
   );
 });
 

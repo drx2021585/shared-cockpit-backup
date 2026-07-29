@@ -151,10 +151,31 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             }
             catch (FSUIPCException ex)
             {
+                // FSUIPCException = problema de la CONEXIÓN, no de esta L-Var en
+                // particular: no tiene sentido seguir leyendo las demás.
                 Warning?.Invoke($"control '{tracked.ControlId}': ReadLVar('{lvarName}') falló ({ex.Message}). ¿Se cerró FSUIPC7?");
                 IsConnected = false;
                 Disconnected?.Invoke();
                 return;
+            }
+            catch (Exception ex)
+            {
+                // Cualquier otra excepción es problema de ESTA L-Var, típicamente
+                // que no existe en el avión cargado (un perfil generado desde el
+                // modelo puede nombrar variables que el addon registra tarde o
+                // directamente nunca). Antes esto se escapaba hasta el loop
+                // principal y mataba el bridge entero -- con 982 L-Vars leídas 30
+                // veces por segundo, una sola mala bastaba.
+                //
+                // Se descarta esa L-Var del seguimiento (si no, el warning se
+                // repetiría 30 veces por segundo) y se sigue con las demás: el
+                // resto del perfil funciona igual.
+                _tracked.Remove(lvarName);
+                Warning?.Invoke(
+                    $"control '{tracked.ControlId}': ReadLVar('{lvarName}') falló ({ex.GetType().Name}: {ex.Message}). " +
+                    "Se deja de leer ESE control (probablemente la L-Var no existe en esta aeronave); " +
+                    "el resto del perfil sigue funcionando.");
+                continue;
             }
 
             if (value != tracked.LastValue)
