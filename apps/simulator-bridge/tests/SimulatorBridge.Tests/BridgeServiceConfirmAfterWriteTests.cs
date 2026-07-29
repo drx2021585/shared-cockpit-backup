@@ -103,6 +103,59 @@ public class BridgeServiceConfirmAfterWriteTests
         Assert.Single(calculator.ExecutedCodes);
     }
 
+
+    /// <summary>
+    /// Regresión del bug que rompió la primera sesión real de dos jugadores
+    /// (2026-07-29): al conectar, el bridge del otro piloto emite el estado
+    /// inicial de sus ~982 controles y la UI los reenvía TODOS como escrituras.
+    /// Como los dos aviones arrancan en el mismo estado, casi todas pedían el
+    /// valor que el control ya tenía -- pero se escribían igual y quedaban
+    /// esperando una confirmación que nunca llegaba (el bridge solo emite
+    /// lecturas cuando algo CAMBIA). Resultado: ~1100 escrituras encoladas a
+    /// ~650 ms cada una tapando el canal de FSUIPC durante minutos, y 111
+    /// "no convergió" en un solo segundo del log. El usuario lo vio como
+    /// "solo algunos botones funcionan".
+    /// </summary>
+    [Fact]
+    public void IncomingWrite_IsSkipped_WhenControlIsAlreadyAtThatValue()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithConfirmAfterWriteControl());
+
+        // El sim ya reportó que el control está en 2.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 2d);
+
+        // El compañero pide exactamente 2: no hay nada que escribir.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(2d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Empty(calculator.ExecutedCodes);
+
+        // Y sin escritura tampoco puede quedar una confirmación pendiente que
+        // luego reintente 9 veces y termine en un "no convergió" falso.
+        Thread.Sleep(120);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+        Assert.Empty(calculator.ExecutedCodes);
+
+        // Un valor DISTINTO sí se escribe: el descarte no puede tragarse cambios reales.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(3d),
+            Source: "peer", Sequence: 2, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(calculator.ExecutedCodes);
+    }
+
     private static AircraftProfile MakeProfileWithConfirmAfterWriteControl()
     {
         var control = new ControlDefinition

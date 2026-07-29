@@ -182,8 +182,16 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.11",
+    version: "0.1.12",
     title: "Current build",
+    commits: [
+      "Fixed the main reason switches stopped syncing partway through a shared session. When you joined, the app tried to copy your partner's entire cockpit onto yours — about a thousand switches at once, even the ones already in the same position — which jammed the connection to the simulator for minutes. It now skips any switch that is already where your partner has it.",
+    ],
+  },
+  {
+    version: "0.1.11",
+    title: "Published release",
+    date: "2026-07-29",
     commits: [
       "Each aircraft card now lists the exact models the profile works with. The iFly B737 MAX 8 covers four of them: the base model, the 166 and 189 seat layouts, and the MAX 8-200.",
     ],

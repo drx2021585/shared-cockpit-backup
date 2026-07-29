@@ -399,68 +399,6 @@ export function Cockpit({
         </div>
       </div>
 
-      <div style={{ marginTop: 32 }}>
-        <div
-          className="divider-row"
-          style={{ marginBottom: 10, border: "none", display: "flex", alignItems: "center", gap: 8 }}
-        >
-          <div className="mono-label">Aircraft telemetry</div>
-          {bridge.mode === "mock" && (
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                color: "#e2b64c",
-                border: "1px solid rgba(226,182,76,0.4)",
-                background: "rgba(226,182,76,0.08)",
-                padding: "1px 6px",
-                textTransform: "uppercase",
-              }}
-            >
-              Mock data
-            </span>
-          )}
-        </div>
-
-        {bridge.connectionState !== "connected" && (
-          <p style={{ fontSize: 12, color: "var(--text-35)" }}>
-            {bridge.connectionState === "connecting" &&
-              (bridge.mode === "mock"
-                ? "Connecting to mock simulator-bridge…"
-                : "Connecting to simulator-bridge (ws://localhost:7620)…")}
-            {bridge.connectionState === "no-bridge-running" &&
-              "Aircraft telemetry: no simulator-bridge connection — start apps/simulator-bridge with MSFS running to see live controls here."}
-            {bridge.connectionState === "disconnected" &&
-              "Aircraft telemetry: lost connection to simulator-bridge — retrying…"}
-          </p>
-        )}
-
-        {bridge.connectionState === "connected" && (
-          <>
-            <p style={{ fontSize: 12, color: "var(--text-35)", marginBottom: 10 }}>
-              {bridge.mode === "mock"
-                ? "Simulated control values for UI development — not connected to a real simulator."
-                : `Live from apps/simulator-bridge${bridge.snapshot ? ` — profile ${bridge.snapshot.profile}` : ""}.`}
-            </p>
-            {Object.keys(bridge.controls).length === 0 ? (
-              <div style={{ fontSize: 13, color: "var(--text-45)", padding: "10px 0" }}>
-                Connected — waiting for the first control value…
-              </div>
-            ) : (
-              Object.values(bridge.controls)
-                .sort((a, b) => a.controlId.localeCompare(b.controlId))
-                .map((c) => (
-                  <div className="net-row" key={c.controlId}>
-                    <div className="net-label">{c.controlId}</div>
-                    <div className="net-value">{String(c.value)}</div>
-                  </div>
-                ))
-            )}
-          </>
-        )}
-      </div>
-
       {confirmCloseOpen && (
         <div className="modal-overlay">
           <div className="update-card" role="alertdialog" aria-modal="true" aria-labelledby="close-session-title">

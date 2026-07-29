@@ -340,10 +340,57 @@ public sealed class BridgeService : IAsyncDisposable
             _ => ce.AsString(),
         };
 
+        if (AlreadyAtValue(control, value))
+        {
+            return;
+        }
+
         if (WriteControl(control, value))
         {
             RegisterPendingWriteConfirmation(control, value);
         }
+    }
+
+    /// <summary>
+    /// Última lectura conocida por control, para poder descartar escrituras que
+    /// no cambiarían nada (ver AlreadyAtValue).
+    /// </summary>
+    private readonly Dictionary<string, object> _lastObservedByControl = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// ¿El control ya está en el valor que nos piden escribir? Entonces la
+    /// escritura es un no-op y hay que SALTARLA, no ejecutarla y esperar a
+    /// confirmarla.
+    ///
+    /// No es una micro-optimización: es lo que impide una avalancha al empezar
+    /// una sesión. Medido en vivo el 2026-07-29 con dos jugadores reales — al
+    /// conectar, el bridge del otro piloto emite el estado inicial de sus ~982
+    /// controles, la UI los reenvía todos, y este bridge los escribía TODOS
+    /// aunque la enorme mayoría ya estuviera en la misma posición (los dos
+    /// aviones arrancan igual, en frío). Cada uno quedaba pendiente de
+    /// confirmación y reintentaba 9-10 veces durante 6 s; como cada
+    /// ExecuteCalculatorCode por FSUIPC cuesta ~650 ms y el canal es
+    /// serializado, eso son ~1100 escrituras encoladas que tapan el camino
+    /// durante minutos. Sintoma que reportó el usuario: "solo algunos botones
+    /// funcionan". En el log quedaban 111 "no convergió" en UN segundo.
+    ///
+    /// Un control sin 'read' (writeOnly, ej. los botones momentáneos) nunca
+    /// tiene lectura previa: siempre se escribe, que es lo correcto -- un
+    /// pulso no tiene estado que comparar.
+    /// </summary>
+    private bool AlreadyAtValue(ControlDefinition control, object desiredValue)
+    {
+        if (control.WriteOnly || control.Read is null)
+        {
+            return false;
+        }
+
+        if (!_lastObservedByControl.TryGetValue(control.Id, out var observed))
+        {
+            return false; // todavía no leímos este control: no hay con qué comparar
+        }
+
+        return ValuesEquivalent(control.DataType, desiredValue, observed);
     }
 
     private void HandleIncomingControlAxis(IncomingControlAxis ca)
@@ -757,6 +804,9 @@ public sealed class BridgeService : IAsyncDisposable
     private void ClearPendingWriteConfirmations()
     {
         _pendingWriteConfirmations.Clear();
+        // Las lecturas cacheadas son de la aeronave anterior: conservarlas haria
+        // que AlreadyAtValue descartara escrituras validas del avion nuevo.
+        _lastObservedByControl.Clear();
     }
 
     /// <summary>
@@ -959,12 +1009,14 @@ public sealed class BridgeService : IAsyncDisposable
 
         if (control.UsesFastChannel)
         {
+            _lastObservedByControl[control.Id] = value;
             var axis = new ControlAxisMessage(LocalSessionId, control.Id, value, NextSequence(), NowMs());
             _broadcast(axis.ToJson());
             return;
         }
 
         object typedValue = control.DataType == ControlDataType.Boolean ? value != 0 : value;
+        _lastObservedByControl[control.Id] = typedValue;
         ObserveConfirmedValue(control, typedValue);
         EmitDebounced(control, typedValue);
     }
