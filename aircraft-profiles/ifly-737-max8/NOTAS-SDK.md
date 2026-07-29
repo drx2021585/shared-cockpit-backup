@@ -65,32 +65,75 @@ anti-TOGGLE del proyecto pese a que **iFly no expone ningún SET absoluto**.
 No hace falta instalar `simulator/wasm-bridge` ni ningún módulo propio para
 este avión.
 
-## 4. Limitaciones honestas (leer antes de confiar en el perfil)
+## 4. Estado real tras la primera sesión en vivo (2026-07-29)
 
-1. **Nada probado en vivo.** El perfil entero es derivación estática del XML.
-   Es evidencia fuerte sobre *qué código dispara cada control*, no prueba del
-   efecto real en el sim.
-2. **Una escritura = un paso, y hoy nadie reintenta.** Un selector de varias
-   posiciones necesita varias escrituras para converger, pero el bridge escribe
-   una sola vez por cambio recibido del otro piloto. Ojo con el
-   `confirmAfterWrite: true` que declaran estos controles: hoy **no hace nada**
-   — `ProfileRepository` lo deserializa y `BridgeService` nunca lo lee (grep
-   `ConfirmAfterWrite` en `apps/simulator-bridge/src/`: solo aparece en el DTO,
-   el modelo y el mapeo). `packages/synchronization-core/src/drift.ts` tiene la
-   detección de divergencia, pero ni `apps/desktop-ui` ni `server/api` la
-   importan todavía. Así que para este avión el lazo de convergencia
-   (escribir → releer → repetir hasta igualar) es trabajo pendiente REAL del
-   `sync-engine-agent`, no algo que ya esté cubierto.
-3. **Polaridad asumida.** Se asume que el código de `WheelUp` aumenta el
-   `_VAL`. Si en algún control resultara al revés, la escritura da **un** paso
-   en sentido contrario (no un bucle). Como no hay confirmación automática (ver
-   punto 2), esto se detecta mirando la cabina, no por telemetría: validar
-   sistema por sistema en la prueba en vivo.
-4. **Volumen de lectura.** 982 controles con `read` → 982 `ReadLVar` por
-   ciclo de `Pump()` (33 ms por defecto). Si en la prueba en vivo eso satura
-   FSUIPC, la mitigación obvia es subir `pumpInterval` o recortar
-   `controls/efb.yaml` y `controls/misc.yaml`, que son los dos archivos menos
-   necesarios para un vuelo compartido (tablets personales y mobiliario).
+Esta sección se reescribió entera después de probar contra MSFS 2020 y contra
+una sesión real de dos jugadores. Lo que decía antes ("nada probado en vivo",
+"confirmAfterWrite no hace nada", "el volumen de lectura puede saturar FSUIPC")
+era correcto cuando se escribió y hoy ya no lo es.
+
+### Confirmado funcionando
+
+- **Detección**, incluido el MAX 8-200 (`partialMatch=False`).
+- **Lectura**: las 982 L-Vars se suscriben y se leen con **cero errores**. El
+  miedo a que 982 `ReadLVar` cada 33 ms saturaran FSUIPC no se materializó: no
+  hace falta recortar `efb.yaml` ni `misc.yaml`.
+- **Escritura de interruptores**: APU (OFF↔ON), selector multiposición
+  (`gear.autobrake_sw`, caminó 50→0 en 5 pasos).
+- **Ejes**: elevador y alerón se mueven con la escala y el signo correctos.
+- **Lazo de convergencia**: existe y funciona. `confirmAfterWrite` está
+  implementado y reintenta hasta que el control llega.
+
+### Lo que sigue abierto
+
+1. **La POLARIDAD varía por CONTROL, no por sistema.** Este es el hallazgo que
+   más cambia el panorama. `gear.autobrake_sw` respeta la convención de la rueda
+   del modelo (WheelUp = subir); `engine.apu_sw` la tiene INVERTIDA, medido en
+   vivo. Los dos salieron del mismo generador con la misma regla, así que la
+   regla acierta en unos y falla en otros, y **no hay forma de saber cuáles
+   desde el XML**. El consejo anterior de "validar por sistema" era equivocado.
+
+   Mitigación ya en el bridge: si un control se ALEJA del destino, la
+   convergencia se aborta al instante y se reporta como polaridad invertida. Pero
+   ojo con el caso ciego: si el control ya está contra el tope, la escritura
+   empuja hacia afuera, NADA se mueve, no llega ninguna lectura y el detector
+   —que necesita ver la distancia crecer— nunca se dispara. Eso aparece en el log
+   como un simple "no convergió".
+
+   La solución de fondo es una pasada de calibración que mida la polaridad real
+   de los ~340 controles posicionales y regenere el perfil con los códigos
+   correctos. Ver sección 6.
+
+2. **Escala de los ejes.** Ver la cabecera de `controls/axes.yaml`: en una tanda
+   llegaron al valor exacto y en otra, con el mismo binario, exactamente a la
+   mitad. Sin resolver a propósito.
+
+3. **El rudder no se pudo medir** por un eje de hardware que lo pisa 60 veces por
+   segundo. No es un problema del perfil.
+
+### La trampa que rompió la primera sesión de dos jugadores
+
+Vale la pena dejarlo escrito porque no es obvio y volvería a pasar con cualquier
+aeronave grande:
+
+Al conectar, el bridge del otro piloto emite el estado inicial de sus ~982
+controles y la UI los reenvía TODOS como escrituras. Como los dos aviones
+arrancan en el mismo estado, la enorme mayoría pedía el valor que el control YA
+tenía. Se escribían igual, y cada una quedaba esperando una confirmación
+imposible: el bridge solo emite lecturas cuando algo CAMBIA, así que un control
+que ya estaba en su sitio nunca reportaba nada. Cada escritura reintentaba 9-10
+veces durante 6 s, y el canal de FSUIPC es serializado. El síntoma para el
+usuario fue "solo algunos botones funcionan"; en el log, **111 "no convergió" en
+un solo segundo**.
+
+Arreglado en la 0.1.12: `BridgeService.AlreadyAtValue` descarta la escritura si
+el control ya está en el valor pedido. Los `writeOnly` (botones momentáneos) se
+escriben siempre, porque un pulso no tiene estado que comparar.
+
+Queda un riesgo relacionado: si los dos aviones arrancan en estados MUY
+distintos (uno en frío, otro listo para taxi), las escrituras ya no son
+redundantes y sí hay que ejecutarlas todas. Ahí conviene que ambos jugadores
+carguen el avión en el mismo estado antes de conectar.
 
 ## 5. El SDK propio de iFly (todavía sin usar)
 

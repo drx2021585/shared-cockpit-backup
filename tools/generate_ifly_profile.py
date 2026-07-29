@@ -129,13 +129,26 @@ HEADER = """\
 #              solo entonces dispara el codigo -- por eso esto respeta la regla
 #              anti-TOGGLE aunque iFly no exponga ningun SET absoluto.
 #
-# LIMITACION HONESTA: una escritura avanza UN paso hacia el destino. Para un
-# selector de varias posiciones hacen falta varias escrituras (cada cambio de
-# estado del otro piloto vuelve a disparar una). Ademas la POLARIDAD (que rueda
-# arriba = valor mayor) se asume a partir de la convencion del XML y NO esta
-# verificada en vivo: si en algun control resultara invertida, la escritura da
-# un paso en sentido contrario -- un solo paso, no un bucle -- y queda visible
-# en el confirmAfterWrite. Validar por sistema contra MSFS real antes de confiar.
+# UNA ESCRITURA = UN PASO. Un selector de varias posiciones necesita varias
+# escrituras; de eso se encarga el lazo de reintentos de confirmAfterWrite en el
+# bridge (confirmado en vivo: gear.autobrake_sw camino 50 -> 0 en 5 pasos).
+#
+# POLARIDAD: OJO, VARIA POR CONTROL. Este generador asume la convencion del XML
+# (el codigo de WheelUp sube el valor). Medido en vivo el 2026-07-29 esa
+# suposicion acierta en unos controles y falla en otros: gear.autobrake_sw la
+# cumple, engine.apu_sw la tiene INVERTIDA (ahi 8 sube y 7 baja). No hay forma de
+# distinguirlos leyendo el XML.
+#
+# Consecuencia practica: un control con la polaridad invertida NO sincroniza. Si
+# esta a mitad de recorrido el bridge lo detecta (ve la distancia al destino
+# crecer y aborta reportando "polaridad invertida"); pero si esta contra el tope,
+# la escritura empuja hacia afuera, nada se mueve, no llega ninguna lectura y en
+# el log solo queda un "no convergio" generico.
+#
+# Los controles corregidos a mano tras medirlos (hoy: engine.apu_sw, que ademas
+# necesita comparar por BANDAS porque su L-Var esta animada e interpola) se
+# PIERDEN al volver a correr este generador. Antes de regenerar, revisar
+# NOTAS-SDK.md seccion 4.
 """
 
 
