@@ -29,6 +29,15 @@ public sealed class BridgeService : IAsyncDisposable
         /// del destino en vez de acercarse -- ver ObserveConfirmedValue.
         /// </summary>
         public double? LastDistance { get; init; }
+
+        /// <summary>
+        /// ¿Llegó ALGUNA lectura de este control mientras la escritura estaba
+        /// pendiente? Distingue dos fallos que hasta ahora se reportaban igual:
+        /// "se movió pero no llegó a tiempo" (hubo lecturas) y "no se movió en
+        /// absoluto" (ninguna), que es la firma de una polaridad invertida
+        /// contra el tope. Ver ProcessPendingWriteConfirmations.
+        /// </summary>
+        public bool ObservedAnyReading { get; init; }
     }
 
     /// <summary>
@@ -676,13 +685,23 @@ public sealed class BridgeService : IAsyncDisposable
             if (elapsedMs >= timeoutMs)
             {
                 _pendingWriteConfirmations.Remove(pending.Control.Id);
-                _log.Warn(
-                    $"control '{pending.Control.Id}': no convergió al valor pedido '{pending.DesiredValue}' " +
-                    $"tras {pending.Attempts} intento(s) y {elapsedMs}ms.");
-                _broadcast(BridgeError.Build(
-                    pending.Control.Id,
-                    "confirmAfterWrite",
-                    $"el control no convergió al valor pedido tras {pending.Attempts} intento(s)"));
+
+                // Sin NINGUNA lectura en toda la ventana el control no se movió
+                // ni un paso. Eso no es "lento": es que la escritura no tuvo
+                // efecto, y la causa típica es que los códigos de subir/bajar
+                // estén cruzados en el perfil y se esté empujando contra el tope
+                // (la polaridad varía por control en el iFly, ver
+                // aircraft-profiles/ifly-737-max8/NOTAS-SDK.md). Ese caso es
+                // CIEGO para la deteccion de divergencia de ObserveConfirmedValue,
+                // que necesita ver la distancia crecer -- por eso hay que
+                // nombrarlo aquí o queda indistinguible de un timeout normal.
+                var detalle = pending.ObservedAnyReading
+                    ? $"no convergió al valor pedido tras {pending.Attempts} intento(s)"
+                    : $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s): la escritura no tuvo " +
+                      "efecto (probable polaridad invertida en el perfil, o el control ya está contra su tope)";
+
+                _log.Warn($"control '{pending.Control.Id}': {detalle} (valor pedido '{pending.DesiredValue}', {elapsedMs}ms).");
+                _broadcast(BridgeError.Build(pending.Control.Id, "confirmAfterWrite", $"el control {detalle}"));
                 continue;
             }
 
@@ -715,6 +734,9 @@ public sealed class BridgeService : IAsyncDisposable
             _pendingWriteConfirmations.Remove(control.Id);
             return;
         }
+
+        pending = pending with { ObservedAnyReading = true };
+        _pendingWriteConfirmations[control.Id] = pending;
 
         // Detección de polaridad invertida. Los controles del iFly no aceptan un
         // SET absoluto: cada escritura avanza UN paso, y la dirección la decide el

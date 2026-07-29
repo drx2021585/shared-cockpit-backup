@@ -182,8 +182,16 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.12",
+    version: "0.1.13",
     title: "Current build",
+    commits: [
+      "When a switch fails to follow your partner, the app now says whether it moved and fell short or never moved at all. The second case points at a specific wiring mistake in the aircraft profile, so these reports can now be turned into fixes instead of guesses.",
+    ],
+  },
+  {
+    version: "0.1.12",
+    title: "Published release",
+    date: "2026-07-29",
     commits: [
       "Fixed the main reason switches stopped syncing partway through a shared session. When you joined, the app tried to copy your partner's entire cockpit onto yours — about a thousand switches at once, even the ones already in the same position — which jammed the connection to the simulator for minutes. It now skips any switch that is already where your partner has it.",
     ],

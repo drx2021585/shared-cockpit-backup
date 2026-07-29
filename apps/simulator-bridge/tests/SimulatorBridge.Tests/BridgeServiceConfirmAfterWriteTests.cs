@@ -156,6 +156,77 @@ public class BridgeServiceConfirmAfterWriteTests
         Assert.Single(calculator.ExecutedCodes);
     }
 
+
+    /// <summary>
+    /// Un control que NO SE MUEVE y uno que se mueve pero llega tarde son fallos
+    /// distintos y hay que poder distinguirlos en el log: el primero es la firma
+    /// de una polaridad invertida empujando contra el tope, que es CIEGA para la
+    /// deteccion de divergencia (esa necesita ver la distancia crecer, y sin
+    /// lecturas no hay distancia). Antes los dos decian "no convergio".
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_ReportsDidNotMove_WhenNoReadingArrivedAtAll()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithConfirmAfterWriteControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(5d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        // Ninguna lectura: el control jamas se movio. Se agota la ventana
+        // (timeoutMs 400 en el perfil de prueba).
+        Thread.Sleep(500);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+
+        var err = broadcasts.LastOrDefault(b =>
+            b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+        Assert.NotNull(err);
+        Assert.Contains("NO SE MOVIÓ", err!["message"]?.GetValue<string>());
+        Assert.Contains("polaridad invertida", err["message"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public void ConfirmAfterWrite_ReportsDidNotConverge_WhenItMovedButNeverArrived()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithConfirmAfterWriteControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(5d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        // Se acerca (3, luego 4) pero nunca llega a 5.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 3d);
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 4d);
+        Thread.Sleep(500);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+
+        var err = broadcasts.LastOrDefault(b =>
+            b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+        Assert.NotNull(err);
+        Assert.Contains("no convergió", err!["message"]?.GetValue<string>());
+        Assert.DoesNotContain("NO SE MOVIÓ", err["message"]?.GetValue<string>());
+    }
+
     private static AircraftProfile MakeProfileWithConfirmAfterWriteControl()
     {
         var control = new ControlDefinition
