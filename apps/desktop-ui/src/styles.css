@@ -722,6 +722,41 @@ button {
   font-weight: 300;
 }
 
+/* Modelos concretos que cubre el perfil (manifest.yaml -> variants). Un solo
+   perfil puede servir para varias variantes cuando comparten cabina. */
+.aircraft-variants {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+
+.aircraft-variants-title {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-45);
+  margin-bottom: 6px;
+}
+
+.aircraft-variants-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aircraft-variants-list li {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-70, var(--text-45));
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
 /* ---------- CTA / footer ---------- */
 
 .cta {

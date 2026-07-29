@@ -31,6 +31,13 @@ export interface AircraftProfile {
    * backend anterior a este campo llegan sin él — se trata como no verificado.
    */
   verified?: boolean;
+  /**
+   * Modelos concretos que cubre este perfil, como se llaman en el paquete
+   * instalado (ej. "iFly 737-MAX8200"). Un solo perfil puede cubrir varias
+   * variantes cuando comparten cabina. Opcional: un backend anterior a este
+   * campo responde sin él.
+   */
+  variants?: string[];
 }
 
 export interface SessionParticipant {

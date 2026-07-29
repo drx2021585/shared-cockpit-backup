@@ -83,6 +83,12 @@ async function init() {
   await pool.query(
     "ALTER TABLE aircraft_profiles ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT false"
   );
+  // variants: modelos concretos que cubre el perfil (ej. "iFly 737-MAX8200"),
+  // desde `variants` en manifest.yaml. JSON en TEXT igual que capabilities_json:
+  // es una lista corta de solo lectura que nunca se consulta por elemento.
+  await pool.query(
+    "ALTER TABLE aircraft_profiles ADD COLUMN IF NOT EXISTS variants_json TEXT NOT NULL DEFAULT '[]'"
+  );
   await pool.query("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS creator_pilot_name TEXT");
   // control_owner / control_requested_by guardan `seat` ('captain' |
   // 'first_officer'), NO pilotName. Esto es intencional: packages/synchronization-core
@@ -146,18 +152,29 @@ export const dbReady = init().catch((err) => {
  * esas sesiones ya no se pueden volar. Son salas efímeras de join code, no
  * datos históricos que valga la pena conservar.
  */
+/** Parsea una columna JSON-en-TEXT a string[], tolerando null/basura. */
+function safeJsonArray(raw: unknown): string[] {
+  if (typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
   await dbReady;
   await pruneRemovedAircraftProfiles(profiles.map((p) => p.id));
   for (const p of profiles) {
     await pool.query(
-      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024, verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024, verified, variants_json)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, developer=excluded.developer, version=excluded.version,
          coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
          msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024,
-         verified=excluded.verified`,
+         verified=excluded.verified, variants_json=excluded.variants_json`,
       [
         p.id,
         p.name,
@@ -168,6 +185,7 @@ export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
         p.compatibility.msfs2020,
         p.compatibility.msfs2024,
         p.verified,
+        JSON.stringify(p.variants ?? []),
       ]
     );
   }
@@ -226,6 +244,9 @@ export async function listAircraftProfiles() {
     capabilities: JSON.parse(r.capabilities_json),
     compatibility: { msfs2020: !!r.msfs2020, msfs2024: !!r.msfs2024 },
     verified: !!r.verified,
+    // Perfiles guardados por un backend anterior a esta columna no la tienen;
+    // se degrada a lista vacia en vez de romper el catalogo entero.
+    variants: safeJsonArray(r.variants_json),
   }));
 }
 

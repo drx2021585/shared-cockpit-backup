@@ -182,8 +182,16 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.10",
+    version: "0.1.11",
     title: "Current build",
+    commits: [
+      "Each aircraft card now lists the exact models the profile works with. The iFly B737 MAX 8 covers four of them: the base model, the 166 and 189 seat layouts, and the MAX 8-200.",
+    ],
+  },
+  {
+    version: "0.1.10",
+    title: "Published release",
+    date: "2026-07-29",
     commits: [
       "The iFly B737 MAX 8 now synchronizes the flight controls — the control column and the ailerons were confirmed moving in the simulator, and only one pilot flies at a time.",
       "Switches with several positions, like the autobrake selector, now reach the position the other pilot chose. Before, they stopped one notch short or never moved at all.",

@@ -82,6 +82,18 @@ export function Aircraft() {
                 <div className="bar-fill" style={{ width: `${ac.coverage}%` }} />
               </div>
               <div className="aircraft-card-desc">{describeCapabilities(ac)}</div>
+              {ac.variants && ac.variants.length > 0 && (
+                <div className="aircraft-variants">
+                  <div className="aircraft-variants-title">
+                    Works with {ac.variants.length} models
+                  </div>
+                  <ul className="aircraft-variants-list">
+                    {ac.variants.map((variant) => (
+                      <li key={variant}>{variant}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           );
         })}

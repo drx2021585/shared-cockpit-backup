@@ -27,6 +27,18 @@ versions:
   tested:
     - "1.1.0.0"
 
+# Modelos que cubre este perfil, tal como aparecen en SimObjects/Airplanes/ del
+# paquete instalado. Los cuatro comparten el mismo modelo interior (cada uno
+# hace <IncludeBase> del mismo iFly737Max_INTERIOR.xml, ver detection.yaml), asi
+# que un solo perfil los cubre a todos -- por eso se listan aca en vez de tener
+# un perfil por variante. La UI los muestra en la tarjeta de la aeronave para
+# que el jugador sepa cuales le sirven.
+variants:
+  - "iFly 737-MAX8"
+  - "iFly 737-MAX8-166Seats"
+  - "iFly 737-MAX8-189Seats"
+  - "iFly 737-MAX8200"
+
 # Un solo prefijo cubre las 4 variantes de asientos, las 3 libreas dedicadas y
 # el MAX 8-200 -- todos los aircraft.cfg del paquete arrancan con esta cadena
 # (verificado sobre la instalacion real). Ver detection.yaml.

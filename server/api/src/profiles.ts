@@ -84,6 +84,14 @@ export interface ScannedProfile {
   capabilities: Record<string, string>;
   compatibility: { msfs2020: boolean; msfs2024: boolean };
   /**
+   * Modelos concretos que cubre el perfil, tal como se llaman en
+   * SimObjects/Airplanes/ del paquete instalado (ej. "iFly 737-MAX8200").
+   * Sale de `variants` en manifest.yaml. Es informativo para el jugador: un
+   * solo perfil puede cubrir varias variantes cuando comparten cabina, y sin
+   * esto no hay forma de saber desde la app cuales son.
+   */
+  variants: string[];
+  /**
    * ¿Se probó este perfil contra MSFS de verdad, o solo se generó/escribió sin
    * volarlo? Sale de `verification: live-tested | untested` en manifest.yaml;
    * si el manifest no lo declara se asume NO verificado, que es el lado seguro.
@@ -178,6 +186,9 @@ export function scanAircraftProfiles(): ScannedProfile[] {
       coverage: computeCoverage(manifest.capabilities ?? {}, controls),
       capabilities: manifest.capabilities ?? {},
       compatibility: manifest.compatibility ?? { msfs2020: false, msfs2024: false },
+      variants: Array.isArray(manifest.variants)
+        ? manifest.variants.filter((v: unknown): v is string => typeof v === "string")
+        : [],
       verified: manifest.verification === "live-tested",
     });
   }
