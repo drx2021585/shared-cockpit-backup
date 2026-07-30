@@ -21,6 +21,16 @@ versions:
   tested:
     - "1.0.0"
 
+# Modelos base que cubre este perfil dentro de la familia PMDG 737 NG. La UI
+# usa esta lista para mostrar "Works with 4 models". Las subvariantes (900ER,
+# BBJ, BCF, BDSF, etc.) siguen cubiertas por detection.titleContains, pero acá
+# listamos los cuatro modelos principales igual que en iFly.
+variants:
+  - "PMDG 737-600"
+  - "PMDG 737-700"
+  - "PMDG 737-800"
+  - "PMDG 737-900"
+
 # titleContains cubre TODA la familia 737 NG de PMDG, no solo el 900. El match
 # es substring case-insensitive (ver ProfileMatcher.cs), así que las cuatro
 # entradas base alcanzan para todas las subvariantes:

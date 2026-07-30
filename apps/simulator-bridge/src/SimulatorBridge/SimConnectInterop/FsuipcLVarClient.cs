@@ -175,46 +175,97 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
     /// 982 de ellas por ciclo tardaban 624 ms. Con este camino no se pide nada: el
     /// módulo WASM de FSUIPC ya mantiene el caché y notifica las diferencias.
     /// </summary>
+    /// <summary>
+    /// Cambios que FSUIPC empujó y todavía no se entregaron. Existe por una razón de
+    /// HILOS, no de rendimiento.
+    ///
+    /// `OnValuesChanged` lo invoca FSUIPC desde SU PROPIO hilo. Si desde ahí se
+    /// llamara directamente a FieldValueReceived, BridgeService acabaría mutando
+    /// `_lastObservedByControl`, `_pendingWriteConfirmations` y el registro de pulsos
+    /// EN PARALELO con el hilo del pump, que hace lo mismo en
+    /// ProcessPendingWriteConfirmations. Dos hilos escribiendo el mismo
+    /// `Dictionary` no solo lanza excepciones: puede dejar la estructura corrupta y
+    /// colgar el proceso en un bucle infinito dentro de ella. Antes de este cambio
+    /// todo el camino de lectura corría en un solo hilo y el problema no existía.
+    ///
+    /// Con la cola, el callback de FSUIPC solo copia y encola (rápido y sin tocar
+    /// nada compartido), y la entrega ocurre en Pump(), en el mismo hilo de siempre.
+    /// No cuesta latencia apreciable: el pump gira cada 33 ms, que es la cadencia a
+    /// la que ya se medían los 47 ms del ciclo completo.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string LVarName, double Value)> _pendingWapiChanges = new();
+
     private void OnWapiValuesChanged(object? sender, EventArgs e)
     {
         try
         {
+            // LVarsChanged solo es válido DURANTE el callback (es el conjunto de
+            // diferencias de esta actualización), así que hay que copiar los valores
+            // acá y no guardar referencias para leerlas después.
             foreach (var name in MSFSVariableServices.LVarsChanged.Names)
             {
-                // El perfil nombra las L-Vars con el prefijo "L:" (ej.
-                // "L:VC_APU_SW_VAL"); el WAPI las lista sin él.
-                if (!_tracked.TryGetValue($"L:{name}", out var tracked)
-                    && !_tracked.TryGetValue(name, out tracked))
-                {
-                    continue; // L-Var del avión que este perfil no declara
-                }
-
-                var value = MSFSVariableServices.LVarsChanged[name].Value;
-                if (value == tracked.LastValue)
-                {
-                    continue;
-                }
-
-                _tracked[tracked.LVarName] = tracked with { LastValue = value };
-                FieldValueReceived?.Invoke(tracked.ControlId, value);
+                _pendingWapiChanges.Enqueue((name, MSFSVariableServices.LVarsChanged[name].Value));
             }
         }
         catch (Exception ex)
         {
-            // Este handler lo invoca FSUIPC desde su propio hilo: una excepción que
-            // se escape puede tumbar el proceso entero. Igual que PumpSafely en
-            // BridgeService, se aísla y se reporta.
-            Warning?.Invoke($"Error procesando cambios de L-Vars empujados por FSUIPC: {ex.Message}");
+            // Una excepción que se escape de un callback en el hilo de FSUIPC puede
+            // tumbar el proceso entero. Se aísla acá, igual que PumpSafely en
+            // BridgeService.
+            _wapiCallbackError = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Último error del callback de FSUIPC, para reportarlo desde el hilo del pump.
+    /// No se llama a Warning?.Invoke dentro del callback: ese evento termina
+    /// emitiendo por el WebSocket, o sea más trabajo compartido en el hilo
+    /// equivocado.
+    /// </summary>
+    private volatile string? _wapiCallbackError;
+
+    /// <summary>
+    /// Entrega los cambios que FSUIPC encoló, desde el hilo del pump. Reemplaza al
+    /// recorrido de 982 ReadLVar por ciclo, que costaba 624 ms.
+    /// </summary>
+    private void DrainWapiChanges()
+    {
+        var callbackError = _wapiCallbackError;
+        if (callbackError is not null)
+        {
+            _wapiCallbackError = null;
+            Warning?.Invoke($"Error procesando cambios de L-Vars empujados por FSUIPC: {callbackError}");
+        }
+
+        while (_pendingWapiChanges.TryDequeue(out var change))
+        {
+            // El perfil nombra las L-Vars con el prefijo "L:" (ej.
+            // "L:VC_APU_SW_VAL"); el WAPI las lista sin él.
+            if (!_tracked.TryGetValue($"L:{change.LVarName}", out var tracked)
+                && !_tracked.TryGetValue(change.LVarName, out tracked))
+            {
+                continue; // L-Var del avión que este perfil no declara
+            }
+
+            if (change.Value == tracked.LastValue)
+            {
+                continue;
+            }
+
+            _tracked[tracked.LVarName] = tracked with { LastValue = change.Value };
+            FieldValueReceived?.Invoke(tracked.ControlId, change.Value);
         }
     }
 
     public void Pump()
     {
-        // Con el empuje activo no hay nada que sondear: los cambios llegan por
-        // OnWapiValuesChanged. Sondear ADEMÁS sería pagar los 624 ms del recorrido
-        // completo para no enterarse de nada nuevo.
+        // Con el empuje activo no se sondea nada: solo se entregan, en ESTE hilo, los
+        // cambios que FSUIPC ya encoló desde el suyo (ver _pendingWapiChanges).
+        // Sondear además sería pagar los 624 ms del recorrido completo para no
+        // enterarse de nada nuevo.
         if (_wapiPushActive)
         {
+            DrainWapiChanges();
             return;
         }
 
