@@ -146,6 +146,8 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
   }
 
   const filledBlocks = Math.round((progress / 100) * TOTAL_BLOCKS);
+  const fsuipcReady = !!fsuipc?.installed && !!fsuipc.wapiPresent;
+  const fsuipcBlocksSetup = fsuipc !== null && !fsuipcReady;
 
   return (
     <div className="modal-overlay">
@@ -169,7 +171,8 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
               Simulator Community folder (2020 or 2024).
               <br />
               <br />
-              The We Connect Bridge package will be copied there. It only takes a moment.
+              The We Connect Bridge package will be copied there, and add-on cockpit access is
+              handled through FSUIPC7. It only takes a moment.
             </p>
 
             {/* FSUIPC7 no lo instalamos nosotros y no podemos: es de un tercero.
@@ -223,8 +226,8 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
               >
                 Cancel
               </button>
-              <button className="btn" onClick={handleAccept} disabled={validating || !folderPath}>
-                {validating ? "Checking…" : "Accept"}
+              <button className="btn" onClick={handleAccept} disabled={validating || !folderPath || fsuipcBlocksSetup}>
+                {validating ? "Checking…" : fsuipcBlocksSetup ? "Install FSUIPC7 first" : "Accept"}
               </button>
             </div>
           </>

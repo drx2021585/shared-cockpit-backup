@@ -182,12 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.17",
+    version: "0.1.18",
     title: "Current build",
     date: "2026-07-30",
     commits: [
-      "Fixed the 'Leave session' button for co-pilots — it now returns to the home screen instead of staying stuck on the in-flight view.",
-      "The iFly 737 MAX 8 profile now loads correctly when the aircraft is detected.",
+      "The cockpit now shows a confirmation popup as soon as both pilots are using the same aircraft and simulator version.",
+      "The matched-aircraft state is tracked as a real transition, so the confirmation appears once when the setup becomes valid instead of flickering on every refresh.",
+      "The Network panel now shows the real IPv4 and IPv6 addresses from this PC instead of public web IP lookups, and first-time setup blocks until FSUIPC7 is installed correctly.",
     ],
   },
   {

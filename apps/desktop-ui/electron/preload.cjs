@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld("weconnectDesktop", {
   restartApp: () => ipcRenderer.invoke("app:restart"),
 });
 
+contextBridge.exposeInMainWorld("weconnectNetwork", {
+  getLocalAddresses: () => ipcRenderer.invoke("network:get-local-addresses"),
+});
+
 /**
  * Asistente de primer inicio (carpeta Community de MSFS) — ver main.cjs para
  * la implementación real de validación/copia/persistencia de config.

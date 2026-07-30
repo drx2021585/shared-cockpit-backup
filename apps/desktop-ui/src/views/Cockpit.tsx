@@ -178,6 +178,7 @@ export function Cockpit({
   const { profiles } = useAircraftProfiles();
   const [ipBlurred, setIpBlurred] = useState(true);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+  const [aircraftMatchConfirmOpen, setAircraftMatchConfirmOpen] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [sessionActionBusy, setSessionActionBusy] = useState(false);
@@ -267,6 +268,19 @@ export function Cockpit({
     (!!remotePilotAircraft?.simulatorVersion
       ? remotePilotAircraft.simulatorVersion !== bridge.simulatorVersion
       : bridge.simulatorVersion !== session?.sim);
+  const aircraftMatched =
+    !aircraftMismatch && !simulatorMismatch && !!localProfileId && !!remotePilotAircraft;
+  const previousAircraftMatchedRef = useRef(false);
+
+  useEffect(() => {
+    if (aircraftMatched && !previousAircraftMatchedRef.current) {
+      setAircraftMatchConfirmOpen(true);
+    }
+    if (!aircraftMatched && aircraftMatchConfirmOpen) {
+      setAircraftMatchConfirmOpen(false);
+    }
+    previousAircraftMatchedRef.current = aircraftMatched;
+  }, [aircraftMatched, aircraftMatchConfirmOpen]);
 
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
@@ -328,7 +342,7 @@ export function Cockpit({
         </div>
       )}
 
-      {!aircraftMismatch && !simulatorMismatch && localProfileId && remotePilotAircraft && (
+      {aircraftMatched && (
         <div className="connected-banner" style={{ marginTop: 12 }}>
           <span className="connected-dot" />
           <span className="connected-label">Aircraft matched</span>
@@ -528,6 +542,27 @@ export function Cockpit({
                 style={{ background: "#e24c4b", borderColor: "#e24c4b" }}
               >
                 {closingSession ? "Cerrando…" : "Sí, cerrar sesión"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {aircraftMatchConfirmOpen && (
+        <div className="modal-overlay">
+          <div className="update-card" role="alertdialog" aria-modal="true" aria-labelledby="aircraft-match-title">
+            <h2 id="aircraft-match-title" className="h2-modal" style={{ marginBottom: 12 }}>
+              Avion confirmado
+            </h2>
+            <p style={{ color: "var(--text-55)", fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>
+              Ambos pilotos estan usando el mismo modelo de avion y la misma version del simulador.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                className="btn"
+                onClick={() => setAircraftMatchConfirmOpen(false)}
+              >
+                Continuar
               </button>
             </div>
           </div>

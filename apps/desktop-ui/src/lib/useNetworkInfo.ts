@@ -1,16 +1,29 @@
 import { useEffect, useState } from "react";
 
 /**
- * Detecta la IP pública del jugador para mostrarla en la pantalla de sesión
- * (necesaria para conexión directa WebRTC / fallback). Réplica del comportamiento
- * del diseño original (fetch a ipify). Si falla, muestra "Unavailable" — nunca
- * bloquea la pantalla.
+ * En desktop muestra las direcciones REALES de la máquina vía Electron
+ * (os.networkInterfaces en main.cjs). Solo en build web puro hace fallback a
+ * ipify para no romper la vista fuera de Electron.
  */
 export function usePublicIp() {
   const [ipv4, setIpv4] = useState("Detecting…");
   const [ipv6, setIpv6] = useState("Detecting…");
 
   useEffect(() => {
+    const localNetwork = window.weconnectNetwork;
+    if (localNetwork) {
+      localNetwork.getLocalAddresses()
+        .then((info) => {
+          setIpv4(info.ipv4 ?? "Unavailable");
+          setIpv6(info.ipv6 ?? "Unavailable");
+        })
+        .catch(() => {
+          setIpv4("Unavailable");
+          setIpv6("Unavailable");
+        });
+      return;
+    }
+
     fetch("https://api.ipify.org?format=json")
       .then((r) => r.json())
       .then((d) => setIpv4(d.ip))

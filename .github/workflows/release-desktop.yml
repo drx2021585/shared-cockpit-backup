@@ -1,0 +1,37 @@
+name: release-desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: apps/desktop-ui
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/desktop-ui/package-lock.json
+
+      - name: Install desktop-ui dependencies
+        run: npm ci
+
+      - name: Publish desktop release to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist:publish

@@ -27,6 +27,9 @@ interface Window {
     openInstallFolder: () => Promise<string>;
     restartApp: () => Promise<void>;
   };
+  weconnectNetwork?: {
+    getLocalAddresses: () => Promise<{ ipv4: string | null; ipv6: string | null }>;
+  };
   weconnectWindow?: {
     isElectron: true;
     minimize: () => Promise<void>;

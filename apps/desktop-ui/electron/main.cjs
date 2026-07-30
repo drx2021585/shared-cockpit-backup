@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog, session } = require("electro
 const path = require("node:path");
 const fs = require("node:fs");
 const net = require("node:net");
+const os = require("node:os");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
@@ -79,6 +80,44 @@ ipcMain.handle("window:toggle-maximize", () => {
 });
 ipcMain.handle("window:close", () => mainWindow?.close());
 ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
+
+/**
+ * Direcciones IP REALES de esta máquina. La UI antes consultaba ipify desde el
+ * renderer, lo que devolvía la IP pública (o fallaba por red/CORS) en vez de la
+ * IPv4/IPv6 reales de la interfaz local que el usuario espera ver en "Network".
+ */
+function getLocalNetworkAddresses() {
+  const interfaces = os.networkInterfaces();
+  let ipv4 = null;
+  let ipv6 = null;
+
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (!entry || entry.internal) continue;
+
+      if (!ipv4 && entry.family === "IPv4") {
+        ipv4 = entry.address;
+        continue;
+      }
+
+      if (!ipv6 && entry.family === "IPv6") {
+        // Link-local (fe80::/10) y direcciones con zone id no son útiles para
+        // mostrar como "tu IPv6" en esta UI.
+        if (!entry.address.toLowerCase().startsWith("fe80:")) {
+          ipv6 = entry.address.split("%")[0];
+        }
+      }
+
+      if (ipv4 && ipv6) {
+        return { ipv4, ipv6 };
+      }
+    }
+  }
+
+  return { ipv4, ipv6 };
+}
+
+ipcMain.handle("network:get-local-addresses", () => getLocalNetworkAddresses());
 
 // ---------------------------------------------------------------------------
 // Asistente de primer inicio: pide la carpeta Community de MSFS e instala ahí
