@@ -45,6 +45,11 @@ paquetes corruptos, así que un layout que no coincide con los archivos en disco
 es exactamente la clase de cosa que hace que el paquete se ignore en silencio.
 Correr el script después de cada recompilación del `.wasm`.
 
+**Al cambiar el `.wasm` hay que subir `package_version` a mano.** La app decide si
+reemplazar el paquete instalado comparando ese campo contra el que guardó la última
+vez (ver `reinstallCommunityPackageIfOutdated` en `electron/main.cjs`); si no se
+sube, el módulo nuevo no llega a nadie que ya tuviera la app instalada.
+
 `minimum_game_version` se bajó de `1.39.9` a `1.0.0` (2026-07-29). `1.39.9` es
 numeración de MSFS **2020**, y MSFS compara estas versiones por tupla: en MSFS
 2024 (`1.6.x`) resulta `1.6.34 < 1.39.9`, así que el paquete quedaba **excluido

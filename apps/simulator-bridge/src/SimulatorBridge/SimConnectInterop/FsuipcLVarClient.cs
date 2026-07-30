@@ -101,14 +101,24 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             try
             {
                 MSFSVariableServices.Init();
+
+                // Frecuencia de actualización del WAPI, en Hz. Es la cadencia REAL a
+                // la que se pueden observar los cambios de cabina, así que decide si
+                // una pulsación de botón se ve o no: un clic de ratón dura 60-150 ms.
+                MSFSVariableServices.LVARUpdateFrequency = LVarUpdateFrequencyHz;
+
+                // Suscripción al empuje de cambios ANTES de Start(), para no perder
+                // los primeros.
+                MSFSVariableServices.OnValuesChanged += OnWapiValuesChanged;
                 MSFSVariableServices.Start();
+                _wapiPushActive = true;
             }
             catch (Exception ex)
             {
                 Warning?.Invoke(
-                    "No se pudo iniciar MSFSVariableServices (módulo WASM/WAPI de FSUIPC7) para calculator code: " +
-                    $"{ex.Message}. ¿Está FSUIPC_WAPID.dll junto a SharedCockpit.Bridge.exe? La lectura de L-Vars vía " +
-                    "FSUIPC7 sigue funcionando igual; solo los controles write.type=calculatorCode no se podrán escribir.");
+                    "No se pudo iniciar MSFSVariableServices (módulo WASM/WAPI de FSUIPC7): " +
+                    $"{ex.Message}. ¿Está FSUIPC_WAPID.dll junto a SharedCockpit.Bridge.exe? Se cae al sondeo " +
+                    "clásico con ReadLVar, que funciona pero es MUCHO más lento (ver la nota de Pump).");
             }
         }
 
@@ -135,8 +145,79 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
         Disconnected?.Invoke();
     }
 
+    /// <summary>
+    /// Cadencia de actualización del WAPI, en Hz.
+    ///
+    /// Importa mucho más de lo que parece: es el ritmo al que se puede OBSERVAR la
+    /// cabina, y un clic de ratón dura 60-150 ms. Medido en vivo el 2026-07-30, el
+    /// sondeo anterior daba un ciclo real de 624 ms (1.6 Hz) y con eso se perdían
+    /// 4 de cada 6 pulsaciones de una tecla del CDU -- no se perdían "por el
+    /// camino": nadie estaba mirando cuando ocurrieron.
+    ///
+    /// 25 Hz (40 ms) deja ver cualquier pulsación humana con margen, y como el WAPI
+    /// solo notifica lo que CAMBIÓ, subir la frecuencia no multiplica el trabajo:
+    /// en una cabina quieta no llega nada.
+    /// </summary>
+    private const int LVarUpdateFrequencyHz = 25;
+
+    /// <summary>
+    /// True cuando la suscripción a OnValuesChanged está activa, o sea cuando los
+    /// cambios LLEGAN EMPUJADOS y no hay que sondear.
+    /// </summary>
+    private bool _wapiPushActive;
+
+    /// <summary>
+    /// FSUIPC avisa de que hubo cambios y deja SOLO los que cambiaron en
+    /// LVarsChanged. Esto reemplaza al sondeo de 982 ReadLVar por ciclo.
+    ///
+    /// El coste del sondeo estaba escondido: no producía ningún error, así que se
+    /// dio por bueno. Pero cada ReadLVar es una ida y vuelta a FSUIPC (~0.6 ms), y
+    /// 982 de ellas por ciclo tardaban 624 ms. Con este camino no se pide nada: el
+    /// módulo WASM de FSUIPC ya mantiene el caché y notifica las diferencias.
+    /// </summary>
+    private void OnWapiValuesChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            foreach (var name in MSFSVariableServices.LVarsChanged.Names)
+            {
+                // El perfil nombra las L-Vars con el prefijo "L:" (ej.
+                // "L:VC_APU_SW_VAL"); el WAPI las lista sin él.
+                if (!_tracked.TryGetValue($"L:{name}", out var tracked)
+                    && !_tracked.TryGetValue(name, out tracked))
+                {
+                    continue; // L-Var del avión que este perfil no declara
+                }
+
+                var value = MSFSVariableServices.LVarsChanged[name].Value;
+                if (value == tracked.LastValue)
+                {
+                    continue;
+                }
+
+                _tracked[tracked.LVarName] = tracked with { LastValue = value };
+                FieldValueReceived?.Invoke(tracked.ControlId, value);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Este handler lo invoca FSUIPC desde su propio hilo: una excepción que
+            // se escape puede tumbar el proceso entero. Igual que PumpSafely en
+            // BridgeService, se aísla y se reporta.
+            Warning?.Invoke($"Error procesando cambios de L-Vars empujados por FSUIPC: {ex.Message}");
+        }
+    }
+
     public void Pump()
     {
+        // Con el empuje activo no hay nada que sondear: los cambios llegan por
+        // OnWapiValuesChanged. Sondear ADEMÁS sería pagar los 624 ms del recorrido
+        // completo para no enterarse de nada nuevo.
+        if (_wapiPushActive)
+        {
+            return;
+        }
+
         if (!IsConnected || _tracked.Count == 0)
         {
             return;

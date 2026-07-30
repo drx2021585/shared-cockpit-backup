@@ -75,9 +75,31 @@ era correcto cuando se escribió y hoy ya no lo es.
 ### Confirmado funcionando
 
 - **Detección**, incluido el MAX 8-200 (`partialMatch=False`).
-- **Lectura**: las 982 L-Vars se suscriben y se leen con **cero errores**. El
-  miedo a que 982 `ReadLVar` cada 33 ms saturaran FSUIPC no se materializó: no
-  hace falta recortar `efb.yaml` ni `misc.yaml`.
+- **Lectura**: las 982 L-Vars se suscriben y se leen con **cero errores**.
+
+  **CORRECCIÓN (2026-07-30).** Acá decía que "el miedo a que 982 `ReadLVar` cada
+  33 ms saturaran FSUIPC no se materializó". Era falso, y la conclusión se sacó
+  mirando la métrica equivocada: no había errores, pero sí había una lentitud de
+  19×. Medido en vivo con `tools/bridge-probe.mjs`, el ciclo real del bucle era de
+  **624 ms (1.6 Hz)** en vez de los 33 ms configurados, porque cada `ReadLVar` es
+  una ida y vuelta a FSUIPC (~0.6 ms) y había 982 por ciclo.
+
+  Consecuencia medida: de **6 pulsaciones** de una tecla del CDU, el bridge veía
+  **2**. No se perdían por el camino — nadie estaba mirando cuando ocurrieron. Los
+  interruptores de retención (batería, packs, ground power) sí llegaban siempre,
+  porque conservan el estado nuevo y cualquier cadencia los pilla; los momentáneos
+  vuelven solos antes del siguiente muestreo. Esta era la causa dominante de
+  "solo algunos botones funcionan", por encima de todos los bugs de botones que se
+  arreglaron el 2026-07-29.
+
+  **Arreglado** en `FsuipcLVarClient`: se dejó de sondear. El WAPI de FSUIPC ya
+  mantiene un caché propio y notifica los cambios, así que ahora el cliente se
+  suscribe a `MSFSVariableServices.OnValuesChanged` y lee solo `LVarsChanged`, con
+  `LVARUpdateFrequency = 25` Hz. No hace falta el módulo WASM propio para esto.
+
+  Medido después del cambio, misma prueba: ciclo de **47 ms (22.5 Hz)**, p90 48 ms,
+  máximo 49 ms — desaparecieron también los picos de 900 ms. Y **6 de 6**
+  pulsaciones capturadas, la más corta de 170 ms.
 - **Escritura de interruptores**: APU (OFF↔ON), selector multiposición
   (`gear.autobrake_sw`, caminó 50→0 en 5 pasos).
 - **Ejes**: elevador y alerón se mueven con la escala y el signo correctos.

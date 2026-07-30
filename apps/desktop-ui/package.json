@@ -1,7 +1,7 @@
 {
   "name": "we-connect-desktop-ui",
   "private": true,
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "We Connect - cliente de cabina compartida, web-first y empacado con Electron.",
   "type": "module",
   "main": "electron/main.cjs",

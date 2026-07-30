@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.14",
+    version: "0.1.15",
     title: "Current build",
+    commits: [
+      "Buttons now actually reach your co-pilot. We measured it in the simulator: the app was only looking at the cockpit about 1.6 times per second, while a button press lasts about a tenth of a second — so most presses happened between two glances and were never seen at all. Out of six presses of a CDU key, four were lost. The app now watches 22 times per second instead, and all six get through.",
+      "This was the main reason switches and buttons felt unreliable, above every other fix in the previous versions. Latching switches like the battery or the packs always worked because they stay in their new position; momentary buttons — the CDU keypad, the autopilot panel — spring back and were being missed.",
+      "The connection to the simulator is also far lighter: instead of asking for each of the aircraft's thousand cockpit variables one by one, several times a second, the app now simply gets told what changed.",
+    ],
+  },
+  {
+    version: "0.1.14",
+    title: "Published release",
+    date: "2026-07-30",
     commits: [
       "Switches that moved the wrong way now fix themselves. Some cockpit selectors were wired backwards, so asking for one position moved them to the opposite one. The app now notices, corrects the direction, retries, and remembers — so each control gets it right from then on, on every future flight.",
       "Buttons on the CDU keypad, the autopilot panel and the warning panels were badly broken and are now fixed. A single press from your co-pilot could type the same key up to nine times; buttons could stay stuck down instead of springing back; and a quick double tap lost the second press. All of it affected around 580 controls.",

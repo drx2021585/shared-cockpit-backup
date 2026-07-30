@@ -275,6 +275,14 @@ ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
  * aceptó que instalemos ahí; volver a preguntárselo en cada actualización sería
  * ruido. Si falla, se loggea y la app arranca igual -- el paquete viejo sigue
  * siendo el que estaba, no se queda sin nada.
+ *
+ * NUNCA en el arranque síncrono. Las operaciones de fs son bloqueantes y esto
+ * corre en el proceso principal, que es el mismo que atiende el IPC del
+ * renderer (setup:get-config, setup:check-fsuipc...). Borrar y copiar una carpeta
+ * dentro de Community puede tardar bastante más de lo que sugiere su tamaño
+ * -- carpeta vigilada por el antivirus, disco lento, MSFS con archivos abiertos
+ * --, y mientras dure, la UI se queda esperando sus respuestas de IPC y los
+ * botones parecen no responder. Se agenda fuera del camino crítico.
  */
 function reinstallCommunityPackageIfOutdated() {
   const config = readSetupConfig();
@@ -519,14 +527,14 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
 
   createWindow();
-
-  // Antes de arrancar el bridge: si esta versión de la app trae un paquete de
-  // Community más nuevo que el instalado, se reemplaza en silencio. Ver
-  // reinstallCommunityPackageIfOutdated -- sin esto el paquete quedaba congelado
-  // en el del primer arranque para siempre.
-  reinstallCommunityPackageIfOutdated();
-
   launchBridgeIfNeeded();
+
+  // Reemplazo del paquete de Community, FUERA del camino crítico de arranque: son
+  // operaciones de fs bloqueantes y este es el hilo que atiende el IPC del
+  // renderer (ver la nota en reinstallCommunityPackageIfOutdated). MSFS no puede
+  // haber cargado un avión en los primeros segundos de vida de la app, así que no
+  // hay ninguna prisa por hacerlo antes.
+  setTimeout(reinstallCommunityPackageIfOutdated, 3000);
 
   if (app.isPackaged) {
     // Chequeo silencioso al abrir la app — el resultado llega por el mismo

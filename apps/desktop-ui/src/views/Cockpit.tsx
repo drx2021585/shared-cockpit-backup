@@ -416,9 +416,9 @@ export function Cockpit({
               <div className="net-label">Sync problems logged</div>
               <div
                 className="net-value"
-                style={{ color: bridge.errors.length > 0 ? "#fbbf24" : "var(--green)" }}
+                style={{ color: (bridge.diagnostics?.errorsReported ?? 0) > 0 ? "#fbbf24" : "var(--green)" }}
               >
-                {bridge.diagnostics?.errorsReported ?? bridge.errors.length}
+                {bridge.diagnostics?.errorsReported ?? 0}
               </div>
             </div>
             {bridge.diagnostics && (

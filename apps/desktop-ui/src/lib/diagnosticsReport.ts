@@ -1,4 +1,5 @@
-import type { BridgeDiagnostics, BridgeErrorEntry, SimulatorBridgeState } from "./bridgeClient";
+import type { BridgeDiagnostics, SimulatorBridgeState } from "./bridgeClient";
+import { readBridgeErrors } from "./bridgeErrorLog";
 import { readSessionJournal } from "./sessionJournal";
 import { groupErrors, peakErrorsPerSecond } from "./reportAnalysis";
 import { currentVersion } from "../data";
@@ -92,7 +93,7 @@ function buildFindings(input: DiagnosticsReportInput, d: BridgeDiagnostics | nul
     }
   }
 
-  const peak = peakErrorsPerSecond(bridge.errors);
+  const peak = peakErrorsPerSecond(readBridgeErrors().entries);
   if (peak >= 20) {
     findings.push(
       `Burst of ${peak} errors within one second — that pattern means a mass failure (e.g. the whole cockpit state being re-applied), not isolated controls.`,
@@ -117,7 +118,9 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput) {
   const d = bridge.diagnostics;
   const journal = readSessionJournal();
 
-  const errorsTruncated = d ? d.errorsReported > bridge.errors.length : false;
+  const bridgeErrors = readBridgeErrors();
+  // El bridge cuenta el total sin recortar; el buffer local guarda los ultimos N.
+  const errorsTruncated = bridgeErrors.total > bridgeErrors.entries.length;
 
   return {
     reportVersion: 1,
@@ -146,10 +149,10 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput) {
           }
         : null,
       polarityCorrectionsLearned: d?.polarityInversionsLearned ?? 0,
-      errorsTotal: d?.errorsReported ?? bridge.errors.length,
-      errorsInThisReport: bridge.errors.length,
+      errorsTotal: d?.errorsReported ?? bridgeErrors.total,
+      errorsInThisReport: bridgeErrors.entries.length,
       errorsTruncated,
-      peakErrorsPerSecond: peakErrorsPerSecond(bridge.errors),
+      peakErrorsPerSecond: peakErrorsPerSecond(bridgeErrors.entries),
       peerControlsReceived: journal.peerControlsTotal,
     },
 
@@ -175,11 +178,11 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput) {
     polarityCorrections: d?.polarityInvertedControls ?? [],
 
     errors: {
-      total: d?.errorsReported ?? bridge.errors.length,
-      included: bridge.errors.length,
+      total: d?.errorsReported ?? bridgeErrors.total,
+      included: bridgeErrors.entries.length,
       truncated: errorsTruncated,
-      grouped: groupErrors(bridge.errors),
-      recent: bridge.errors.slice(-150),
+      grouped: groupErrors(bridgeErrors.entries),
+      recent: bridgeErrors.entries.slice(-150),
     },
 
     session: {
