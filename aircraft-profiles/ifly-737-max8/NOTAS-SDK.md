@@ -93,16 +93,104 @@ era correcto cuando se escribió y hoy ya no lo es.
    regla acierta en unos y falla en otros, y **no hay forma de saber cuáles
    desde el XML**. El consejo anterior de "validar por sistema" era equivocado.
 
-   Mitigación ya en el bridge: si un control se ALEJA del destino, la
-   convergencia se aborta al instante y se reporta como polaridad invertida. Pero
-   ojo con el caso ciego: si el control ya está contra el tope, la escritura
-   empuja hacia afuera, NADA se mueve, no llega ninguna lectura y el detector
-   —que necesita ver la distancia crecer— nunca se dispara. Eso aparece en el log
-   como un simple "no convergió".
+   **RESUELTO (2026-07-29) — el bridge la aprende solo.** No hace falta saber la
+   polaridad de antemano ni medir los 339 controles a mano: el lazo de
+   convergencia ya detecta los dos síntomas de una polaridad cruzada, y ahora
+   los CORRIGE en vez de rendirse. Ver `Bridge/PolarityCalibration.cs`.
 
-   La solución de fondo es una pasada de calibración que mida la polaridad real
-   de los ~340 controles posicionales y regenere el perfil con los códigos
-   correctos. Ver sección 6.
+   - Síntoma A, el control queda MÁS LEJOS del destino que cuando empezó → se
+     invierte su RPN y se reintenta con ventana limpia. Contra la distancia de
+     PARTIDA, no contra la lectura anterior: estas L-Vars se animan (14.75 leído
+     en tránsito entre 20 y 10), así que un control correcto puede sobrepasar el
+     destino y alejarse respecto de la lectura previa sin que nada esté mal.
+     Juzgarlo contra la anterior invertía —y persistía— controles que estaban
+     bien. La distancia de partida se toma de la lectura que ya había antes de
+     escribir, así que la divergencia real se detecta en la primera lectura
+     posterior.
+   - Síntoma B, el control NO se mueve en absoluto (está contra el tope y la
+     escritura empuja hacia afuera) → mismo tratamiento. Este era el punto ciego
+     de la 0.1.13, que solo sabía nombrarlo: el detector de divergencia necesita
+     ver crecer la distancia, y un control que no se mueve no emite lecturas.
+
+   La inversión es sintáctica: intercambia los operadores `<` y `>` pegados a
+   `$value`, sin tocar los códigos de comando. Por construcción alcanza SOLO a la
+   forma posicional de dos ramas que emite el generador — las otras tres formas y
+   los controles calibrados a mano (`engine.apu_sw`, que compara por bandas)
+   quedan excluidos sin necesidad de una lista de excepciones.
+
+   Coste de un control mal calibrado: un paso perdido, UNA vez. Después queda
+   correcto, y la corrección se persiste en
+   `%APPDATA%\we-connect-desktop-ui\polarity-calibration.json`, así que se
+   acumula entre sesiones.
+
+   Reversión: si tras invertir el control sigue alejándose, la polaridad no era
+   la causa y la inversión se deshace. Sin eso, un fallo ajeno (sistema sin
+   alimentación, L-Var inexistente en la variante) dejaría una inversión errónea
+   persistida, rompiendo un control que estaba bien declarado. La reversión se
+   dispara SOLO por divergencia, nunca por "no se movió": ese síntoma es ambiguo
+   y revertir con él perdería calibraciones correctas.
+
+   Lo que queda: volcar lo aprendido a los `controls/*.yaml` para que llegue a
+   todos los jugadores en la release siguiente, en vez de que cada instalación lo
+   re-aprenda por su cuenta.
+
+1. **`confirmAfterWrite` repetía los botones momentáneos.** Encontrado
+   2026-07-29 leyendo el perfil, no en vuelo. **RESUELTO.**
+
+   El generador emitía `confirmAfterWrite: true` para todo control con L-Var de
+   estado, incluidos los momentáneos. Pero un pulso no tiene estado estable que
+   confirmar: se pulsa y vuelve solo, la lectura nunca sostiene el valor pedido,
+   y el lazo reintentaba durante toda la ventana — **volviendo a pulsar la tecla
+   en cada intento**, ~9 veces en 6 s. Una pulsación del otro piloto podía
+   escribir el mismo carácter nueve veces en el CDU.
+
+   Radio real medido sobre el perfil: **580 controles** con forma de pulso, los
+   580 con `confirmAfterWrite: true`. Más que los 339 posicionales.
+
+   Segundo fallo en la misma clase: `AlreadyAtValue` (el filtro anti-avalancha de
+   la 0.1.12) descartaba el pulso de SOLTAR, porque llega con valor `false` justo
+   cuando la L-Var ya lee 0 — y el botón quedaba lógicamente hundido dentro del
+   iFly. El comentario de ese filtro daba por hecho que los momentáneos eran
+   todos `writeOnly` y por eso quedaban fuera; en el iFly solo 71 lo son.
+
+   La regla correcta NO es sacar los pulsos del filtro (eso los escribiría
+   siempre, y los 580 llegan todos en el estado inicial al conectar: ~6 minutos de
+   canal tapado, la misma avalancha por otra puerta). Es tratarlos **por pares**:
+   el "pulsar" siempre se ejecuta, y el "soltar" solo si nosotros pulsamos antes.
+   Así el pulso nunca queda a medias y el estado inicial no dispara nada, porque
+   en reposo todos los botones llegan sueltos.
+
+   Tercer y cuarto fallo, en la dirección SALIENTE (auditoría 2026-07-29):
+
+   - **El debouncer se tragaba pulsaciones.** El perfil declara `debounceMs: 50`
+     para los 560 pulsos con `read`, y el debouncer colapsa cambios dentro de la
+     ventana. Un doble toque rápido en el CDU (pulsar 0 ms, soltar 40 ms, pulsar
+     45 ms) perdía la segunda pulsación, y el "soltar" salía siempre con retraso.
+     El debouncing existe para interruptores ruidosos; en un momentáneo las dos
+     transiciones son significativas y caen por definición dentro de la misma
+     ventana. Ahora los pulsos no se debouncean.
+
+   - **Lazo de eco.** Al escribir un pulso por orden del otro piloto, nuestra
+     L-Var cambia, y esa lectura se reemitía como cambio local. El otro lado la
+     recibía y —al no pasar los pulsos por `AlreadyAtValue`— la reescribía,
+     pulsando su botón otra vez y realimentando el ciclo. Para los posicionales
+     el eco es inofensivo porque `AlreadyAtValue` lo descarta en el otro extremo:
+     ese filtro hacía DOBLE función (matar la avalancha y suprimir el eco), y al
+     sacar los pulsos de él se les quitó también la segunda. Ahora la lectura que
+     corresponde a una escritura hecha por orden remota se suprime explícitamente,
+     y se consume una sola vez para no silenciar el cambio siguiente, que sí es
+     local.
+
+   Verificado sobre el perfil real: 580 pulsos, ninguno de ellos alcanzable por el
+   invertidor de polaridad, ninguno con `dataType: number`, y los 51 con forma de
+   pulso sin rama `els{` son todos `writeOnly` (quedan fuera por otra vía).
+
+   Arreglado en `Bridge/MomentaryPulse.cs`, reconociendo la forma del RPN
+   (`$value 0 > if{...} els{...}`) para no tocar `packages/profile-schema`, que es
+   contrato compartido. El generador ya emite `confirmAfterWrite: false`, pero el
+   arreglo del bridge cubre los perfiles ya generados sin regenerarlos — que es
+   lo que hay que hacer, porque regenerar borraría los controles corregidos a
+   mano.
 
 2. **Escala de los ejes.** Ver la cabecera de `controls/axes.yaml`: en una tanda
    llegaron al valor exacto y en otra, con el mismo binario, exactamente a la

@@ -182,8 +182,22 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.13",
+    version: "0.1.14",
     title: "Current build",
+    commits: [
+      "Switches that moved the wrong way now fix themselves. Some cockpit selectors were wired backwards, so asking for one position moved them to the opposite one. The app now notices, corrects the direction, retries, and remembers — so each control gets it right from then on, on every future flight.",
+      "Buttons on the CDU keypad, the autopilot panel and the warning panels were badly broken and are now fixed. A single press from your co-pilot could type the same key up to nine times; buttons could stay stuck down instead of springing back; and a quick double tap lost the second press. All of it affected around 580 controls.",
+      "A new \"Download report\" button in the cockpit saves everything needed to diagnose a session that isn't syncing: which switches failed and why, what arrived from your co-pilot, and whether FSUIPC7 is set up correctly. Both pilots can download one and send them over.",
+      "The first-time setup now checks for FSUIPC7 and warns you if it's missing or incomplete. It's required for add-on cockpits like the iFly 737 MAX 8 and the PMDG 737 to synchronize at all, and until now nothing told you that.",
+      "The setup screen no longer claims to be downloading files and optimizing databases while it copies a single local file, and it no longer makes you wait two and a half seconds for show.",
+      "The simulator package We Connect installs is now replaced automatically when a new version of the app ships one. Before, it was copied once on the very first launch and never updated again, so improvements to it never reached anyone who had already installed the app.",
+      "That same package declared a minimum simulator version that excluded MSFS 2024 outright, and shipped with a placeholder file size that could make the simulator reject it. Both are fixed.",
+    ],
+  },
+  {
+    version: "0.1.13",
+    title: "Published release",
+    date: "2026-07-29",
     commits: [
       "When a switch fails to follow your partner, the app now says whether it moved and fell short or never moved at all. The second case points at a specific wiring mistake in the aircraft profile, so these reports can now be turned into fixes instead of guesses.",
     ],

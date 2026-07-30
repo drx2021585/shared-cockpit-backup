@@ -24,11 +24,21 @@ public sealed class BridgeService : IAsyncDisposable
         int Attempts)
     {
         /// <summary>
-        /// Distancia al valor pedido en la última lectura observada (solo para
-        /// dataType number). Sirve para detectar que el control se está ALEJANDO
-        /// del destino en vez de acercarse -- ver ObserveConfirmedValue.
+        /// Distancia al valor pedido en la PRIMERA lectura observada tras la
+        /// escritura (solo para dataType number). Es la referencia contra la que se
+        /// juzga si el control se está ALEJANDO del destino -- ver
+        /// ObserveConfirmedValue.
+        ///
+        /// Deliberadamente la primera y no la anterior: las L-Vars del iFly se
+        /// ANIMAN (documentado en NOTAS-SDK.md: 14.75 observado en tránsito entre
+        /// 20 y 10), así que un control correcto puede sobrepasar el destino y
+        /// hacer crecer la distancia respecto de la lectura previa. Comparar contra
+        /// la anterior confundía ese sobrepaso normal con una polaridad invertida.
+        /// Contra la INICIAL no: un sobrepaso cerca del destino nunca supera la
+        /// distancia de partida, mientras que un control que va al lado equivocado
+        /// la supera en el primer paso.
         /// </summary>
-        public double? LastDistance { get; init; }
+        public double? InitialDistance { get; init; }
 
         /// <summary>
         /// ¿Llegó ALGUNA lectura de este control mientras la escritura estaba
@@ -89,6 +99,57 @@ public sealed class BridgeService : IAsyncDisposable
     private readonly ICalculatorCodeClient? _calculatorCodeClient;
     private bool _calculatorCodeUnavailableWarned;
 
+    /// <summary>
+    /// Polaridad real APRENDIDA de los controles posicionales, que el perfil no
+    /// puede declarar con certeza porque no se deduce del modelo 3D (ver
+    /// PolarityCalibration para el detalle completo del problema). Cuando el lazo
+    /// de convergencia detecta que un control va al revés, el bridge invierte su
+    /// RPN, reintenta y lo recuerda — en vez de rendirse, que es lo que hacía
+    /// hasta la 0.1.13.
+    /// </summary>
+    private readonly PolarityCalibration _polarity;
+
+    /// <summary>
+    /// Contadores acumulados de esta sesión del bridge, para el reporte descargable
+    /// de la UI (ver BridgeDiagnostics). Son deliberadamente crudos: lo que hace
+    /// falta al diagnosticar es poder comparar órdenes de magnitud de un vistazo
+    /// -- "1100 escrituras intentadas y 980 descartadas" dice inmediatamente que el
+    /// filtro anti-avalancha está trabajando, y "129 fallidas de 140" dice que un
+    /// perfil está roto en masa. Eso no se ve leyendo líneas de log.
+    /// </summary>
+    private int _writesAttempted;
+    private int _writesSkippedAlreadyAtValue;
+    private int _writesConfirmed;
+    private int _writesFailed;
+    private int _pulsePressesWritten;
+    private int _errorsReported;
+
+    private long _lastDiagnosticsAtMs;
+
+    /// <summary>
+    /// Único punto de salida hacia la UI local. Envuelve el Action inyectado para
+    /// poder contar los bridge.error sin tener que acordarse de incrementar un
+    /// contador en cada uno de los ~15 sitios que los emiten (y sin que un sitio
+    /// nuevo se olvide de hacerlo). El total importa porque el buffer de la UI está
+    /// acotado: si el contador es mayor que lo que trae el reporte, hubo truncado.
+    /// </summary>
+    private void Broadcast(JsonObject message)
+    {
+        if (message["type"]?.GetValue<string>() == "bridge.error")
+        {
+            _errorsReported++;
+        }
+
+        _broadcast(message);
+    }
+
+    /// <summary>
+    /// Cada cuánto se emite bridge.diagnostics. 5 s es suficiente para que el
+    /// reporte esté al día cuando el usuario pulse el botón, sin añadir tráfico
+    /// notable al WebSocket local.
+    /// </summary>
+    private const int DiagnosticsIntervalMs = 5000;
+
     private readonly ProfileRepository _profileRepo;
     private readonly ILog _log;
     private readonly Action<JsonObject> _broadcast;
@@ -145,8 +206,13 @@ public sealed class BridgeService : IAsyncDisposable
         TimeSpan? pumpInterval = null,
         IPmdgClientDataClient? pmdgClient = null,
         IPmdgClientDataClient? sharedCockpitWasmClient = null,
-        ICalculatorCodeClient? calculatorCodeClient = null)
+        ICalculatorCodeClient? calculatorCodeClient = null,
+        PolarityCalibration? polarityCalibration = null)
     {
+        // Sin ruta de persistencia por defecto: en tests la calibración vive solo
+        // en memoria. Program.cs inyecta la instancia que sí escribe a disco.
+        _polarity = polarityCalibration ?? new PolarityCalibration();
+
         _sim = sim;
         _profileRepo = profileRepo;
         _log = log;
@@ -215,7 +281,7 @@ public sealed class BridgeService : IAsyncDisposable
 
         foreach (var id in failed)
         {
-            _broadcast(BridgeError.Build(id, "load",
+            Broadcast(BridgeError.Build(id, "load",
                 $"el perfil '{id}' existe en aircraft-profiles/ pero no se pudo cargar; no se va a detectar " +
                 "aunque la aeronave sea la correcta (ver logs del bridge para el motivo)"));
         }
@@ -239,7 +305,7 @@ public sealed class BridgeService : IAsyncDisposable
                 var connected = _sim.TryConnect(_appName);
                 if (!connected)
                 {
-                    _broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
+                    Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
                     try
                     {
                         await Task.Delay(_reconnectInterval, ct);
@@ -264,6 +330,7 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
             PumpSafely("write-confirmations", ProcessPendingWriteConfirmations);
+            PumpSafely("diagnostics", EmitDiagnosticsIfDue);
 
             try
             {
@@ -303,7 +370,7 @@ public sealed class BridgeService : IAsyncDisposable
             if (_pumpStagesWarned.Add(stage))
             {
                 _log.Error($"Fallo en la etapa '{stage}' del ciclo del bridge: {ex}. Se continúa con el resto.");
-                _broadcast(BridgeError.Build(stage, "pump", $"fallo en la etapa '{stage}': {ex.Message}"));
+                Broadcast(BridgeError.Build(stage, "pump", $"fallo en la etapa '{stage}': {ex.Message}"));
             }
         }
     }
@@ -351,11 +418,14 @@ public sealed class BridgeService : IAsyncDisposable
 
         if (AlreadyAtValue(control, value))
         {
+            _writesSkippedAlreadyAtValue++;
             return;
         }
 
+        _writesAttempted++;
         if (WriteControl(control, value))
         {
+            TrackPulseWrite(control, value);
             RegisterPendingWriteConfirmation(control, value);
         }
     }
@@ -394,12 +464,75 @@ public sealed class BridgeService : IAsyncDisposable
             return false;
         }
 
+        // Un pulso (botón momentáneo) NO deja el control en el valor pedido: se
+        // pulsa y vuelve solo, así que comparar contra la última lectura no dice
+        // nada útil. Pero tampoco se puede escribir SIEMPRE: los 580 pulsos del
+        // iFly llegan todos en el estado inicial que emite el otro bridge al
+        // conectar, y a ~650 ms por ExecuteCalculatorCode eso son ~6 minutos de
+        // canal FSUIPC tapado -- exactamente la avalancha que arregló la 0.1.12.
+        //
+        // La regla correcta es por PARES: el "pulsar" siempre se ejecuta, y el
+        // "soltar" solo si nosotros pulsamos antes. Así el pulso nunca queda a
+        // medias (que era el bug: el soltar se descartaba y el botón se quedaba
+        // hundido dentro del iFly) y el estado inicial no dispara nada, porque en
+        // reposo todos los botones llegan sueltos.
+        if (MomentaryPulse.IsPulseControl(control))
+        {
+            return !IsPulsePressRequested(desiredValue)
+                && !_pulsesPressedByUs.Contains(control.Id);
+        }
+
         if (!_lastObservedByControl.TryGetValue(control.Id, out var observed))
         {
             return false; // todavía no leímos este control: no hay con qué comparar
         }
 
         return ValuesEquivalent(control.DataType, desiredValue, observed);
+    }
+
+    /// <summary>
+    /// Controles de tipo pulso que NOSOTROS pulsamos y todavía no soltamos. Es lo
+    /// que permite ejecutar el "soltar" exactamente cuando cierra un par
+    /// pulsar/soltar, y descartarlo en cualquier otro caso (sobre todo el estado
+    /// inicial de los 580 pulsos al conectar). Ver AlreadyAtValue.
+    /// </summary>
+    private readonly HashSet<string> _pulsesPressedByUs = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// ¿El valor pedido para un control de tipo pulso significa PULSAR? El RPN de
+    /// estos controles ramifica por `$value 0 &gt;`, así que la semántica es la
+    /// misma para boolean (true) que para number (&gt; 0).
+    /// </summary>
+    private static bool IsPulsePressRequested(object desiredValue) => desiredValue switch
+    {
+        bool b => b,
+        double d => d > 0d,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Registra el lado del par pulsar/soltar que se acaba de ejecutar, para que
+    /// AlreadyAtValue sepa si el siguiente "soltar" cierra un pulso real.
+    /// </summary>
+    private void TrackPulseWrite(ControlDefinition control, object writtenValue)
+    {
+        if (!MomentaryPulse.IsPulseControl(control))
+        {
+            return;
+        }
+
+        if (IsPulsePressRequested(writtenValue))
+        {
+            _pulsesPressedByUs.Add(control.Id);
+            _pulsePressesWritten++;
+        }
+        else
+        {
+            _pulsesPressedByUs.Remove(control.Id);
+        }
+
+        // La lectura que provoque ESTA escritura es un eco, no un cambio local.
+        _pulseEchoToSuppress[control.Id] = writtenValue;
     }
 
     private void HandleIncomingControlAxis(IncomingControlAxis ca)
@@ -467,7 +600,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (_matchedProfile is null)
         {
             _log.Warn($"control recibido ('{controlId}') ignorado: no hay perfil de aeronave activo todavía");
-            _broadcast(BridgeError.Build(controlId, "write", "no hay perfil de aeronave activo"));
+            Broadcast(BridgeError.Build(controlId, "write", "no hay perfil de aeronave activo"));
             return null;
         }
 
@@ -475,7 +608,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (control is null)
         {
             _log.Warn($"control recibido ('{controlId}') no existe en el perfil activo '{_matchedProfile.ProfileId}'");
-            _broadcast(BridgeError.Build(controlId, "write", $"control no declarado en el perfil '{_matchedProfile.ProfileId}'"));
+            Broadcast(BridgeError.Build(controlId, "write", $"control no declarado en el perfil '{_matchedProfile.ProfileId}'"));
             return null;
         }
 
@@ -485,7 +618,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (control.ReadOnly || control.Write is null)
         {
             _log.Warn($"control recibido ('{controlId}') es readOnly en el perfil activo '{_matchedProfile.ProfileId}': se ignora la escritura");
-            _broadcast(BridgeError.Build(controlId, "write", $"control '{controlId}' es de solo lectura (readOnly) en el perfil '{_matchedProfile.ProfileId}'"));
+            Broadcast(BridgeError.Build(controlId, "write", $"control '{controlId}' es de solo lectura (readOnly) en el perfil '{_matchedProfile.ProfileId}'"));
             return null;
         }
 
@@ -500,7 +633,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (control.Write is null)
         {
             _log.Warn($"control '{control.Id}': intento de escritura sin bloque 'write' definido (readOnly). Se ignora.");
-            _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
             return false;
         }
 
@@ -524,7 +657,7 @@ public sealed class BridgeService : IAsyncDisposable
                 // escritura. Se mantiene como error estructurado explícito en vez
                 // de fallar silenciosamente o hacer un TOGGLE.
                 _log.Warn($"control '{control.Id}': write.type={control.Write.Type} (H:var) no soportado todavía por este bridge.");
-                _broadcast(BridgeError.Build(control.Id, "write", $"write.type={control.Write.Type} no implementado"));
+                Broadcast(BridgeError.Build(control.Id, "write", $"write.type={control.Write.Type} no implementado"));
                 return false;
 
             case WriteType.CalculatorCode:
@@ -555,7 +688,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (write.Parameter is null || !uint.TryParse(write.Parameter, out var dwData))
         {
             _log.Warn($"control '{control.Id}': write.type=nativeEventValue con 'parameter' inválido o ausente ('{write.Parameter}').");
-            _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}': parameter inválido para nativeEventValue"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}': parameter inválido para nativeEventValue"));
             return false;
         }
 
@@ -599,7 +732,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (write is null)
         {
             _log.Warn($"control '{control.Id}': write.type=clientDataEvent sin bloque 'write' definido (readOnly). Se ignora.");
-            _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
             return false;
         }
 
@@ -614,7 +747,7 @@ public sealed class BridgeService : IAsyncDisposable
         var ok = _pmdgClient!.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
         if (!ok)
         {
-            _broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));
         }
 
         return ok;
@@ -635,7 +768,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (write is null)
         {
             _log.Warn($"control '{control.Id}': write.type=calculatorCode sin bloque 'write' definido (readOnly). Se ignora.");
-            _broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"control '{control.Id}' no tiene 'write' definido (readOnly)"));
             return false;
         }
 
@@ -644,11 +777,16 @@ public sealed class BridgeService : IAsyncDisposable
             return false;
         }
 
-        var code = ResolveCalculatorCodeTemplate(write.Name, control.DataType, value);
+        // Si ya se aprendió que este control va al revés de lo que declara el
+        // perfil, se ejecuta el RPN con la dirección intercambiada. La calibración
+        // NO reescribe el YAML: el perfil sigue siendo la fuente de verdad y esto
+        // es una corrección medida encima (ver PolarityCalibration).
+        var template = ResolveWriteTemplate(control, write.Name);
+        var code = ResolveCalculatorCodeTemplate(template, control.DataType, value);
         var ok = _calculatorCodeClient!.ExecuteCalculatorCode(code);
         if (!ok)
         {
-            _broadcast(BridgeError.Build(control.Id, "write", $"calculatorCode '{code}' no se pudo ejecutar para el control '{control.Id}' (ver logs del bridge para el motivo)"));
+            Broadcast(BridgeError.Build(control.Id, "write", $"calculatorCode '{code}' no se pudo ejecutar para el control '{control.Id}' (ver logs del bridge para el motivo)"));
         }
 
         return ok;
@@ -661,13 +799,48 @@ public sealed class BridgeService : IAsyncDisposable
             return;
         }
 
+        // Un pulso no tiene estado estable que confirmar: el botón vuelve solo, la
+        // lectura nunca sostiene el valor pedido, y el lazo reintentaría durante
+        // toda la ventana volviendo a PULSAR la tecla en cada intento (~9 veces en
+        // 6 s). El perfil generado declara confirmAfterWrite:true para los 568
+        // momentáneos del iFly, así que hay que descartarlos acá.
+        if (MomentaryPulse.IsPulseControl(control))
+        {
+            return;
+        }
+
         var nowMs = NowMs();
         _pendingWriteConfirmations[control.Id] = new PendingWriteConfirmation(
             control,
             value,
             StartedAtMs: nowMs,
             LastAttemptAtMs: nowMs,
-            Attempts: 1);
+            Attempts: 1)
+        {
+            // Distancia de partida tomada de la lectura que YA teníamos antes de
+            // escribir. Con esto la divergencia se detecta en la PRIMERA lectura
+            // posterior en vez de la segunda -- un paso menos en la dirección
+            // equivocada. Si no había lectura previa (control nunca leído), queda
+            // null y ObserveConfirmedValue la fija con la primera que llegue.
+            InitialDistance = InitialDistanceFor(control, value),
+        };
+    }
+
+    /// <summary>
+    /// Distancia entre el valor pedido y el último valor leído del control, cuando
+    /// ambos son numéricos. Null si no aplica.
+    /// </summary>
+    private double? InitialDistanceFor(ControlDefinition control, object desiredValue)
+    {
+        if (control.DataType != ControlDataType.Number
+            || desiredValue is not double desired
+            || !_lastObservedByControl.TryGetValue(control.Id, out var observed)
+            || observed is not double observedNumber)
+        {
+            return null;
+        }
+
+        return Math.Abs(desired - observedNumber);
     }
 
     private void ProcessPendingWriteConfirmations()
@@ -684,6 +857,27 @@ public sealed class BridgeService : IAsyncDisposable
             var timeoutMs = ResolveConfirmTimeoutMs(pending.Control);
             if (elapsedMs >= timeoutMs)
             {
+                // No haber visto NINGUNA lectura en toda la ventana también es
+                // compatible con una polaridad cruzada: si el control ya está
+                // contra su tope, la escritura lo empuja hacia afuera, nada se
+                // mueve, y la detección por divergencia de ObserveConfirmedValue
+                // -- que necesita ver crecer la distancia -- nunca se dispara. Ese
+                // era el punto ciego que la 0.1.13 solo sabía NOMBRAR; acá se
+                // intenta corregir.
+                //
+                // OJO: a diferencia del caso de divergencia, este síntoma es
+                // AMBIGUO (sistema sin alimentación, L-Var inexistente en esta
+                // variante, valor pedido que no es una detente legal). Por eso se
+                // prueba a invertir, pero NUNCA se revierte una calibración ya
+                // establecida a partir de este síntoma: se reportaría un fallo
+                // ajeno a la polaridad como si lo fuera, y se perdería una
+                // corrección que sí era correcta.
+                if (!pending.ObservedAnyReading
+                    && TryRecoverWithInvertedPolarity(pending, $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s)"))
+                {
+                    continue;
+                }
+
                 _pendingWriteConfirmations.Remove(pending.Control.Id);
 
                 // Sin NINGUNA lectura en toda la ventana el control no se movió
@@ -697,11 +891,17 @@ public sealed class BridgeService : IAsyncDisposable
                 // nombrarlo aquí o queda indistinguible de un timeout normal.
                 var detalle = pending.ObservedAnyReading
                     ? $"no convergió al valor pedido tras {pending.Attempts} intento(s)"
-                    : $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s): la escritura no tuvo " +
-                      "efecto (probable polaridad invertida en el perfil, o el control ya está contra su tope)";
+                    : $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s) " +
+                      (_polarity.IsInverted(ActiveProfileId, pending.Control.Id)
+                          ? "NI con la polaridad invertida: la causa no es la polaridad (¿sistema sin " +
+                            "alimentación, L-Var inexistente en esta variante, o valor que no es una " +
+                            "detente legal?)"
+                          : "y el bridge no pudo probar la polaridad invertida (su RPN no es de la forma " +
+                            "posicional invertible): revisar el YAML a mano");
 
+                _writesFailed++;
                 _log.Warn($"control '{pending.Control.Id}': {detalle} (valor pedido '{pending.DesiredValue}', {elapsedMs}ms).");
-                _broadcast(BridgeError.Build(pending.Control.Id, "confirmAfterWrite", $"el control {detalle}"));
+                Broadcast(BridgeError.Build(pending.Control.Id, "confirmAfterWrite", $"el control {detalle}"));
                 continue;
             }
 
@@ -732,6 +932,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (ValuesEquivalent(control.DataType, pending.DesiredValue, observedValue))
         {
             _pendingWriteConfirmations.Remove(control.Id);
+            _writesConfirmed++;
             return;
         }
 
@@ -745,9 +946,9 @@ public sealed class BridgeService : IAsyncDisposable
         // control un paso más -- con una ventana de 6 segundos serían ~9 pasos en
         // la dirección equivocada antes de rendirse.
         //
-        // Acá se corta apenas se ve que la distancia al destino CRECIÓ, y se
-        // reporta con un mensaje que dice el problema real (polaridad) en vez del
-        // genérico "no convergió".
+        // Acá se corta apenas se ve que el control quedó MÁS LEJOS del destino que
+        // cuando empezó, y se invierte la polaridad (ver
+        // TryRecoverWithInvertedPolarity).
         if (control.DataType != ControlDataType.Number
             || pending.DesiredValue is not double desired
             || observedValue is not double observed)
@@ -756,22 +957,62 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         var distance = Math.Abs(desired - observed);
-        if (pending.LastDistance is double previous && distance > previous + 0.001d)
+
+        // La primera lectura fija la referencia; no se puede juzgar divergencia con
+        // un solo punto.
+        if (pending.InitialDistance is not double initial)
         {
-            _pendingWriteConfirmations.Remove(control.Id);
-            _log.Warn(
-                $"control '{control.Id}': se ALEJÓ del valor pedido '{desired}' (de {previous} a {distance} de " +
-                "distancia). Se aborta la convergencia: los códigos de subir/bajar de este control parecen " +
-                "invertidos en el perfil.");
-            _broadcast(BridgeError.Build(
-                control.Id,
-                "confirmAfterWrite",
-                $"el control se alejó del valor pedido en vez de acercarse (polaridad invertida en el perfil); " +
-                "se abortó la convergencia para no seguir moviéndolo en la dirección equivocada"));
+            _pendingWriteConfirmations[control.Id] = pending with { InitialDistance = distance };
             return;
         }
 
-        _pendingWriteConfirmations[control.Id] = pending with { LastDistance = distance };
+        if (distance > initial + 0.001d)
+        {
+            // Superar la distancia de PARTIDA es la evidencia más clara de una
+            // polaridad cruzada: el control se mueve, obedece, y va justo al lado
+            // contrario. Un sobrepaso de animación cerca del destino no llega acá.
+            var symptom =
+                $"se ALEJÓ del valor pedido '{desired}' (arrancó a {initial} de distancia y quedó a {distance})";
+
+            if (TryRecoverWithInvertedPolarity(pending, symptom))
+            {
+                return;
+            }
+
+            _pendingWriteConfirmations.Remove(control.Id);
+            _writesFailed++;
+
+            // Si ya estaba invertido y AÚN así se aleja, la inversión no era la
+            // causa: se deshace para no dejar el control peor de como estaba. Es
+            // el único caso donde revertir es seguro — divergir en ambas
+            // direcciones descarta la polaridad como explicación.
+            if (_polarity.IsInverted(ActiveProfileId, control.Id))
+            {
+                _polarity.RevertInversion(ActiveProfileId, control.Id);
+                _log.Warn(
+                    $"control '{control.Id}': {symptom} TAMBIÉN con la polaridad invertida. Se descarta la " +
+                    "polaridad como causa y se restaura la del perfil.");
+            }
+            else
+            {
+                _log.Warn(
+                    $"control '{control.Id}': {symptom}. Se aborta la convergencia: los códigos de subir/bajar " +
+                    "de este control parecen invertidos en el perfil, pero su RPN no es de la forma posicional " +
+                    "que el bridge puede invertir solo (revisar el YAML a mano).");
+            }
+
+            Broadcast(BridgeError.Build(
+                control.Id,
+                "confirmAfterWrite",
+                "el control se alejó del valor pedido en vez de acercarse (polaridad invertida) y no se pudo " +
+                "corregir automáticamente; se abortó la convergencia para no seguir moviéndolo en la " +
+                "dirección equivocada"));
+            return;
+        }
+
+        // Se acerca (o sobrepasa dentro de la distancia de partida): nada que
+        // hacer. La referencia inicial NO se actualiza -- es el punto fijo contra
+        // el que se juzga toda la ventana.
     }
 
     /// <summary>
@@ -829,6 +1070,13 @@ public sealed class BridgeService : IAsyncDisposable
         // Las lecturas cacheadas son de la aeronave anterior: conservarlas haria
         // que AlreadyAtValue descartara escrituras validas del avion nuevo.
         _lastObservedByControl.Clear();
+        // Un pulso que quedo "pulsado por nosotros" al cambiar de avion o perder la
+        // conexion ya no tiene par que cerrar: dejarlo marcado haria que el primer
+        // "soltar" del avion nuevo se ejecutara sin haber pulsado nada.
+        _pulsesPressedByUs.Clear();
+        // Y un eco pendiente de suprimir del avion anterior suprimiria una lectura
+        // legitima del nuevo.
+        _pulseEchoToSuppress.Clear();
     }
 
     /// <summary>
@@ -843,6 +1091,82 @@ public sealed class BridgeService : IAsyncDisposable
     /// confirmados en vivo para el 737. Si el template no contiene el marcador,
     /// se ejecuta literal (permite RPN estático sin valor, ej. pulsos fijos).
     /// </summary>
+    /// <summary>
+    /// Devuelve el RPN a ejecutar para un control, aplicando la inversión de
+    /// polaridad si se aprendió que este control la necesita. Si el RPN no es de
+    /// la forma posicional invertible, Invert devuelve null y se usa el original.
+    /// </summary>
+    private string ResolveWriteTemplate(ControlDefinition control, string template)
+    {
+        if (!_polarity.IsInverted(ActiveProfileId, control.Id))
+        {
+            return template;
+        }
+
+        return PolarityCalibration.Invert(template) ?? template;
+    }
+
+    private string ActiveProfileId => _matchedProfile?.ProfileId ?? string.Empty;
+
+    /// <summary>
+    /// Último recurso antes de reportar un fallo de convergencia: si el síntoma es
+    /// compatible con una polaridad cruzada y este control todavía no se probó al
+    /// revés, se invierte su RPN y se reintenta con una ventana limpia.
+    ///
+    /// Devuelve true si se rearmó el reintento (el llamador NO debe reportar
+    /// error todavía), false si no hay nada más que probar.
+    ///
+    /// Esta es la diferencia de fondo con el comportamiento hasta la 0.1.13: antes,
+    /// detectar la polaridad invertida solo servía para abortar más rápido y
+    /// escribir un mensaje más preciso en el log; el control seguía sin moverse
+    /// hasta que alguien editara el YAML a mano. Ahora el bridge lo corrige solo, y
+    /// como la corrección se persiste, cada control se calibra UNA vez en la vida
+    /// del perfil, no una vez por sesión.
+    /// </summary>
+    private bool TryRecoverWithInvertedPolarity(PendingWriteConfirmation pending, string symptom)
+    {
+        var control = pending.Control;
+        if (control.Write is null || control.Write.Type != WriteType.CalculatorCode)
+        {
+            return false;
+        }
+
+        var declaredTemplate = control.Write.Name;
+        if (!_polarity.ShouldTryInverting(ActiveProfileId, control.Id, declaredTemplate))
+        {
+            return false;
+        }
+
+        _polarity.MarkInverted(ActiveProfileId, control.Id);
+        _log.Warn(
+            $"control '{control.Id}': {symptom}. Se INVIERTE la polaridad de este control y se reintenta " +
+            "(el perfil se generó del modelo 3D asumiendo la convención de la rueda, que no se cumple en " +
+            "todos los controles). La corrección queda guardada para las próximas sesiones.");
+
+        if (!WriteControl(control, pending.DesiredValue))
+        {
+            _pendingWriteConfirmations.Remove(control.Id);
+            return false;
+        }
+
+        // Ventana limpia: el reintento invertido empieza de cero, sin arrastrar la
+        // distancia ni los intentos gastados empujando para el lado equivocado.
+        var nowMs = NowMs();
+        _pendingWriteConfirmations[control.Id] = pending with
+        {
+            StartedAtMs = nowMs,
+            LastAttemptAtMs = nowMs,
+            Attempts = 1,
+            // La partida del reintento invertido es la posición ACTUAL (a la que el
+            // control llegó yéndose para el lado equivocado), no la original: si no,
+            // volver sobre sus pasos parecería divergencia otra vez.
+            InitialDistance = InitialDistanceFor(control, pending.DesiredValue),
+            ObservedAnyReading = false,
+        };
+
+        return true;
+    }
+
     private static string ResolveCalculatorCodeTemplate(string template, ControlDataType dataType, object value)
     {
         if (!template.Contains(DynamicParameterPlaceholder, StringComparison.Ordinal))
@@ -879,7 +1203,7 @@ public sealed class BridgeService : IAsyncDisposable
                 _log.Warn("El perfil activo declara un control write.type=calculatorCode, pero el bridge no tiene ningún ICalculatorCodeClient inyectado (ver Program.cs). Esos controles no se sincronizarán.");
             }
 
-            _broadcast(BridgeError.Build(controlId, "write", "ningún ejecutor de calculator code configurado en el bridge"));
+            Broadcast(BridgeError.Build(controlId, "write", "ningún ejecutor de calculator code configurado en el bridge"));
             return false;
         }
 
@@ -899,7 +1223,7 @@ public sealed class BridgeService : IAsyncDisposable
             _log.Warn("No se pudo conectar el ejecutor de calculator code (¿FSUIPC7 no está corriendo?). Esos controles no se sincronizarán hasta la próxima reconexión.");
         }
 
-        _broadcast(BridgeError.Build(controlId, "write", "no se pudo conectar el ejecutor de calculator code"));
+        Broadcast(BridgeError.Build(controlId, "write", "no se pudo conectar el ejecutor de calculator code"));
         return false;
     }
 
@@ -978,7 +1302,7 @@ public sealed class BridgeService : IAsyncDisposable
         _lastTitle = null;
         _pmdgUnavailableWarned = false;
         _sim.SubscribeString(TitleKey, "TITLE", PollMode.OnChange);
-        _broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel));
+        Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel));
     }
 
     private void OnDisconnected()
@@ -987,13 +1311,13 @@ public sealed class BridgeService : IAsyncDisposable
         ClearPendingWriteConfirmations();
         _matchedProfile = null;
         _lastTitle = null;
-        _broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
+        Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
     }
 
     private void OnSimConnectException(string message)
     {
         _log.Error($"SimConnect: {message}");
-        _broadcast(BridgeError.Build("<simconnect>", "sim", message));
+        Broadcast(BridgeError.Build("<simconnect>", "sim", message));
     }
 
     private void OnStringValueReceived(string key, string value)
@@ -1033,7 +1357,7 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _lastObservedByControl[control.Id] = value;
             var axis = new ControlAxisMessage(LocalSessionId, control.Id, value, NextSequence(), NowMs());
-            _broadcast(axis.ToJson());
+            Broadcast(axis.ToJson());
             return;
         }
 
@@ -1045,10 +1369,32 @@ public sealed class BridgeService : IAsyncDisposable
 
     private void EmitDebounced(ControlDefinition control, object value)
     {
+        // Un pulso que acabamos de escribir NOSOTROS por orden del otro piloto no
+        // puede volver a salir como si fuera un cambio local: el otro lado lo
+        // reescribiría (los pulsos no pasan por AlreadyAtValue, ver ahí) y su botón
+        // se pulsaría de nuevo, realimentando el ciclo. Para los controles
+        // posicionales este eco es inofensivo porque AlreadyAtValue lo descarta en
+        // el otro extremo -- ese filtro hacía doble función. Los pulsos, al quedar
+        // fuera de él, necesitan la supresión explícita.
+        if (ShouldSuppressPulseEcho(control, value))
+        {
+            return;
+        }
+
+        // Los pulsos tampoco se debouncean. El debouncer existe para colapsar
+        // interruptores ruidosos, pero en un momentáneo el pulsar y el soltar son
+        // AMBOS significativos y por definición caen dentro de la misma ventana: con
+        // debounceMs=50 (lo que declara el perfil para los 560 pulsos con read) un
+        // doble toque rápido perdía la segunda pulsación, y el soltar salía siempre
+        // con retraso. Cada transición de un pulso tiene que salir tal cual.
+        var debounceMs = MomentaryPulse.IsPulseControl(control)
+            ? 0
+            : control.Synchronization.DebounceMs;
+
         var emittedNow = _debouncer.ShouldEmitNow(
             control.Id,
             value,
-            control.Synchronization.DebounceMs,
+            debounceMs,
             laterValue => EmitControlEvent(control, laterValue));
 
         if (emittedNow)
@@ -1057,10 +1403,35 @@ public sealed class BridgeService : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Lecturas de pulsos que corresponden a una escritura que hicimos por orden
+    /// remota, y que por tanto NO deben reemitirse como cambio local. Se consume la
+    /// primera lectura que coincida con el valor escrito.
+    /// </summary>
+    private readonly Dictionary<string, object> _pulseEchoToSuppress = new(StringComparer.Ordinal);
+
+    private bool ShouldSuppressPulseEcho(ControlDefinition control, object value)
+    {
+        if (!_pulseEchoToSuppress.TryGetValue(control.Id, out var expected))
+        {
+            return false;
+        }
+
+        if (!ValuesEquivalent(control.DataType, expected, value))
+        {
+            return false;
+        }
+
+        // Se consume: si el botón vuelve a moverse después, ese cambio SÍ es local y
+        // tiene que salir.
+        _pulseEchoToSuppress.Remove(control.Id);
+        return true;
+    }
+
     private void EmitControlEvent(ControlDefinition control, object value)
     {
         var evt = new ControlEventMessage(LocalSessionId, control.Id, value, SimSource, NextSequence(), NowMs());
-        _broadcast(evt.ToJson());
+        Broadcast(evt.ToJson());
     }
 
     private void MatchAndSubscribe(string title)
@@ -1080,14 +1451,14 @@ public sealed class BridgeService : IAsyncDisposable
                 : $"no matching aircraft profile (ojo: estos perfiles no se pudieron cargar y por eso " +
                   $"nunca van a detectarse: {string.Join(", ", _failedProfileIds)})";
 
-            _broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel));
+            Broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel));
             return;
         }
 
         _matchedProfile = result.Profile;
         ClearPendingWriteConfirmations();
         _log.Info($"Perfil detectado: '{result.Profile.ProfileId}' (partialMatch={result.IsPartialMatch}) para título '{title}'");
-        _broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel));
+        Broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel));
         SubscribeControls(result.Profile);
     }
 
@@ -1198,7 +1569,7 @@ public sealed class BridgeService : IAsyncDisposable
                 _log.Warn($"El perfil activo declara un control clientDataArea para '{areaName}', pero el bridge no tiene ningún cliente asignado a esa área (ver Program.cs / BridgeService.ResolveClientDataClient). Esos controles no se sincronizarán.");
             }
 
-            _broadcast(BridgeError.Build(controlId, direction, $"ningún cliente Client Data Area configurado para el área '{areaName}'"));
+            Broadcast(BridgeError.Build(controlId, direction, $"ningún cliente Client Data Area configurado para el área '{areaName}'"));
             return false;
         }
 
@@ -1218,13 +1589,62 @@ public sealed class BridgeService : IAsyncDisposable
             _log.Warn($"No se pudo conectar el cliente Client Data Area para '{areaName}' — ¿el addon/módulo correspondiente no está cargado? Esos controles no se sincronizarán hasta la próxima reconexión.");
         }
 
-        _broadcast(BridgeError.Build(controlId, direction, $"no se pudo conectar el cliente Client Data Area para '{areaName}'"));
+        Broadcast(BridgeError.Build(controlId, direction, $"no se pudo conectar el cliente Client Data Area para '{areaName}'"));
         return false;
     }
 
     private void OnPmdgWarning(string message)
     {
         _log.Warn($"[SDK terceros] {message}");
+
+        // Estos avisos venían quedándose SOLO en bridge.log, y varios son
+        // diagnósticos de primera importancia: el más claro es "se deja de leer ESE
+        // control porque la L-Var no existe en esta aeronave", que significa que ese
+        // control no va a sincronizar nunca en esta variante. Sin esto, el reporte
+        // descargable no los vería y habría que volver a pedir el archivo de log a
+        // mano. El controlId va vacío porque el aviso llega como texto plano desde
+        // el cliente (la interfaz IPmdgClientDataClient.Warning no lo separa) y el
+        // mensaje ya lo nombra -- preferible a parsearlo con una expresión regular
+        // que se rompa al reescribir el texto.
+        Broadcast(BridgeError.Build(string.Empty, "read", message));
+    }
+
+    /// <summary>
+    /// Publica bridge.diagnostics cada DiagnosticsIntervalMs. Alimenta el reporte
+    /// descargable de la UI ("Download report" en la vista Cockpit): así el usuario
+    /// no tiene que ir a buscar bridge.log en %APPDATA%, y el reporte trae los
+    /// contadores agregados, que es lo que permite ver de un golpe si hay un fallo
+    /// en masa en vez de leer líneas sueltas.
+    /// </summary>
+    private void EmitDiagnosticsIfDue()
+    {
+        var nowMs = NowMs();
+        if (nowMs - _lastDiagnosticsAtMs < DiagnosticsIntervalMs)
+        {
+            return;
+        }
+
+        _lastDiagnosticsAtMs = nowMs;
+
+        var activeProfileId = ActiveProfileId;
+        var invertedForThisProfile = _polarity.InvertedKeys
+            .Where(k => k.StartsWith($"{activeProfileId}:", StringComparison.Ordinal))
+            .Select(k => k[(activeProfileId.Length + 1)..])
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+
+        Broadcast(BridgeDiagnostics.Build(
+            matchedProfileId: _matchedProfile?.ProfileId,
+            detectedTitle: _lastTitle,
+            controlsSubscribed: _matchedProfile?.Controls.Count ?? 0,
+            writesAttempted: _writesAttempted,
+            writesSkippedAlreadyAtValue: _writesSkippedAlreadyAtValue,
+            writesConfirmed: _writesConfirmed,
+            writesFailed: _writesFailed,
+            polarityInversionsLearned: invertedForThisProfile.Length,
+            pulsePressesWritten: _pulsePressesWritten,
+            errorsReported: _errorsReported,
+            polarityInvertedControls: invertedForThisProfile));
     }
 
     private long NextSequence() => Interlocked.Increment(ref _sequence);

@@ -41,10 +41,55 @@ export interface BridgeControlValue {
   updatedAt: number;
 }
 
+/**
+ * Un `bridge.error` recibido del bridge local. Hasta ahora estos mensajes se
+ * emitían y la UI los DESCARTABA (bridgeClient no manejaba el tipo), así que todo
+ * el diagnóstico de escritura/lectura -- polaridad invertida, controles que no se
+ * mueven, L-Vars inexistentes en la variante cargada -- solo existía como texto en
+ * bridge.log, en %APPDATA%. Recogerlos acá es lo que permite el reporte
+ * descargable.
+ */
+export interface BridgeErrorEntry {
+  controlId: string;
+  operation: string;
+  message: string;
+  timestamp: number;
+}
+
+/** Contadores agregados del bridge (mensaje bridge.diagnostics). */
+export interface BridgeDiagnostics {
+  matchedProfileId: string | null;
+  detectedTitle: string | null;
+  controlsSubscribed: number;
+  writesAttempted: number;
+  writesSkippedAlreadyAtValue: number;
+  writesConfirmed: number;
+  writesFailed: number;
+  polarityInversionsLearned: number;
+  pulsePressesWritten: number;
+  errorsReported: number;
+  /** Controles cuya polaridad el bridge midió y corrigió en vivo. Es la lista que
+   * se vuelca a los YAML del perfil para que llegue a todos los jugadores. */
+  polarityInvertedControls: string[];
+  timestamp: number;
+}
+
+/**
+ * Cuántos bridge.error se conservan. Acotado a propósito: una sesión con un perfil
+ * roto puede generar cientos y el reporte tiene que seguir siendo manejable. El
+ * total real viaja en diagnostics.errorsReported, así que se puede saber si esto
+ * truncó.
+ */
+const MAX_BRIDGE_ERRORS = 500;
+
 export interface SimulatorBridgeState {
   mode: BridgeMode;
   connectionState: BridgeConnectionState;
   reconnecting: boolean;
+  /** Últimos MAX_BRIDGE_ERRORS errores del bridge, en orden de llegada. */
+  errors: BridgeErrorEntry[];
+  /** Último bridge.diagnostics recibido (llega cada 5 s). */
+  diagnostics: BridgeDiagnostics | null;
   /** Último aircraft.snapshot recibido (o generado en mock), si alguno. */
   snapshot: AircraftSnapshot | null;
   detectedProfileId: string | null;
@@ -79,6 +124,8 @@ function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis) =>
     mode,
     connectionState: "connecting",
     reconnecting: false,
+    errors: [],
+    diagnostics: null,
     snapshot: null,
     detectedProfileId: null,
     simulatorVersion: null,
@@ -103,6 +150,30 @@ function applyMessage(
       lastMessageAt: now,
       detectedProfileId: status.matchedProfileId ?? null,
       simulatorVersion: status.simulatorVersion ?? null,
+    };
+  }
+  if ((msg as unknown as { type: string }).type === "bridge.error") {
+    const err = msg as unknown as Partial<BridgeErrorEntry>;
+    const entry: BridgeErrorEntry = {
+      controlId: err.controlId ?? "",
+      operation: err.operation ?? "unknown",
+      message: err.message ?? "",
+      timestamp: err.timestamp ?? now,
+    };
+    // Se conservan los MÁS RECIENTES: en una sesión con un perfil roto los
+    // primeros errores son el estado inicial (todos iguales) y los últimos son los
+    // que ocurrieron mientras se volaba, que es lo que interesa diagnosticar.
+    const errors =
+      state.errors.length >= MAX_BRIDGE_ERRORS
+        ? [...state.errors.slice(state.errors.length - MAX_BRIDGE_ERRORS + 1), entry]
+        : [...state.errors, entry];
+    return { ...state, lastMessageAt: now, errors };
+  }
+  if ((msg as unknown as { type: string }).type === "bridge.diagnostics") {
+    return {
+      ...state,
+      lastMessageAt: now,
+      diagnostics: msg as unknown as BridgeDiagnostics,
     };
   }
   if (msg.type === "control.event") {

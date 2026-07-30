@@ -12,6 +12,8 @@ import {
   type SessionParticipant,
 } from "../lib/apiClient";
 import type { ControlAxis, ControlEvent } from "../../../../packages/protocol/types";
+import { recordPeerControl, recordSessionEvent, resetSessionJournal } from "../lib/sessionJournal";
+import { downloadDiagnosticsReport } from "../lib/diagnosticsReport";
 
 /**
  * Cuánto tiempo se suprime el reenvío de un valor que acabamos de aplicar
@@ -68,6 +70,13 @@ export function Cockpit({
   const handlePeerControl = useCallback(
     (msg: ControlEvent | ControlAxis) => {
       suppressEchoRef.current.set(msg.controlId, { value: msg.value, until: Date.now() + ECHO_SUPPRESSION_MS });
+      // Se anota ANTES de aplicarlo: el reporte necesita saber qué llegó del otro
+      // piloto y cuándo, para poder distinguir "no me llegó nunca" de "me llegó y
+      // mi bridge no lo pudo aplicar" -- dos fallos completamente distintos que sin
+      // esto se ven igual. Va a un módulo con estado mutable, no a useState: los
+      // control.axis llegan a 20-60Hz y un re-render por muestra tiraría el
+      // rendimiento de la cabina (ver lib/sessionJournal.ts).
+      recordPeerControl(msg.controlId, msg.type === "control.axis" ? "axis" : "event", msg.value);
       bridge.send(msg);
     },
     [bridge],
@@ -114,6 +123,57 @@ export function Cockpit({
       } as ControlEvent | ControlAxis);
     }
   }, [bridge.controls, connected, joinCode, pilotName, sendToSession]);
+  // --- Bitácora para el reporte de diagnóstico -------------------------------
+  // Una sesión nueva empieza con la bitácora limpia: lo de la anterior no
+  // describe nada de esta.
+  useEffect(() => {
+    resetSessionJournal();
+    if (joinCode) recordSessionEvent("note", `Joined session ${joinCode}`);
+  }, [joinCode]);
+
+  useEffect(() => {
+    recordSessionEvent(connected ? "connected" : "disconnected", `session socket connected=${connected}`);
+  }, [connected]);
+
+  // Quién tiene los mandos: un cambio acá explica por qué un eje dejó de aplicarse
+  // (authority exclusive), que de otro modo parece un fallo de sincronización.
+  const controlOwner = session?.controlOwner ?? null;
+  useEffect(() => {
+    if (controlOwner) recordSessionEvent("authority", `flight controls owned by seat "${controlOwner}"`);
+  }, [controlOwner]);
+
+  useEffect(() => {
+    if (sessionClosed) recordSessionEvent("closed", "session was closed");
+  }, [sessionClosed]);
+
+  // FSUIPC7 es el requisito real para que se lea/escriba cualquier cabina de
+  // payware; su ausencia es la explicación más simple de "no se sincroniza nada" y
+  // tiene que constar en el reporte.
+  const [fsuipc, setFsuipc] = useState<WeConnectFsuipcStatus | null>(null);
+  useEffect(() => {
+    window.weconnectSetup?.checkFsuipc().then(setFsuipc).catch(() => setFsuipc(null));
+  }, []);
+
+  const [reportFilename, setReportFilename] = useState<string | null>(null);
+
+  const handleDownloadReport = useCallback(() => {
+    const name = downloadDiagnosticsReport({
+      bridge,
+      fsuipc,
+      session: {
+        joinCode,
+        pilotName,
+        role: session?.participants.find((p) => p.pilot_name === pilotName)?.seat ?? null,
+        connected,
+        reconnecting: false,
+        pingMs,
+        peerAircraft,
+      },
+      communityPath: null,
+    });
+    setReportFilename(name);
+  }, [bridge, fsuipc, joinCode, pilotName, session, connected, pingMs, peerAircraft]);
+
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles } = useAircraftProfiles();
   const [ipBlurred, setIpBlurred] = useState(true);
@@ -344,6 +404,47 @@ export function Cockpit({
                   : "Request controls"}
               </button>
             )}
+          </div>
+
+          {/* Reporte de diagnóstico. Antes, entender por qué una sesión no
+              sincronizaba obligaba a pedirle al usuario que buscara bridge.log en
+              %APPDATA% y lo mandara a mano -- un archivo ruidoso que además no
+              sabe nada de la sesión ni trae contadores agregados. */}
+          <div style={{ marginTop: 26 }}>
+            <div className="mono-label" style={{ marginBottom: 10 }}>Diagnostics</div>
+            <div className="net-row">
+              <div className="net-label">Sync problems logged</div>
+              <div
+                className="net-value"
+                style={{ color: bridge.errors.length > 0 ? "#fbbf24" : "var(--green)" }}
+              >
+                {bridge.diagnostics?.errorsReported ?? bridge.errors.length}
+              </div>
+            </div>
+            {bridge.diagnostics && (
+              <div className="net-row">
+                <div className="net-label">Switches applied / failed</div>
+                <div className="net-value">
+                  {bridge.diagnostics.writesConfirmed} / {bridge.diagnostics.writesFailed}
+                </div>
+              </div>
+            )}
+            {(bridge.diagnostics?.polarityInversionsLearned ?? 0) > 0 && (
+              <div className="net-row">
+                <div className="net-label">Controls auto-corrected</div>
+                <div className="net-value" style={{ color: "var(--accent)" }}>
+                  {bridge.diagnostics?.polarityInversionsLearned}
+                </div>
+              </div>
+            )}
+            <button className="btn" onClick={handleDownloadReport} style={{ marginTop: 12 }}>
+              Download report
+            </button>
+            <p style={{ fontSize: 11, color: "var(--text-45)", lineHeight: 1.6, marginTop: 10 }}>
+              {reportFilename
+                ? `Saved ${reportFilename}. Send it over along with your co-pilot's — a report from each side is what makes a sync problem diagnosable.`
+                : "Saves everything needed to diagnose a sync problem: bridge errors, what arrived from your co-pilot, and your FSUIPC7 status. Both pilots should download one."}
+            </p>
           </div>
         </div>
 

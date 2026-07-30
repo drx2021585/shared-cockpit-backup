@@ -71,6 +71,16 @@ using var pmdgClient = new PmdgClientDataClient();
 // FsuipcLVarClient.TryConnect/ExecuteCalculatorCode).
 using var sharedCockpitWasmClient = new FsuipcLVarClient();
 
+// Polaridad de los controles posicionales aprendida en vuelo y acumulada entre
+// sesiones (ver Bridge/PolarityCalibration.cs). Se guarda junto al resto del
+// estado de la app de escritorio, no en el repo: es una medición de ESTA
+// instalación, no parte del perfil.
+var polarityCalibration = new PolarityCalibration(
+    Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "we-connect-desktop-ui",
+        "polarity-calibration.json"));
+
 BridgeWebSocketServer? server = null;
 var bridge = new BridgeService(
     simClient,
@@ -85,7 +95,8 @@ var bridge = new BridgeService(
     // para leer L-Vars, reutilizado para ejecutar calculator code (RPN) vía el
     // módulo WASM/WAPI de FSUIPC7. Confirmado en vivo el 2026-07-27 contra
     // MSFS 2024 + PMDG 737-900 real.
-    calculatorCodeClient: sharedCockpitWasmClient);
+    calculatorCodeClient: sharedCockpitWasmClient,
+    polarityCalibration: polarityCalibration);
 
 // Token efímero opcional: We Connect (electron/main.cjs) lo genera al lanzar
 // este proceso y lo exige en el handshake WebSocket. Lanzado a mano sin la

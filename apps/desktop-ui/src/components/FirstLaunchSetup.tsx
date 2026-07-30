@@ -14,14 +14,22 @@ interface FirstLaunchSetupProps {
 type Phase = "folder" | "installing" | "done" | "error";
 
 const TOTAL_BLOCKS = 20;
-const BLOCK_MS = 120;
+const BLOCK_MS = 40;
 
+/**
+ * Pasos REALES de la instalación. Antes decían "Downloading logic...",
+ * "Downloading aircraft...", "Downloading documents...", "Optimizing database..."
+ * — y no se descarga nada, no hay documentos ni base de datos, y la copia es un
+ * único archivo local. El problema no es solo que fuera decorativo: cuando la
+ * instalación falla de verdad, el usuario ya aprendió que estas líneas no
+ * significan nada, y "Downloading" en una app con funciones de red hace que
+ * culpe a su conexión de un fallo que es de permisos o de antivirus.
+ */
 const TASKS: Array<[number, string]> = [
-  [20, "Downloading logic..."],
-  [40, "Downloading aircraft..."],
-  [60, "Downloading documents..."],
-  [80, "Optimizing database..."],
-  [100, "Finalizing..."],
+  [25, "Checking the Community folder…"],
+  [50, "Copying the We Connect Bridge package…"],
+  [75, "Verifying the installed files…"],
+  [100, "Done."],
 ];
 
 export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps) {
@@ -31,6 +39,7 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
   const [validating, setValidating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [installError, setInstallError] = useState<string | null>(null);
+  const [fsuipc, setFsuipc] = useState<WeConnectFsuipcStatus | null>(null);
 
   const animTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -41,6 +50,15 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
   }, []);
 
   const setup = window.weconnectSetup;
+
+  // FSUIPC7 es el requisito real para que se sincronice cualquier cosa del iFly
+  // 737 MAX 8 y del PMDG: todas sus lecturas y escrituras pasan por su WAPI. El
+  // asistente pedía la carpeta Community y no decía nada de esto, así que un
+  // jugador podía completar el setup entero y no sincronizar nada -- que es
+  // exactamente el síntoma que se estuvo persiguiendo por el lado del perfil.
+  useEffect(() => {
+    setup?.checkFsuipc().then(setFsuipc).catch(() => setFsuipc(null));
+  }, [setup]);
 
   async function handleBrowse() {
     if (!setup) return;
@@ -56,12 +74,13 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
     setInstallError(null);
     setProgress(0);
 
-    // Barra visual: avanza en bloques del 5%, independiente de cuánto tarde
-    // la copia real (que para nuestro paquete hoy es casi instantánea) --
-    // el objetivo es que la instalación SE VEA fluida, no que refleje bytes
-    // reales transferidos (ver spec: las tareas son "principalmente
-    // estéticas"). La copia real corre en paralelo, de verdad, en segundo
-    // plano (ver installPromise más abajo).
+    // Barra visual: avanza en bloques del 5%, independiente de cuánto tarde la
+    // copia real (que para nuestro paquete es casi instantánea: un archivo de
+    // 26 KB). La copia corre de verdad en paralelo, ver installPromise abajo.
+    //
+    // El mínimo de animación se bajó de 2.4 s a 0.8 s (BLOCK_MS 120 -> 40):
+    // retrasar el setup casi dos segundos y medio para que "se vea" trabajo era
+    // hacerle perder tiempo al usuario a cambio de nada.
     let blocks = 0;
     animTimerRef.current = setInterval(() => {
       blocks += 1;
@@ -147,12 +166,35 @@ export function FirstLaunchSetup({ onClose, onCompleted }: FirstLaunchSetupProps
             </h2>
             <p style={{ color: "var(--text-55)", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
               To complete the initial setup, We Connect needs access to your Microsoft Flight
-              Simulator 2020 Community folder.
+              Simulator Community folder (2020 or 2024).
               <br />
               <br />
-              Required packages will be installed automatically. This process only takes a few
-              seconds.
+              The We Connect Bridge package will be copied there. It only takes a moment.
             </p>
+
+            {/* FSUIPC7 no lo instalamos nosotros y no podemos: es de un tercero.
+                Pero callarlo deja al jugador completar el setup y no sincronizar
+                nada, sin ninguna pista de por qué. */}
+            {fsuipc && !fsuipc.installed && (
+              <div className="setup-notice setup-notice-warn">
+                <strong>FSUIPC7 was not found.</strong> We Connect needs it to read and write the
+                cockpit of add-on aircraft like the iFly 737 MAX 8 and the PMDG 737. Without it you
+                can create and join sessions, but switches will not synchronize. Install it from{" "}
+                <span className="setup-notice-url">fsuipc.com</span> and restart We Connect.
+              </div>
+            )}
+            {fsuipc?.installed && !fsuipc.wapiPresent && (
+              <div className="setup-notice setup-notice-warn">
+                <strong>FSUIPC7 is installed but incomplete.</strong> The WAPI component
+                (<code>FSUIPC_WAPID.dll</code>) is missing from {fsuipc.path}, and it is the part
+                that exposes cockpit variables. Reinstall FSUIPC7 with the WAPI module enabled.
+              </div>
+            )}
+            {fsuipc?.installed && fsuipc.wapiPresent && (
+              <div className="setup-notice setup-notice-ok">
+                FSUIPC7 detected at {fsuipc.path} — add-on cockpits can be synchronized.
+              </div>
+            )}
 
             <div className="field" style={{ marginBottom: 8 }}>
               <label>Community folder</label>

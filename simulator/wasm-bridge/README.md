@@ -31,6 +31,28 @@ módulo.
   agregar un bloque `read` a cada uno de los 181 controles (hoy son
   `writeOnly: true` porque no había forma de leerlos).
 
+## manifest.json / layout.json: generados, no editados a mano
+
+```bash
+node tools/build-community-package.mjs          # regenera los dos
+node tools/build-community-package.mjs --check   # falla si están desactualizados
+```
+
+Los dos se mantenían a mano y los dos estaban mal: `total_package_size` era el
+placeholder `"00000000000000000000"` de la plantilla del SDK, y `layout.json`
+declaraba `date: 0`. MSFS lee ambos para decidir qué cargar y para detectar
+paquetes corruptos, así que un layout que no coincide con los archivos en disco
+es exactamente la clase de cosa que hace que el paquete se ignore en silencio.
+Correr el script después de cada recompilación del `.wasm`.
+
+`minimum_game_version` se bajó de `1.39.9` a `1.0.0` (2026-07-29). `1.39.9` es
+numeración de MSFS **2020**, y MSFS compara estas versiones por tupla: en MSFS
+2024 (`1.6.x`) resulta `1.6.34 < 1.39.9`, así que el paquete quedaba **excluido
+de MSFS 2024** aunque la app declare soportar los dos. No tenemos un mínimo real
+que exigir (el módulo usa SimConnect estándar y las APIs WASM básicas), así que
+declarar un mínimo bajo es lo honesto. NO verificado en vivo: sigue sin cargarse
+nunca en un simulador real.
+
 ## Compilación (confirmado real, 2026-07-27 — sin Visual Studio instalado)
 
 No hay Visual Studio en esta máquina, así que se compiló invocando el

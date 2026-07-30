@@ -62,4 +62,7 @@ contextBridge.exposeInMainWorld("weconnectSetup", {
   installPackages: (folderPath) => ipcRenderer.invoke("setup:install-packages", folderPath),
   markCompleted: (communityPath) => ipcRenderer.invoke("setup:mark-completed", communityPath),
   reset: () => ipcRenderer.invoke("setup:reset"),
+  // FSUIPC7 es el requisito real para que se sincronice algo del iFly/PMDG (ver
+  // detectFsuipc7 en main.cjs).
+  checkFsuipc: () => ipcRenderer.invoke("setup:check-fsuipc"),
 });

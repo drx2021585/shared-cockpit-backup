@@ -227,6 +227,651 @@ public class BridgeServiceConfirmAfterWriteTests
         Assert.DoesNotContain("NO SE MOVIÓ", err["message"]?.GetValue<string>());
     }
 
+    /// <summary>
+    /// EL CAMBIO DE FONDO respecto de la 0.1.13: detectar la polaridad invertida ya
+    /// no termina en un error. El bridge invierte el RPN del control, reintenta, y
+    /// recuerda la corrección.
+    ///
+    /// Esto es lo que convierte los ~340 controles posicionales sin calibrar de
+    /// "hay que medirlos uno por uno contra MSFS y editar los YAML a mano" a "se
+    /// corrigen solos la primera vez que alguien los usa". El coste de un control
+    /// mal calibrado pasa a ser un paso perdido, una vez en la vida del perfil.
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_InvertsPolarityAndRetries_WhenValueMovesAwayFromTarget()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1",
+            ControlId: "gear.autobrake_sw",
+            RawValue: JsonValue.Create(5d),
+            Source: "test",
+            Sequence: 1,
+            Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        // En el RPN ya ejecutado, $value fue sustituido por el valor pedido (5).
+        Assert.Single(calculator.ExecutedCodes);
+        Assert.Contains("5 < if{ 2 ", calculator.ExecutedCodes[0]);
+
+        // Se acerca (4 -> distancia 1) y de pronto se ALEJA (2 -> distancia 3).
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 4d);
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 2d);
+
+        // En vez de rendirse, reescribió YA con la dirección intercambiada: el
+        // código 2, que antes se disparaba al ir hacia arriba, ahora va hacia abajo.
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+        Assert.Contains("5 > if{ 2 ", calculator.ExecutedCodes[1]);
+        Assert.Contains("5 < if{ 3 ", calculator.ExecutedCodes[1]);
+
+        // Y no se reportó ningún error: el fallo se resolvió solo.
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+
+        // Al converger en la dirección corregida, se cierra sin más reintentos.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 5d);
+        Thread.Sleep(150);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+    }
+
+    /// <summary>
+    /// El punto ciego que la 0.1.13 solo sabía nombrar: un control con la polaridad
+    /// cruzada que YA está contra su tope no se mueve, así que no llega ninguna
+    /// lectura y la detección por divergencia (que necesita ver crecer la
+    /// distancia) nunca se dispara. Acá también hay que probar a invertir.
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_InvertsPolarityAndRetries_WhenControlNeverMovesAtAll()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(5d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(calculator.ExecutedCodes);
+
+        // Ni una sola lectura en toda la ventana.
+        Thread.Sleep(500);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+
+        // Invirtió y reintentó en vez de reportar el fallo.
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+        Assert.Contains("5 > if{ 2 ", calculator.ExecutedCodes[1]);
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+    }
+
+    /// <summary>
+    /// La otra mitad de la seguridad: si tras invertir el control SIGUE alejándose,
+    /// la polaridad no era la causa. La inversión se deshace para no dejar el
+    /// control peor de como estaba, y recién ahí se reporta el error.
+    ///
+    /// Sin esto, cualquier fallo ajeno a la polaridad (sistema sin alimentación,
+    /// L-Var inexistente en la variante) dejaría una inversión errónea PERSISTIDA,
+    /// rompiendo un control que estaba bien declarado.
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_RevertsInversion_WhenItDivergesInBothDirections()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var broadcasts = new List<JsonObject>();
+        var calibration = new PolarityCalibration();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator,
+            polarityCalibration: calibration);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(5d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        // Primera divergencia -> invierte.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 4d);
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 2d);
+        Assert.True(calibration.IsInverted("ifly-737-max8", "gear.autobrake_sw"));
+
+        // Segunda divergencia, ya invertido -> se descarta la polaridad como causa.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 4d);
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 1d);
+
+        Assert.False(calibration.IsInverted("ifly-737-max8", "gear.autobrake_sw"));
+
+        var err = broadcasts.LastOrDefault(b =>
+            b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+        Assert.NotNull(err);
+        Assert.Contains("polaridad invertida", err!["message"]?.GetValue<string>());
+    }
+
+    /// <summary>
+    /// Un control ya calibrado (de una sesión anterior, vía el JSON persistido)
+    /// tiene que escribirse invertido DESDE LA PRIMERA escritura, sin volver a
+    /// pagar el paso perdido del descubrimiento.
+    /// </summary>
+    [Fact]
+    public void Write_UsesInvertedRpnFromTheStart_WhenCalibrationWasAlreadyLearned()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var calibration = new PolarityCalibration();
+        calibration.MarkInverted("ifly-737-max8", "gear.autobrake_sw");
+
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator,
+            polarityCalibration: calibration);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(5d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(calculator.ExecutedCodes);
+        Assert.Contains("5 > if{ 2 ", calculator.ExecutedCodes[0]);
+    }
+
+    /// <summary>
+    /// Las L-Vars del iFly se ANIMAN: NOTAS-SDK.md documenta 14.75 leído en tránsito
+    /// entre 20 y 10. Un control correcto puede entonces sobrepasar el destino y
+    /// alejarse respecto de la lectura ANTERIOR sin que haya nada mal.
+    ///
+    /// Ese sobrepaso no puede leerse como polaridad invertida: con la autocorrección
+    /// puesta, hacerlo INVIERTE y PERSISTE un control que estaba bien, y a partir de
+    /// ahí se mueve al revés para siempre. Por eso la divergencia se juzga contra la
+    /// distancia de PARTIDA, no contra la lectura previa.
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_DoesNotInvertPolarity_WhenAnAnimatedLVarOvershootsTheTarget()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var broadcasts = new List<JsonObject>();
+        var calibration = new PolarityCalibration();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator,
+            polarityCalibration: calibration);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        // Pide 20 estando en 10: distancia de partida 10.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(20d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 10d);   // d=10
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 19d);   // d=1
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 22d);   // d=2, CRECIÓ
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 20d);   // llegó
+
+        // El sobrepaso de 19 a 22 hace crecer la distancia respecto de la anterior,
+        // pero nunca supera los 10 de partida: no es divergencia.
+        Assert.False(calibration.IsInverted("ifly-737-max8", "gear.autobrake_sw"));
+        Assert.Single(calculator.ExecutedCodes);
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+    }
+
+    /// <summary>
+    /// Y el contraste: superar la distancia de PARTIDA sí es divergencia real.
+    /// </summary>
+    [Fact]
+    public void ConfirmAfterWrite_InvertsPolarity_WhenItPassesTheStartingDistance()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var calibration = new PolarityCalibration();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator,
+            polarityCalibration: calibration);
+
+        SetMatchedProfile(service, MakeProfileWithInvertiblePositionalControl());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "gear.autobrake_sw", RawValue: JsonValue.Create(20d),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 10d);  // d=10, partida
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 5d);   // d=15 > 10
+
+        Assert.True(calibration.IsInverted("ifly-737-max8", "gear.autobrake_sw"));
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+    }
+
+    /// <summary>
+    /// Regresión de la avalancha, en su versión "pulsos". Sacar los momentáneos del
+    /// filtro AlreadyAtValue arregla el pulso de soltar, pero si se los saca del
+    /// todo se escriben SIEMPRE -- y al conectar llegan los 580 en su estado inicial
+    /// (sueltos). A ~650 ms cada ExecuteCalculatorCode eso son ~6 minutos de canal
+    /// FSUIPC tapado: exactamente el bug que arregló la 0.1.12, por otra puerta.
+    ///
+    /// La regla es por pares: el "soltar" solo se ejecuta si nosotros pulsamos antes.
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_ReleaseWithoutAPrecedingPress_IsSkipped()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        // Estado inicial que emite el otro bridge al conectar: el botón está suelto.
+        // No hubo ningún "pulsar" nuestro que cerrar, así que no hay nada que hacer.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(false),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Empty(calculator.ExecutedCodes);
+    }
+
+    /// <summary>
+    /// El par completo sí se ejecuta entero: pulsar y soltar, incluso cuando la
+    /// lectura dice que el botón ya está suelto (que es lo normal, porque vuelve
+    /// solo antes de que llegue el "soltar").
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_FullPressReleasePair_IsAlwaysExecuted()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        // El sim reporta el botón suelto (reposo).
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 0d);
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(false),
+            Source: "peer", Sequence: 2, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+        Assert.Contains("if{ 11 ", calculator.ExecutedCodes[0]);   // pulsar
+        Assert.Contains("els{ 12 ", calculator.ExecutedCodes[1]);  // soltar
+
+        // Y un segundo "soltar" suelto ya no dispara nada: el par está cerrado.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(false),
+            Source: "peer", Sequence: 3, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Equal(2, calculator.ExecutedCodes.Count);
+    }
+
+    /// <summary>
+    /// Un botón momentáneo no puede entrar al lazo de convergencia: vuelve solo, la
+    /// lectura nunca sostiene el valor pedido, y cada reintento volvería a PULSAR la
+    /// tecla. El perfil generado declara confirmAfterWrite:true para los 568
+    /// momentáneos del iFly, así que el bridge tiene que descartarlos él.
+    ///
+    /// Sin esto, una pulsación del otro piloto escribía el mismo carácter hasta
+    /// nueve veces en el CDU.
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_IsNeverRetried_EvenWhenTheReadingNeverMatches()
+    {
+        var calculator = new FakeCalculatorCodeClient();
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(calculator.ExecutedCodes);
+
+        // El botón vuelve solo: la lectura nunca iguala el valor pedido. Aun así,
+        // pasada toda la ventana no debe haber ni un reintento ni un error.
+        Thread.Sleep(500);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+
+        Assert.Single(calculator.ExecutedCodes);
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+    }
+
+    /// <summary>
+    /// El debouncer existe para colapsar interruptores ruidosos, pero en un
+    /// momentáneo el pulsar y el soltar son AMBOS significativos y caen dentro de la
+    /// misma ventana. Con el debounceMs:50 que declara el perfil, un doble toque
+    /// rápido en el CDU perdía la segunda pulsación.
+    ///
+    /// Las cuatro transiciones tienen que salir, en orden y sin retraso.
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_EmitsEveryTransition_WithoutDebouncing()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        // Doble toque rápido, todo dentro de la ventana de 50 ms del perfil.
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 1d);
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 0d);
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 1d);
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 0d);
+
+        var emitted = broadcasts
+            .Where(b => b["type"]?.GetValue<string>() == "control.event")
+            .Select(b => b["value"]!.GetValue<bool>())
+            .ToArray();
+
+        Assert.Equal(new[] { true, false, true, false }, emitted);
+    }
+
+    /// <summary>
+    /// Un control NO pulso sigue debounceado: sacar del debouncer a los pulsos no
+    /// puede haber desactivado el debouncing en general.
+    /// </summary>
+    [Fact]
+    public void NonPulseControl_IsStillDebounced()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithDebouncedPositionalControl(debounceMs: 5000));
+
+        // Dos cambios seguidos dentro de la ventana: el debouncer tiene que emitir
+        // solo el primero de inmediato y diferir el segundo.
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 1d);
+        InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 2d);
+
+        var emitted = broadcasts
+            .Where(b => b["type"]?.GetValue<string>() == "control.event")
+            .Select(b => b["value"]!.GetValue<double>())
+            .ToArray();
+
+        Assert.Equal(new[] { 1d }, emitted);
+    }
+
+    /// <summary>
+    /// Selector posicional con una ventana de debounce REAL, para poder comprobar que
+    /// el debouncing sigue vivo para todo lo que no es un pulso.
+    /// </summary>
+    private static AircraftProfile MakeProfileWithDebouncedPositionalControl(int debounceMs)
+    {
+        var baseProfile = MakeProfileWithInvertiblePositionalControl();
+        var control = baseProfile.Controls[0];
+
+        return new AircraftProfile
+        {
+            ProfileId = baseProfile.ProfileId,
+            Manifest = baseProfile.Manifest,
+            Detection = baseProfile.Detection,
+            Controls = new[]
+            {
+                new ControlDefinition
+                {
+                    Id = control.Id,
+                    DataType = control.DataType,
+                    Authority = control.Authority,
+                    ReadOnly = control.ReadOnly,
+                    WriteOnly = control.WriteOnly,
+                    Read = control.Read,
+                    Write = control.Write,
+                    Synchronization = new ControlSynchronization
+                    {
+                        Mode = control.Synchronization.Mode,
+                        DebounceMs = debounceMs,
+                        ConfirmAfterWrite = false,
+                        TimeoutMs = control.Synchronization.TimeoutMs,
+                    },
+                },
+            },
+        };
+    }
+
+    /// <summary>
+    /// EL LAZO DE ECO. Al escribir un pulso por orden del otro piloto, nuestro sim
+    /// reporta el cambio -- y si eso se reemite como cambio local, el otro lado lo
+    /// reescribe (los pulsos no pasan por AlreadyAtValue) y su botón se pulsa otra
+    /// vez, realimentando el ciclo.
+    ///
+    /// Para los posicionales este eco es inofensivo porque AlreadyAtValue lo descarta
+    /// en el otro extremo: ese filtro hacía doble función y los pulsos, al quedar
+    /// fuera, necesitan la supresión explícita.
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_ReadbackOfARemoteWrite_IsNotReEmittedAsALocalChange()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        // El otro piloto pulsa: se escribe en nuestro sim.
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "navigation.irs_kb_0_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        // Nuestro sim reporta el botón hundido: es el eco de la escritura de arriba.
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 1d);
+
+        Assert.DoesNotContain(broadcasts, b => b["type"]?.GetValue<string>() == "control.event");
+
+        // Pero el siguiente cambio ya NO es eco: es el botón volviendo de verdad, y
+        // tiene que salir.
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 0d);
+
+        var emitted = broadcasts
+            .Where(b => b["type"]?.GetValue<string>() == "control.event")
+            .Select(b => b["value"]!.GetValue<bool>())
+            .ToArray();
+        Assert.Equal(new[] { false }, emitted);
+    }
+
+    /// <summary>
+    /// Una pulsación LOCAL, sin ninguna escritura remota previa, sí se emite: la
+    /// supresión de eco no puede silenciar lo que el piloto de este lado hace.
+    /// </summary>
+    [Fact]
+    public void MomentaryButton_LocalPress_IsAlwaysEmitted()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        SetMatchedProfile(service, MakeProfileWithMomentaryButton());
+
+        InvokePrivate(service, "OnNumericValueReceived", "navigation.irs_kb_0_sw", 1d);
+
+        Assert.Contains(
+            broadcasts,
+            b => b["type"]?.GetValue<string>() == "control.event"
+                && b["value"]!.GetValue<bool>());
+    }
+
+    /// <summary>
+    /// Botón momentáneo del teclado del CDU, copiado literal de
+    /// aircraft-profiles/ifly-737-max8/controls/navigation.yaml (incluido el
+    /// confirmAfterWrite:true que trae el perfil generado, que es justo lo que el
+    /// bridge tiene que ignorar para esta clase de control).
+    /// </summary>
+    private static AircraftProfile MakeProfileWithMomentaryButton()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "navigation.irs_kb_0_sw",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = false,
+            Read = new ControlReadDefinition
+            {
+                Type = ReadType.ClientDataArea,
+                AreaName = "SharedCockpitBridge_LVars",
+                Field = "L:VC_IRS_KB_0_SW_VAL",
+                NativeType = ClientDataNativeType.Float,
+            },
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "$value 0 > if{ 11 (>L:VC_Navigation_trigger_VAL,number) } " +
+                       "els{ 12 (>L:VC_Navigation_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 0,
+                ConfirmAfterWrite = true,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { control },
+        };
+    }
+
+    /// <summary>
+    /// Igual que MakeProfileWithConfirmAfterWriteControl pero con el RPN de DOS
+    /// ramas que emite de verdad tools/generate_ifly_profile.py para un selector
+    /// posicional -- la única forma que el bridge puede invertir solo.
+    /// </summary>
+    private static AircraftProfile MakeProfileWithInvertiblePositionalControl()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "gear.autobrake_sw",
+            DataType = ControlDataType.Number,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = false,
+            Read = new ControlReadDefinition
+            {
+                Type = ReadType.ClientDataArea,
+                AreaName = "SharedCockpitBridge_LVars",
+                Field = "L:VC_Autobrake_SW_VAL",
+                NativeType = ClientDataNativeType.Float,
+            },
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "(L:VC_Autobrake_SW_VAL,number) $value < if{ 2 (>L:VC_Gear_trigger_VAL,number) } " +
+                       "(L:VC_Autobrake_SW_VAL,number) $value > if{ 3 (>L:VC_Gear_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 0,
+                ConfirmAfterWrite = true,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { control },
+        };
+    }
+
     private static AircraftProfile MakeProfileWithConfirmAfterWriteControl()
     {
         var control = new ControlDefinition

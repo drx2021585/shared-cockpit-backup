@@ -7,10 +7,10 @@
   },
   "dependencies": [],
   "content_type": "MISC",
-  "title": "Shared Cockpit Bridge",
+  "title": "We Connect Bridge",
   "manufacturer": "",
-  "creator": "Shared Cockpit",
+  "creator": "We Connect",
   "package_version": "0.1.0",
-  "minimum_game_version": "1.39.9",
-  "total_package_size": "00000000000000000000"
+  "minimum_game_version": "1.0.0",
+  "total_package_size": "26176"
 }

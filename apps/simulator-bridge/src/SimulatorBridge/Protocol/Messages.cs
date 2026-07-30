@@ -133,6 +133,56 @@ public static class BridgeStatus
 }
 
 /// <summary>
+/// Mensaje interno (no protocolo de red, igual que BridgeStatus) con el estado
+/// acumulado del bridge en esta sesión: contadores de escritura/lectura, la
+/// polaridad que aprendió, y los controles que tuvo que descartar.
+///
+/// Existe para alimentar el reporte descargable de la UI ("Download report" en la
+/// vista Cockpit). Antes, todo este diagnóstico solo existía como texto en
+/// bridge.log, lo que obligaba a pedirle al usuario que buscara un archivo en
+/// %APPDATA% y lo mandara a mano -- y ni siquiera contenía los contadores, que son
+/// lo que permite ver de un golpe si la avalancha de escrituras volvió o si un
+/// perfil está fallando en masa.
+///
+/// Se emite periódicamente (no bajo petición) para que la UI siempre tenga el
+/// último sin necesidad de un canal de request/response.
+/// </summary>
+public static class BridgeDiagnostics
+{
+    public static JsonObject Build(
+        string? matchedProfileId,
+        string? detectedTitle,
+        int controlsSubscribed,
+        int writesAttempted,
+        int writesSkippedAlreadyAtValue,
+        int writesConfirmed,
+        int writesFailed,
+        int polarityInversionsLearned,
+        int pulsePressesWritten,
+        int errorsReported,
+        IEnumerable<string> polarityInvertedControls)
+    {
+        return new JsonObject
+        {
+            ["type"] = "bridge.diagnostics",
+            ["matchedProfileId"] = matchedProfileId,
+            ["detectedTitle"] = detectedTitle,
+            ["controlsSubscribed"] = controlsSubscribed,
+            ["writesAttempted"] = writesAttempted,
+            ["writesSkippedAlreadyAtValue"] = writesSkippedAlreadyAtValue,
+            ["writesConfirmed"] = writesConfirmed,
+            ["writesFailed"] = writesFailed,
+            ["polarityInversionsLearned"] = polarityInversionsLearned,
+            ["pulsePressesWritten"] = pulsePressesWritten,
+            ["errorsReported"] = errorsReported,
+            ["polarityInvertedControls"] = new JsonArray(
+                polarityInvertedControls.Select(c => (JsonNode)JsonValue.Create(c)!).ToArray()),
+            ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+    }
+}
+
+/// <summary>
 /// Mensaje estructurado de error de lectura/escritura, para que la UI pueda
 /// mostrar diagnóstico (requisito explícito del bridge: "Reportar errores de
 /// escritura/lectura de forma estructurada").

@@ -3,11 +3,23 @@
 interface WeConnectSetupConfig {
   firstLaunchCompleted: boolean;
   communityPath: string | null;
+  /** package_version del paquete que se copió a Community la última vez. Permite
+   * reemplazarlo en silencio cuando la app trae uno más nuevo. */
+  installedPackageVersion?: string | null;
 }
 
 interface WeConnectInstallResult {
   ok: boolean;
   error?: string;
+  version?: string | null;
+}
+
+/** Estado de FSUIPC7, el requisito real para que el iFly/PMDG sincronicen algo. */
+interface WeConnectFsuipcStatus {
+  installed: boolean;
+  path: string | null;
+  /** FSUIPC_WAPID.dll presente: sin él FSUIPC7 corre pero no expone L-Vars. */
+  wapiPresent: boolean;
 }
 
 interface Window {
@@ -30,5 +42,6 @@ interface Window {
     installPackages: (folderPath: string) => Promise<WeConnectInstallResult>;
     markCompleted: (communityPath: string) => Promise<WeConnectSetupConfig>;
     reset: () => Promise<WeConnectSetupConfig>;
+    checkFsuipc: () => Promise<WeConnectFsuipcStatus>;
   };
 }

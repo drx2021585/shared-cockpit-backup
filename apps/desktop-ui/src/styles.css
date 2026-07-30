@@ -1377,6 +1377,42 @@ button {
   margin-top: auto;
 }
 
+/* Aviso dentro del asistente de primer inicio: estado de FSUIPC7, que es un
+   requisito de terceros que no podemos instalar nosotros pero que sin él nada
+   de las cabinas de payware se sincroniza. */
+.setup-notice {
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  margin-bottom: 14px;
+}
+
+.setup-notice code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.setup-notice-warn {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.setup-notice-ok {
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.07);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+
+.setup-notice-url {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: inherit;
+  text-decoration: underline;
+}
+
 .installer-log-line {
   display: flex;
   align-items: center;

@@ -321,7 +321,9 @@ def build(rows, out_dir):
                 "  synchronization:",
                 "    mode: event",
                 "    confirmAfterWrite: false",
-                "    debounceMs: 50",
+                # Sin debounce: es un par pulsar/soltar, y las dos transiciones son
+                # significativas. Ver el comentario extenso en el bloque "momentary".
+                "    debounceMs: 0",
             ]
 
         elif kind == "momentary":
@@ -353,8 +355,25 @@ def build(rows, out_dir):
                 f"    name: {yaml_str(code)}",
                 "  synchronization:",
                 "    mode: event",
-                f"    confirmAfterWrite: {'true' if state else 'false'}",
-                "    debounceMs: 50",
+                # NUNCA confirmAfterWrite en un momentaneo, ni cuando SI tiene L-Var
+                # de estado. Un pulso vuelve solo: la lectura jamas sostiene el valor
+                # pedido, asi que el lazo de convergencia reintentaria durante toda la
+                # ventana y CADA reintento vuelve a pulsar la tecla (~9 veces en 6 s).
+                # Se emitia 'true' cuando habia estado, y eso puso confirmAfterWrite en
+                # los 580 momentaneos del perfil: una pulsacion del otro piloto podia
+                # escribir el mismo caracter nueve veces en el CDU. El bridge tambien
+                # los descarta por la forma del RPN (ver Bridge/MomentaryPulse.cs), asi
+                # que los perfiles ya generados quedan cubiertos sin regenerarlos.
+                "    confirmAfterWrite: false",
+                # Un momentaneo tampoco se debouncea. El debouncer colapsa cambios
+                # dentro de la ventana, pero en un pulso el pulsar y el soltar son
+                # AMBOS significativos y por definicion caen dentro de la misma
+                # ventana: con 50 ms, un doble toque rapido en el CDU perdia la
+                # segunda pulsacion y el soltar salia con retraso. El bridge lo fuerza
+                # a 0 por la forma del RPN (ver Bridge/MomentaryPulse.cs), asi que los
+                # perfiles ya generados quedan cubiertos; esto solo hace que el YAML
+                # diga la verdad.
+                "    debounceMs: 0",
             ]
 
         else:  # single

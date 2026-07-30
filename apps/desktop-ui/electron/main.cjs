@@ -102,11 +102,29 @@ function readSetupConfig() {
     return {
       firstLaunchCompleted: parsed.firstLaunchCompleted === true,
       communityPath: typeof parsed.communityPath === "string" ? parsed.communityPath : null,
+      // Versión del paquete que se copió a Community la última vez. Ver
+      // getBundledPackageVersion para por qué hace falta.
+      installedPackageVersion:
+        typeof parsed.installedPackageVersion === "string" ? parsed.installedPackageVersion : null,
     };
   } catch {
     // No existe todavía (primer inicio real) o está corrupto -- se trata
     // igual que "nunca configurado", nunca se crashea por esto.
-    return { firstLaunchCompleted: false, communityPath: null };
+    return { firstLaunchCompleted: false, communityPath: null, installedPackageVersion: null };
+  }
+}
+
+/**
+ * package_version del paquete que trae ESTE build de la app. Null si no se puede
+ * leer (no debería pasar, pero no vale crashear el arranque por esto).
+ */
+function getBundledPackageVersion() {
+  try {
+    const manifestPath = path.join(getBundledCommunityPackagesDir(), "manifest.json");
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    return typeof parsed.package_version === "string" ? parsed.package_version : null;
+  } catch {
+    return null;
   }
 }
 
@@ -211,17 +229,109 @@ ipcMain.handle("setup:install-packages", (_event, folderPath) => {
   }
 
   try {
-    fs.cpSync(source, destination, { recursive: true, force: true });
+    // Se BORRA el destino antes de copiar. cpSync con force:true sobreescribe lo
+    // que coincide, pero deja intacto lo que ya no existe en el paquete nuevo: si
+    // una versión futura quita un archivo, el viejo se queda en Community y
+    // layout.json deja de coincidir con lo que hay en disco -- que es justo la
+    // señal por la que MSFS descarta un paquete.
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.cpSync(source, destination, { recursive: true });
   } catch (err) {
     return { ok: false, error: `Could not copy files: ${err?.message ?? String(err)}` };
   }
 
-  return { ok: true };
+  // Verificar que la copia llegó de verdad, en vez de confiar en que cpSync no
+  // lanzó. Un antivirus o una carpeta sincronizada pueden dejar el destino a
+  // medias sin producir excepción.
+  const installedManifest = path.join(destination, "manifest.json");
+  if (!fs.existsSync(installedManifest)) {
+    return {
+      ok: false,
+      error: `The package was copied but ${installedManifest} is missing. Check your antivirus or folder permissions.`,
+    };
+  }
+
+  return { ok: true, version: getBundledPackageVersion() };
 });
 
 ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
-  writeSetupConfig({ firstLaunchCompleted: true, communityPath }),
+  writeSetupConfig({
+    firstLaunchCompleted: true,
+    communityPath,
+    installedPackageVersion: getBundledPackageVersion(),
+  }),
 );
+
+/**
+ * Reinstala el paquete en silencio si el bundle trae una versión distinta de la
+ * que se copió la última vez.
+ *
+ * Sin esto, `firstLaunchCompleted: true` congelaba el paquete PARA SIEMPRE: se
+ * copiaba en el primer arranque y ninguna corrección posterior al módulo WASM
+ * llegaba nunca a alguien que ya hubiera instalado la app. El asistente solo
+ * vuelve a aparecer si nunca se completó, así que no había ninguna otra vía.
+ *
+ * Es silencioso a propósito: el usuario ya eligió su carpeta Community y ya
+ * aceptó que instalemos ahí; volver a preguntárselo en cada actualización sería
+ * ruido. Si falla, se loggea y la app arranca igual -- el paquete viejo sigue
+ * siendo el que estaba, no se queda sin nada.
+ */
+function reinstallCommunityPackageIfOutdated() {
+  const config = readSetupConfig();
+  if (!config.firstLaunchCompleted || !config.communityPath) {
+    return; // el asistente se encargará
+  }
+
+  const bundled = getBundledPackageVersion();
+  if (!bundled || bundled === config.installedPackageVersion) {
+    return;
+  }
+
+  const source = getBundledCommunityPackagesDir();
+  const destination = path.join(config.communityPath, INSTALLED_PACKAGE_FOLDER_NAME);
+
+  try {
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.cpSync(source, destination, { recursive: true });
+    if (!fs.existsSync(path.join(destination, "manifest.json"))) {
+      throw new Error("manifest.json missing after copy");
+    }
+    writeSetupConfig({ installedPackageVersion: bundled });
+    console.log(
+      `[setup] Community package updated ${config.installedPackageVersion ?? "(unknown)"} -> ${bundled} at ${destination}`,
+    );
+  } catch (err) {
+    console.error(`[setup] Could not update the Community package: ${err?.message ?? String(err)}`);
+  }
+}
+
+/**
+ * FSUIPC7 es el requisito REAL para que se sincronice cualquier cosa del iFly 737
+ * MAX 8 y del PMDG: todas sus lecturas y escrituras pasan por su WAPI (ver
+ * apps/simulator-bridge/src/SimulatorBridge/SimConnectInterop/FsuipcLVarClient.cs).
+ * El asistente pedía la carpeta Community -- para un paquete que hoy no hace nada
+ * -- y no comprobaba esto, que es la causa más probable de "no se sincroniza
+ * nada" en la máquina del otro jugador.
+ *
+ * Se comprueba la INSTALACIÓN, no que esté corriendo: en el primer inicio MSFS
+ * normalmente está cerrado, y exigir que esté arriba haría el chequeo inútil.
+ */
+const FSUIPC_CANDIDATE_DIRS = ["C:\\FSUIPC7", "C:\\Program Files\\FSUIPC7"];
+
+function detectFsuipc7() {
+  for (const dir of FSUIPC_CANDIDATE_DIRS) {
+    const exe = path.join(dir, "FSUIPC7.exe");
+    if (fs.existsSync(exe)) {
+      // FSUIPC_WAPID.dll es el que expone las L-Vars; sin él, FSUIPC7 corre pero
+      // el bridge no puede leer ni escribir nada de la cabina.
+      const wapi = path.join(dir, "Utils", "FSUIPC_WAPID.dll");
+      return { installed: true, path: dir, wapiPresent: fs.existsSync(wapi) };
+    }
+  }
+  return { installed: false, path: null, wapiPresent: false };
+}
+
+ipcMain.handle("setup:check-fsuipc", () => detectFsuipc7());
 
 ipcMain.handle("setup:reset", () => writeSetupConfig({ firstLaunchCompleted: false }));
 
@@ -409,6 +519,13 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
 
   createWindow();
+
+  // Antes de arrancar el bridge: si esta versión de la app trae un paquete de
+  // Community más nuevo que el instalado, se reemplaza en silencio. Ver
+  // reinstallCommunityPackageIfOutdated -- sin esto el paquete quedaba congelado
+  // en el del primer arranque para siempre.
+  reinstallCommunityPackageIfOutdated();
+
   launchBridgeIfNeeded();
 
   if (app.isPackaged) {
