@@ -182,8 +182,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.15",
+    version: "0.1.17",
     title: "Current build",
+    date: "2026-07-30",
+    commits: [
+      "Fixed the 'Leave session' button for co-pilots — it now returns to the home screen instead of staying stuck on the in-flight view.",
+      "The iFly 737 MAX 8 profile now loads correctly when the aircraft is detected.",
+    ],
+  },
+  {
+    version: "0.1.16",
+    title: "Published release",
     commits: [
       "Buttons now actually reach your co-pilot. We measured it in the simulator: the app was only looking at the cockpit about 1.6 times per second, while a button press lasts about a tenth of a second — so most presses happened between two glances and were never seen at all. Out of six presses of a CDU key, four were lost. The app now watches 22 times per second instead, and all six get through.",
       "This was the main reason switches and buttons felt unreliable, above every other fix in the previous versions. Latching switches like the battery or the packs always worked because they stay in their new position; momentary buttons — the CDU keypad, the autopilot panel — spring back and were being missed.",

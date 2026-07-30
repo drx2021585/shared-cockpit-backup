@@ -2,97 +2,95 @@
 #
 # Fuente: SimObjects/Airplanes/iFly 737-MAX8/gsx.cfg del paquete real
 # instalado. Estas L-Vars se escriben directamente (no a través de triggers
-# numéricos como los switches de cabina). Rango de valores: típicamente 0
-# (cerrado) a 1 (abierto), aunque algunos pueden ser animaciones que varían
-# de 0 a 100. Verificado que aparecen en gsx.cfg real:
-#   Animation_FWD_Entry_VAL
-#   Animation_AFT_Entry_VAL
-#   Animation_FWD_Service_VAL
-#   Animation_AFT_Service_VAL
-#   Animation_FWD_Cargo_VAL
-#   Animation_AFT_Cargo_VAL
+# numéricos como los switches de cabina). Rango de valores: 0 (cerrado) a 1
+# (abierto). Sin verificación en vivo todavía.
 
-controls:
-  doors.fwd_entry:
-    type: binary
-    name: Forward Entry Door
-    read:
-      type: lvar
-      field: L:Animation_FWD_Entry_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_FWD_Entry_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.fwd_entry
+  name: Forward Entry Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_FWD_Entry_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_FWD_Entry_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
 
-  doors.aft_entry:
-    type: binary
-    name: Aft Entry Door
-    read:
-      type: lvar
-      field: L:Animation_AFT_Entry_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_AFT_Entry_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.aft_entry
+  name: Aft Entry Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_AFT_Entry_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_AFT_Entry_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
 
-  doors.fwd_service:
-    type: binary
-    name: Forward Service Door
-    read:
-      type: lvar
-      field: L:Animation_FWD_Service_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_FWD_Service_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.fwd_service
+  name: Forward Service Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_FWD_Service_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_FWD_Service_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
 
-  doors.aft_service:
-    type: binary
-    name: Aft Service Door
-    read:
-      type: lvar
-      field: L:Animation_AFT_Service_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_AFT_Service_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.aft_service
+  name: Aft Service Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_AFT_Service_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_AFT_Service_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
 
-  doors.fwd_cargo:
-    type: binary
-    name: Forward Cargo Door
-    read:
-      type: lvar
-      field: L:Animation_FWD_Cargo_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_FWD_Cargo_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.fwd_cargo
+  name: Forward Cargo Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_FWD_Cargo_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_FWD_Cargo_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100
 
-  doors.aft_cargo:
-    type: binary
-    name: Aft Cargo Door
-    read:
-      type: lvar
-      field: L:Animation_AFT_Cargo_VAL
-      scale: 1.0
-    write:
-      type: calculatorCode
-      code: >
-        (>L:Animation_AFT_Cargo_VAL, number)
-    capabilities:
-      default: partial
+- id: doors.aft_cargo
+  name: Aft Cargo Door
+  dataType: number
+  authority: shared
+  read:
+    type: lvar
+    field: L:Animation_AFT_Cargo_VAL
+  write:
+    type: calculatorCode
+    name: "(>L:Animation_AFT_Cargo_VAL, number)"
+  synchronization:
+    mode: event
+    confirmAfterWrite: true
+    debounceMs: 100

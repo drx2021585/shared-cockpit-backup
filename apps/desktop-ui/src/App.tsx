@@ -88,6 +88,7 @@ export function App() {
   function handleSessionClosed() {
     setActiveSession(null);
     setSessionPilotName(null);
+    setView("home");
   }
 
   function renderView() {
