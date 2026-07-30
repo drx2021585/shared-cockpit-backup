@@ -16,6 +16,8 @@ namespace SharedCockpit.Bridge.Bridge;
 /// </summary>
 public sealed class BridgeService : IAsyncDisposable
 {
+    private sealed record WriteOnlyTriggerMirror(string TriggerLVar, int CommandCode, ControlDefinition Control);
+
     private sealed record PendingWriteConfirmation(
         ControlDefinition Control,
         object DesiredValue,
@@ -172,6 +174,11 @@ public sealed class BridgeService : IAsyncDisposable
     private long _sequence;
     private bool _pmdgUnavailableWarned;
     private readonly Dictionary<string, PendingWriteConfirmation> _pendingWriteConfirmations = new();
+    private readonly Dictionary<string, List<WriteOnlyTriggerMirror>> _writeOnlyTriggerMirrorsBySyntheticKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<WriteOnlyTriggerMirror>> _writeOnlyTriggerMirrorsByFieldAndCode = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _writeOnlyTriggerEchoesToSuppress = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _writeOnlyTriggerDuplicateWarnings = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _writeOnlyTriggerAmbiguousKeys = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Última (sequence, timestamp de llegada al bridge) observada por control
@@ -236,6 +243,7 @@ public sealed class BridgeService : IAsyncDisposable
             _pmdgClient.Warning += OnPmdgWarning;
             _pmdgClient.FieldValueReceived += OnNumericValueReceived;
             _pmdgClient.StringFieldValueReceived += OnStringValueReceived;
+            _pmdgClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
         }
 
         if (_sharedCockpitWasmClient is not null)
@@ -243,6 +251,7 @@ public sealed class BridgeService : IAsyncDisposable
             _sharedCockpitWasmClient.Warning += OnPmdgWarning;
             _sharedCockpitWasmClient.FieldValueReceived += OnNumericValueReceived;
             _sharedCockpitWasmClient.StringFieldValueReceived += OnStringValueReceived;
+            _sharedCockpitWasmClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
         }
     }
 
@@ -426,6 +435,7 @@ public sealed class BridgeService : IAsyncDisposable
         if (WriteControl(control, value))
         {
             TrackPulseWrite(control, value);
+            TrackWriteOnlyTriggerEcho(control, value);
             RegisterPendingWriteConfirmation(control, value);
         }
     }
@@ -533,6 +543,26 @@ public sealed class BridgeService : IAsyncDisposable
 
         // La lectura que provoque ESTA escritura es un eco, no un cambio local.
         _pulseEchoToSuppress[control.Id] = writtenValue;
+    }
+
+    private void TrackWriteOnlyTriggerEcho(ControlDefinition control, object writtenValue)
+    {
+        if (!control.WriteOnly || !IsPulsePressRequested(writtenValue))
+        {
+            return;
+        }
+
+        var mirror = _writeOnlyTriggerMirrorsByFieldAndCode.Values
+            .SelectMany(static mirrors => mirrors)
+            .FirstOrDefault(m => m.Control.Id == control.Id);
+        if (mirror is null)
+        {
+            return;
+        }
+
+        var suppressKey = WriteOnlyTriggerFieldAndCodeKey(mirror.TriggerLVar, mirror.CommandCode);
+        _writeOnlyTriggerEchoesToSuppress[suppressKey] =
+            _writeOnlyTriggerEchoesToSuppress.TryGetValue(suppressKey, out var pending) ? pending + 1 : 1;
     }
 
     private void HandleIncomingControlAxis(IncomingControlAxis ca)
@@ -1349,6 +1379,11 @@ public sealed class BridgeService : IAsyncDisposable
         var control = _matchedProfile?.FindControl(key);
         if (control is null)
         {
+            if (HandleWriteOnlyTriggerMirror(key, value))
+            {
+                return;
+            }
+
             // Puede ocurrir brevemente tras un cambio de perfil (mensajes en vuelo de suscripciones viejas).
             return;
         }
@@ -1365,6 +1400,51 @@ public sealed class BridgeService : IAsyncDisposable
         _lastObservedByControl[control.Id] = typedValue;
         ObserveConfirmedValue(control, typedValue);
         EmitDebounced(control, typedValue);
+    }
+
+    private static string WriteOnlyTriggerSyntheticKey(string triggerLVar) => $"__trigger__:{triggerLVar}";
+
+    private static string WriteOnlyTriggerFieldAndCodeKey(string triggerLVar, int commandCode) =>
+        $"{triggerLVar}|{commandCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+
+    private bool HandleWriteOnlyTriggerMirror(string key, double value)
+    {
+        if (!_writeOnlyTriggerMirrorsBySyntheticKey.TryGetValue(key, out var mirrors))
+        {
+            return false;
+        }
+
+        var rounded = (int)Math.Round(value);
+        if (rounded == 0)
+        {
+            return true;
+        }
+
+        var candidates = mirrors.Where(m => m.CommandCode == rounded).ToList();
+        if (candidates.Count == 0)
+        {
+            return true;
+        }
+
+        var ambiguityKey = WriteOnlyTriggerFieldAndCodeKey(candidates[0].TriggerLVar, rounded);
+
+        var suppressKey = ambiguityKey;
+        if (_writeOnlyTriggerEchoesToSuppress.TryGetValue(suppressKey, out var pending) && pending > 0)
+        {
+            if (pending == 1)
+            {
+                _writeOnlyTriggerEchoesToSuppress.Remove(suppressKey);
+            }
+            else
+            {
+                _writeOnlyTriggerEchoesToSuppress[suppressKey] = pending - 1;
+            }
+
+            return true;
+        }
+
+        EmitControlEvent(candidates[0].Control, true);
+        return true;
     }
 
     private void EmitDebounced(ControlDefinition control, object value)
@@ -1464,6 +1544,9 @@ public sealed class BridgeService : IAsyncDisposable
 
     private void SubscribeControls(AircraftProfile profile)
     {
+        ResetExternalSubscriptions();
+        IndexWriteOnlyTriggerMirrors(profile);
+
         foreach (var control in profile.Controls)
         {
             // Controles writeOnly (ej. botones momentáneos del CDU/MCDU en
@@ -1493,6 +1576,9 @@ public sealed class BridgeService : IAsyncDisposable
                 }
 
                 case ReadType.Lvar:
+                    SubscribeLvarControl(control);
+                    break;
+
                 case ReadType.Hvar:
                     _log.Warn($"control '{control.Id}': read.type={control.Read.Type} requiere ejecución de calculator code vía WASM, no soportado por este proceso SimConnect puro. Se omite la suscripción.");
                     break;
@@ -1501,6 +1587,129 @@ public sealed class BridgeService : IAsyncDisposable
                     SubscribeClientDataAreaControl(control);
                     break;
             }
+        }
+
+        SubscribeWriteOnlyTriggerMirrors();
+        SubscribeScreens(profile);
+    }
+
+    private void ResetExternalSubscriptions()
+    {
+        _pmdgClient?.ResetSubscriptions();
+        if (!ReferenceEquals(_sharedCockpitWasmClient, _pmdgClient))
+        {
+            _sharedCockpitWasmClient?.ResetSubscriptions();
+        }
+    }
+
+    private void SubscribeLvarControl(ControlDefinition control)
+    {
+        var read = control.Read;
+        if (read is null)
+        {
+            return;
+        }
+
+        var lvarName = !string.IsNullOrWhiteSpace(read.Name) ? read.Name : read.Field;
+        if (string.IsNullOrWhiteSpace(lvarName))
+        {
+            _log.Warn($"control '{control.Id}': read.type=lvar sin nombre de L-Var. Se omite la suscripción.");
+            Broadcast(BridgeError.Build(control.Id, "read", $"control '{control.Id}' declara read.type=lvar pero no trae nombre de L-Var"));
+            return;
+        }
+
+        var client = ResolveClientDataClient("SharedCockpitBridge_LVars");
+        if (!EnsurePmdgClientReady(client, "SharedCockpitBridge_LVars", control.Id, "read"))
+        {
+            return;
+        }
+
+        client!.SubscribeField(control.Id, "SharedCockpitBridge_LVars", lvarName, arrayIndex: null, ClientDataNativeType.Float);
+    }
+
+    private void IndexWriteOnlyTriggerMirrors(AircraftProfile profile)
+    {
+        _writeOnlyTriggerMirrorsBySyntheticKey.Clear();
+        _writeOnlyTriggerMirrorsByFieldAndCode.Clear();
+        _writeOnlyTriggerEchoesToSuppress.Clear();
+        _writeOnlyTriggerDuplicateWarnings.Clear();
+        _writeOnlyTriggerAmbiguousKeys.Clear();
+
+        foreach (var control in profile.Controls)
+        {
+            if (!control.WriteOnly || control.Write is not { Type: WriteType.CalculatorCode } write)
+            {
+                continue;
+            }
+
+            if (!MomentaryPulse.TryParseSinglePress(write.Name, out var triggerLVar, out var commandCode))
+            {
+                continue;
+            }
+
+            var syntheticKey = WriteOnlyTriggerSyntheticKey(triggerLVar);
+            if (!_writeOnlyTriggerMirrorsBySyntheticKey.TryGetValue(syntheticKey, out var mirrorsForTrigger))
+            {
+                mirrorsForTrigger = new List<WriteOnlyTriggerMirror>();
+                _writeOnlyTriggerMirrorsBySyntheticKey[syntheticKey] = mirrorsForTrigger;
+            }
+
+            var mirror = new WriteOnlyTriggerMirror(triggerLVar, commandCode, control);
+            mirrorsForTrigger.Add(mirror);
+
+            var fieldAndCodeKey = WriteOnlyTriggerFieldAndCodeKey(triggerLVar, commandCode);
+            if (!_writeOnlyTriggerMirrorsByFieldAndCode.TryGetValue(fieldAndCodeKey, out var mirrorsForFieldAndCode))
+            {
+                mirrorsForFieldAndCode = new List<WriteOnlyTriggerMirror>();
+                _writeOnlyTriggerMirrorsByFieldAndCode[fieldAndCodeKey] = mirrorsForFieldAndCode;
+            }
+
+            mirrorsForFieldAndCode.Add(mirror);
+        }
+
+        foreach (var (fieldAndCodeKey, mirrorsForFieldAndCode) in _writeOnlyTriggerMirrorsByFieldAndCode.ToArray())
+        {
+            if (mirrorsForFieldAndCode.Count <= 1)
+            {
+                continue;
+            }
+
+            _writeOnlyTriggerAmbiguousKeys.Add(fieldAndCodeKey);
+            if (_writeOnlyTriggerDuplicateWarnings.Add(fieldAndCodeKey))
+            {
+                var trigger = mirrorsForFieldAndCode[0].TriggerLVar;
+                var code = mirrorsForFieldAndCode[0].CommandCode;
+                var controls = string.Join(", ", mirrorsForFieldAndCode.Select(c => c.Control.Id).OrderBy(id => id, StringComparer.Ordinal));
+                _log.Warn(
+                    $"trigger writeOnly ambiguo '{trigger}' con codigo {code}: varios controles comparten exactamente la misma señal ({controls}). " +
+                    "Ese pulso local se reenviará usando un control canónico estable para no perder sincronización entre PCs.");
+                Broadcast(BridgeError.Build(
+                    string.Empty,
+                    "read",
+                    $"trigger ambiguo '{trigger}' codigo {code}: {controls}. Se reenviara usando un control canonico estable para conservar la sincronizacion"));
+            }
+        }
+    }
+
+    private void SubscribeWriteOnlyTriggerMirrors()
+    {
+        foreach (var triggerLVar in _writeOnlyTriggerMirrorsBySyntheticKey.Values
+                     .Select(mirrors => mirrors[0].TriggerLVar)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            var client = ResolveClientDataClient("SharedCockpitBridge_LVars");
+            var representative = _writeOnlyTriggerMirrorsBySyntheticKey[WriteOnlyTriggerSyntheticKey(triggerLVar)][0];
+            if (!EnsurePmdgClientReady(client, "SharedCockpitBridge_LVars", representative.Control.Id, "read"))
+            {
+                continue;
+            }
+
+            client!.SubscribeField(
+                WriteOnlyTriggerSyntheticKey(triggerLVar),
+                "SharedCockpitBridge_LVars",
+                triggerLVar,
+                arrayIndex: null,
+                ClientDataNativeType.Float);
         }
     }
 
@@ -1538,6 +1747,20 @@ public sealed class BridgeService : IAsyncDisposable
         client!.SubscribeField(control.Id, areaName, field, read.ArrayIndex, nativeType);
     }
 
+    private void SubscribeScreens(AircraftProfile profile)
+    {
+        foreach (var screen in profile.Screens)
+        {
+            var client = ResolveClientDataClient(screen.AreaName);
+            if (!EnsurePmdgClientReady(client, screen.AreaName, screen.Id, "read"))
+            {
+                continue;
+            }
+
+            client!.SubscribeScreen(screen);
+        }
+    }
+
     /// <summary>
     /// Resuelve qué cliente de Client Data Area es dueño de un areaName dado.
     /// "PMDG_NG3_Data"/"PMDG_NG3_Control" → _pmdgClient (SDK oficial de PMDG).
@@ -1548,7 +1771,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private IPmdgClientDataClient? ResolveClientDataClient(string areaName) => areaName switch
     {
-        "PMDG_NG3_Data" or "PMDG_NG3_Control" => _pmdgClient,
+        "PMDG_NG3_Data" or "PMDG_NG3_Control" or "PMDG_NG3_CDU_0" or "PMDG_NG3_CDU_1" => _pmdgClient,
         "SharedCockpitBridge_LVars" => _sharedCockpitWasmClient,
         _ => null,
     };
@@ -1609,6 +1832,11 @@ public sealed class BridgeService : IAsyncDisposable
         Broadcast(BridgeError.Build(string.Empty, "read", message));
     }
 
+    private void OnScreenSnapshotReceived(ScreenSnapshotMessage message)
+    {
+        Broadcast(message.ToJson());
+    }
+
     /// <summary>
     /// Publica bridge.diagnostics cada DiagnosticsIntervalMs. Alimenta el reporte
     /// descargable de la UI ("Download report" en la vista Cockpit): así el usuario
@@ -1666,6 +1894,7 @@ public sealed class BridgeService : IAsyncDisposable
             _pmdgClient.Warning -= OnPmdgWarning;
             _pmdgClient.FieldValueReceived -= OnNumericValueReceived;
             _pmdgClient.StringFieldValueReceived -= OnStringValueReceived;
+            _pmdgClient.ScreenSnapshotReceived -= OnScreenSnapshotReceived;
             _pmdgClient.Dispose();
         }
 
@@ -1674,6 +1903,7 @@ public sealed class BridgeService : IAsyncDisposable
             _sharedCockpitWasmClient.Warning -= OnPmdgWarning;
             _sharedCockpitWasmClient.FieldValueReceived -= OnNumericValueReceived;
             _sharedCockpitWasmClient.StringFieldValueReceived -= OnStringValueReceived;
+            _sharedCockpitWasmClient.ScreenSnapshotReceived -= OnScreenSnapshotReceived;
             _sharedCockpitWasmClient.Dispose();
         }
 

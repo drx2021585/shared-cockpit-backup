@@ -4,6 +4,7 @@ import type {
   AircraftSnapshot,
   ControlAxis,
   ControlEvent,
+  ScreenSnapshot,
   SharedCockpitMessage,
 } from "../../../../packages/protocol/types";
 
@@ -60,6 +61,16 @@ export interface BridgeDiagnostics {
   timestamp: number;
 }
 
+export interface BridgeScreenSnapshot {
+  screenId: string;
+  rows: number;
+  cols: number;
+  cells: ScreenSnapshot["cells"];
+  powered: boolean | null;
+  revision: number;
+  updatedAt: number;
+}
+
 export interface SimulatorBridgeState {
   mode: BridgeMode;
   connectionState: BridgeConnectionState;
@@ -77,6 +88,8 @@ export interface SimulatorBridgeState {
   simulatorVersion: "msfs2020" | "msfs2024" | null;
   /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
   controls: Record<string, BridgeControlValue>;
+  /** Última pantalla conocida por screenId (ej. cdu_captain/cdu_fo). */
+  screens: Record<string, BridgeScreenSnapshot>;
   lastMessageAt: number | null;
   /**
    * Envía un control.event/control.axis al bridge local (ej. un cambio que
@@ -110,6 +123,7 @@ function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis) =>
     detectedProfileId: null,
     simulatorVersion: null,
     controls: {},
+    screens: {},
     lastMessageAt: null,
     send,
   };
@@ -188,6 +202,25 @@ function applyMessage(
   }
   if (msg.type === "aircraft.snapshot") {
     return { ...state, lastMessageAt: now, snapshot: msg as AircraftSnapshot };
+  }
+  if (msg.type === "screen.snapshot") {
+    const screen = msg as ScreenSnapshot;
+    return {
+      ...state,
+      lastMessageAt: now,
+      screens: {
+        ...state.screens,
+        [screen.screenId]: {
+          screenId: screen.screenId,
+          rows: screen.rows,
+          cols: screen.cols,
+          cells: screen.cells,
+          powered: screen.powered ?? null,
+          revision: screen.revision,
+          updatedAt: now,
+        },
+      },
+    };
   }
   // authority.transfer / session.* no describen telemetría de aeronave; los
   // ignoramos acá (le corresponden a otras pantallas/agentes).

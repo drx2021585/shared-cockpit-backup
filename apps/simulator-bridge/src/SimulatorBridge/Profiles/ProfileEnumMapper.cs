@@ -69,4 +69,10 @@ public static class ProfileEnumMapper
         "clientDataArea" => ControlSdkTier.ClientDataArea,
         _ => throw new NotSupportedException($"sdkTier desconocido en perfil: '{value}'"),
     };
+
+    public static ScreenSdkTier ScreenSdkTier(string value) => value switch
+    {
+        "clientDataArea" => Profiles.ScreenSdkTier.ClientDataArea,
+        _ => throw new NotSupportedException($"screen.sdkTier desconocido en perfil: '{value}'"),
+    };
 }

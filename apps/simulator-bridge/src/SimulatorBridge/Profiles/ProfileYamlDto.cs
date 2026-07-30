@@ -152,3 +152,23 @@ public sealed class MappingYamlDto
 {
     public List<MappingOverrideDto> Overrides { get; set; } = new();
 }
+
+public sealed class ScreenCellYamlDto
+{
+    public string CharField { get; set; } = string.Empty;
+    public string ColorField { get; set; } = string.Empty;
+    public string FlagsField { get; set; } = string.Empty;
+    public int ColorValues { get; set; }
+}
+
+public sealed class ScreenYamlDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string AreaName { get; set; } = string.Empty;
+    public int Rows { get; set; }
+    public int Cols { get; set; }
+    public string SdkTier { get; set; } = string.Empty;
+    public bool ReadOnly { get; set; }
+    public string? PoweredField { get; set; }
+    public ScreenCellYamlDto Cell { get; set; } = new();
+}

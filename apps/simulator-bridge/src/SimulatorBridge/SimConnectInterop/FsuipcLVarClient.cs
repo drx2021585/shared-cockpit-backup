@@ -1,6 +1,7 @@
 using FSUIPC;
 using SharedCockpit.Bridge.Bridge;
 using SharedCockpit.Bridge.Profiles;
+using SharedCockpit.Bridge.Protocol;
 
 namespace SharedCockpit.Bridge.SimConnectInterop;
 
@@ -41,7 +42,7 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
 {
     private const string AreaName = "SharedCockpitBridge_LVars";
 
-    private sealed record TrackedField(string ControlId, string LVarName, double LastValue);
+    private sealed record TrackedField(string LVarName, double LastValue, HashSet<string> ControlIds);
 
     private readonly Dictionary<string, TrackedField> _tracked = new(StringComparer.Ordinal);
 
@@ -62,6 +63,7 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
     public event Action<string>? Warning;
     public event Action<string, double>? FieldValueReceived;
     public event Action<string, string>? StringFieldValueReceived;
+    public event Action<ScreenSnapshotMessage>? ScreenSnapshotReceived;
 
     public bool TryConnect(string appName)
     {
@@ -253,7 +255,10 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             }
 
             _tracked[tracked.LVarName] = tracked with { LastValue = change.Value };
-            FieldValueReceived?.Invoke(tracked.ControlId, change.Value);
+            foreach (var controlId in tracked.ControlIds)
+            {
+                FieldValueReceived?.Invoke(controlId, change.Value);
+            }
         }
     }
 
@@ -285,7 +290,8 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             {
                 // FSUIPCException = problema de la CONEXIÓN, no de esta L-Var en
                 // particular: no tiene sentido seguir leyendo las demás.
-                Warning?.Invoke($"control '{tracked.ControlId}': ReadLVar('{lvarName}') falló ({ex.Message}). ¿Se cerró FSUIPC7?");
+                var affectedControls = string.Join(", ", tracked.ControlIds.OrderBy(id => id, StringComparer.Ordinal));
+                Warning?.Invoke($"control(es) '{affectedControls}': ReadLVar('{lvarName}') falló ({ex.Message}). ¿Se cerró FSUIPC7?");
                 IsConnected = false;
                 Disconnected?.Invoke();
                 return;
@@ -303,8 +309,9 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
                 // repetiría 30 veces por segundo) y se sigue con las demás: el
                 // resto del perfil funciona igual.
                 _tracked.Remove(lvarName);
+                var affectedControls = string.Join(", ", tracked.ControlIds.OrderBy(id => id, StringComparer.Ordinal));
                 Warning?.Invoke(
-                    $"control '{tracked.ControlId}': ReadLVar('{lvarName}') falló ({ex.GetType().Name}: {ex.Message}). " +
+                    $"control(es) '{affectedControls}': ReadLVar('{lvarName}') falló ({ex.GetType().Name}: {ex.Message}). " +
                     "Se deja de leer ESE control (probablemente la L-Var no existe en esta aeronave); " +
                     "el resto del perfil sigue funcionando.");
                 continue;
@@ -313,9 +320,21 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             if (value != tracked.LastValue)
             {
                 _tracked[lvarName] = tracked with { LastValue = value };
-                FieldValueReceived?.Invoke(tracked.ControlId, value);
+                foreach (var controlId in tracked.ControlIds)
+                {
+                    FieldValueReceived?.Invoke(controlId, value);
+                }
             }
         }
+    }
+
+    public void ResetSubscriptions()
+    {
+        _tracked.Clear();
+        while (_pendingWapiChanges.TryDequeue(out _))
+        {
+        }
+        _wapiCallbackError = null;
     }
 
     public bool SubscribeField(string controlId, string areaName, string field, int? arrayIndex, ClientDataNativeType nativeType)
@@ -338,8 +357,21 @@ public sealed class FsuipcLVarClient : IPmdgClientDataClient, ICalculatorCodeCli
             return false;
         }
 
-        _tracked[field] = new TrackedField(controlId, field, double.NaN);
+        if (_tracked.TryGetValue(field, out var tracked))
+        {
+            tracked.ControlIds.Add(controlId);
+            _tracked[field] = tracked;
+            return true;
+        }
+
+        _tracked[field] = new TrackedField(field, double.NaN, new HashSet<string>(StringComparer.Ordinal) { controlId });
         return true;
+    }
+
+    public bool SubscribeScreen(ScreenDefinition screen)
+    {
+        Warning?.Invoke($"pantalla '{screen.Id}': SubscribeScreen no soportado por FsuipcLVarClient.");
+        return false;
     }
 
     public bool WriteControlEvent(string areaName, string eventIdOrName, string? parameter)

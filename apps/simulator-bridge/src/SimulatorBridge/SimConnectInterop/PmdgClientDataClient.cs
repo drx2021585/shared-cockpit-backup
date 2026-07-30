@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using SharedCockpit.Bridge.Bridge;
 using SharedCockpit.Bridge.Profiles;
+using SharedCockpit.Bridge.Protocol;
 
 namespace SharedCockpit.Bridge.SimConnectInterop;
 
@@ -63,6 +64,8 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
 {
     private const string DataAreaName = "PMDG_NG3_Data";
     private const string ControlAreaName = "PMDG_NG3_Control";
+    private const string Cdu0AreaName = "PMDG_NG3_CDU_0";
+    private const string Cdu1AreaName = "PMDG_NG3_CDU_1";
 
     // Constantes de PMDG_NG3_SDK.h (Copyright PMDG) — IDs arbitrarios pero
     // fijos elegidos por PMDG para su Client Data Area / Definition.
@@ -70,9 +73,21 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
     private const uint DataDefinitionId = 0x4E473332;
     private const uint ControlClientDataId = 0x4E473333;
     private const uint ControlDefinitionId = 0x4E473334;
+    private const uint Cdu0ClientDataId = 0x4E473335;
+    private const uint Cdu0DefinitionId = 0x4E473336;
+    private const uint Cdu1ClientDataId = 0x4E473337;
+    private const uint Cdu1DefinitionId = 0x4E473338;
 
     private const uint DataRequestId = 1;
     private const uint ControlRequestId = 2;
+    private const uint Cdu0RequestId = 3;
+    private const uint Cdu1RequestId = 4;
+    private const int CduColumns = 24;
+    private const int CduRows = 14;
+    private const int CduCellSize = 3;
+    private const int CduCellsSize = CduColumns * CduRows * CduCellSize;
+    private const int CduPoweredOffset = CduCellsSize;
+    private const int CduScreenSize = CduCellsSize + 1;
 
     /// <summary>
     /// Únicos Event IDs de PMDG_NG3_Control.Event confirmados por el SDK/ejemplos
@@ -94,6 +109,7 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
     /// los AddToClientDataDefinition en el orden en que fueron agregados (NO es el offset
     /// dentro del struct C original -- ver PmdgNg3DataLayout para ese offset).</summary>
     private sealed record SubscribedField(string ControlId, int PayloadOffset, PmdgNg3DataLayout.FieldDescriptor Descriptor, int? ArrayIndex, ClientDataNativeType NativeType);
+    private sealed record SubscribedScreen(string ScreenId, string AreaName, int Rows, int Cols, uint ClientDataId, uint DefinitionId, uint RequestId);
 
     private IntPtr _handle = IntPtr.Zero;
     private bool _dataDefinitionRequested;
@@ -105,6 +121,9 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
     // (ej. IRS_ModeSelector[0] e IRS_ModeSelector[1]) siempre que apunten a índices
     // distintos -- solo es un choque real si (field, arrayIndex) coincide exactamente.
     private readonly HashSet<(string Field, int? ArrayIndex)> _subscribedFieldNames = new();
+    private readonly Dictionary<string, SubscribedScreen> _subscribedScreensByAreaName = new(StringComparer.Ordinal);
+    private readonly Dictionary<uint, SubscribedScreen> _subscribedScreensByRequestId = new();
+    private readonly Dictionary<string, long> _screenRevisions = new(StringComparer.Ordinal);
 
     public bool IsConnected { get; private set; }
 
@@ -113,6 +132,7 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
     public event Action<string>? Warning;
     public event Action<string, double>? FieldValueReceived;
     public event Action<string, string>? StringFieldValueReceived;
+    public event Action<ScreenSnapshotMessage>? ScreenSnapshotReceived;
 
     public bool TryConnect(string appName)
     {
@@ -154,9 +174,11 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
         // Warning en vez de crashear.
         var hrData = NativeMethods.SimConnect_MapClientDataNameToID(_handle, DataAreaName, DataClientDataId);
         var hrControl = NativeMethods.SimConnect_MapClientDataNameToID(_handle, ControlAreaName, ControlClientDataId);
-        if (hrData != 0 || hrControl != 0)
+        var hrCdu0 = NativeMethods.SimConnect_MapClientDataNameToID(_handle, Cdu0AreaName, Cdu0ClientDataId);
+        var hrCdu1 = NativeMethods.SimConnect_MapClientDataNameToID(_handle, Cdu1AreaName, Cdu1ClientDataId);
+        if (hrData != 0 || hrControl != 0 || hrCdu0 != 0 || hrCdu1 != 0)
         {
-            Warning?.Invoke($"MapClientDataNameToID falló para el SDK de PMDG (hrData=0x{hrData:X8}, hrControl=0x{hrControl:X8}). " +
+            Warning?.Invoke($"MapClientDataNameToID falló para el SDK de PMDG (hrData=0x{hrData:X8}, hrControl=0x{hrControl:X8}, hrCdu0=0x{hrCdu0:X8}, hrCdu1=0x{hrCdu1:X8}). " +
                 "¿MSFS/PMDG 737 NG3 no está cargado todavía?");
         }
 
@@ -202,6 +224,27 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
         }
     }
 
+    public void ResetSubscriptions()
+    {
+        _subscribedFields.Clear();
+        _subscribedFieldNames.Clear();
+        _nextPayloadOffset = 0;
+        _dataDefinitionRequested = false;
+        _controlDefinitionRegistered = false;
+        _subscribedScreensByAreaName.Clear();
+        _subscribedScreensByRequestId.Clear();
+        _screenRevisions.Clear();
+
+        // SimConnect no ofrece "desuscribir" estas definiciones parciales con una
+        // llamada simple; para garantizar un estado limpio entre perfiles se corta la
+        // conexión dedicada y BridgeService la reabrirá bajo demanda en la próxima
+        // suscripción/escritura.
+        if (IsConnected)
+        {
+            Disconnect();
+        }
+    }
+
     // SIMCONNECT_RECV_CLIENT_DATA reusa exactamente el layout de
     // SIMCONNECT_RECV_SIMOBJECT_DATA en el SDK oficial (mismos campos:
     // dwRequestID/dwObjectID/dwDefineID/dwFlags/dwentrynumber/dwoutof/
@@ -232,6 +275,10 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
                 if (fixedPart.DwRequestId == DataRequestId)
                 {
                     HandleDataPayload(IntPtr.Add(pData, ClientDataFixedSize));
+                }
+                else if (_subscribedScreensByRequestId.TryGetValue(fixedPart.DwRequestId, out var screen))
+                {
+                    HandleScreenPayload(screen, IntPtr.Add(pData, ClientDataFixedSize));
                 }
 
                 // ControlRequestId (echo del área de control tras un SetClientData externo)
@@ -295,6 +342,37 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
         var nullIndex = Array.IndexOf<byte>(buffer, 0);
         var length = nullIndex >= 0 ? nullIndex : maxLength;
         return Encoding.ASCII.GetString(buffer, 0, length);
+    }
+
+    private void HandleScreenPayload(SubscribedScreen screen, IntPtr payloadPtr)
+    {
+        var cells = new List<ScreenCellMessage>(screen.Rows * screen.Cols);
+        for (var y = 0; y < screen.Rows; y++)
+        {
+            for (var x = 0; x < screen.Cols; x++)
+            {
+                var cellOffset = ((x * screen.Rows) + y) * CduCellSize;
+                var symbol = Marshal.ReadByte(IntPtr.Add(payloadPtr, cellOffset));
+                var color = Marshal.ReadByte(IntPtr.Add(payloadPtr, cellOffset + 1));
+                var flags = Marshal.ReadByte(IntPtr.Add(payloadPtr, cellOffset + 2));
+                var text = symbol == 0 ? string.Empty : Encoding.ASCII.GetString(new[] { symbol });
+                cells.Add(new ScreenCellMessage(text, color, flags));
+            }
+        }
+
+        var powered = Marshal.ReadByte(IntPtr.Add(payloadPtr, CduPoweredOffset)) != 0;
+        var revision = _screenRevisions.TryGetValue(screen.ScreenId, out var lastRevision) ? lastRevision + 1 : 1;
+        _screenRevisions[screen.ScreenId] = revision;
+
+        ScreenSnapshotReceived?.Invoke(new ScreenSnapshotMessage(
+            BridgeService.LocalSessionId,
+            screen.ScreenId,
+            screen.Rows,
+            screen.Cols,
+            cells,
+            revision,
+            powered,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
     }
 
     public bool SubscribeField(string controlId, string areaName, string field, int? arrayIndex, ClientDataNativeType nativeType)
@@ -406,6 +484,63 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
         return true;
     }
 
+    public bool SubscribeScreen(ScreenDefinition screen)
+    {
+        if (!IsConnected)
+        {
+            Warning?.Invoke($"pantalla '{screen.Id}': SubscribeScreen ignorado, la conexión SimConnect dedicada al SDK de PMDG no está abierta.");
+            return false;
+        }
+
+        if (_subscribedScreensByAreaName.ContainsKey(screen.AreaName))
+        {
+            return true;
+        }
+
+        if (!TryResolveScreenArea(screen.AreaName, out var clientDataId, out var definitionId, out var requestId))
+        {
+            Warning?.Invoke($"pantalla '{screen.Id}': areaName '{screen.AreaName}' no soportado todavía por PmdgClientDataClient.");
+            return false;
+        }
+
+        var hrAdd = NativeMethods.SimConnect_AddToClientDataDefinition(
+            _handle,
+            definitionId,
+            0,
+            CduScreenSize,
+            0f,
+            SimConnectConst.Unused);
+
+        if (hrAdd != 0)
+        {
+            Warning?.Invoke($"pantalla '{screen.Id}': AddToClientDataDefinition falló para {screen.AreaName}, hr=0x{hrAdd:X8}");
+            return false;
+        }
+
+        var hrRequest = NativeMethods.SimConnect_RequestClientData(
+            _handle,
+            clientDataId,
+            requestId,
+            definitionId,
+            (uint)SimConnectClientDataPeriod.OnSet,
+            (uint)SimConnectDataRequestFlag.Changed,
+            0,
+            0,
+            0);
+
+        if (hrRequest != 0)
+        {
+            Warning?.Invoke($"pantalla '{screen.Id}': RequestClientData falló para {screen.AreaName}, hr=0x{hrRequest:X8}");
+            return false;
+        }
+
+        var sub = new SubscribedScreen(screen.Id, screen.AreaName, screen.Rows, screen.Cols, clientDataId, definitionId, requestId);
+        _subscribedScreensByAreaName[screen.AreaName] = sub;
+        _subscribedScreensByRequestId[requestId] = sub;
+        _screenRevisions[screen.Id] = 0;
+        return true;
+    }
+
     public bool WriteControlEvent(string areaName, string eventIdOrName, string? parameter)
     {
         if (!IsConnected)
@@ -477,6 +612,28 @@ public sealed class PmdgClientDataClient : IPmdgClientDataClient
         }
 
         return true;
+    }
+
+    private static bool TryResolveScreenArea(string areaName, out uint clientDataId, out uint definitionId, out uint requestId)
+    {
+        switch (areaName)
+        {
+            case Cdu0AreaName:
+                clientDataId = Cdu0ClientDataId;
+                definitionId = Cdu0DefinitionId;
+                requestId = Cdu0RequestId;
+                return true;
+            case Cdu1AreaName:
+                clientDataId = Cdu1ClientDataId;
+                definitionId = Cdu1DefinitionId;
+                requestId = Cdu1RequestId;
+                return true;
+            default:
+                clientDataId = 0;
+                definitionId = 0;
+                requestId = 0;
+                return false;
+        }
     }
 
     private static bool NativeTypeMatchesLayoutKind(ClientDataNativeType nativeType, PmdgNg3DataLayout.LayoutFieldKind kind) => nativeType switch

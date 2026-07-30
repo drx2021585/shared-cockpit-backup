@@ -133,6 +133,11 @@ public enum ControlSdkTier
     ClientDataArea,
 }
 
+public enum ScreenSdkTier
+{
+    ClientDataArea,
+}
+
 public sealed class ControlReadDefinition
 {
     public ReadType Type { get; set; }
@@ -214,6 +219,26 @@ public sealed class MappingOverride
     public ControlWriteDefinition? Write { get; set; }
 }
 
+public sealed class ScreenCellDefinition
+{
+    public string CharField { get; set; } = string.Empty;
+    public string ColorField { get; set; } = string.Empty;
+    public string FlagsField { get; set; } = string.Empty;
+    public int ColorValues { get; set; }
+}
+
+public sealed class ScreenDefinition
+{
+    public string Id { get; set; } = string.Empty;
+    public string AreaName { get; set; } = string.Empty;
+    public int Rows { get; set; }
+    public int Cols { get; set; }
+    public ScreenSdkTier SdkTier { get; set; }
+    public bool ReadOnly { get; set; }
+    public string? PoweredField { get; set; }
+    public ScreenCellDefinition Cell { get; set; } = new();
+}
+
 public sealed class AircraftMapping
 {
     public List<MappingOverride> Overrides { get; set; } = new();
@@ -222,11 +247,15 @@ public sealed class AircraftMapping
 /// <summary>Perfil completo ya cargado y resuelto (manifest + detection + controles + overrides de la versión de sim activa).</summary>
 public sealed class AircraftProfile
 {
-    public required string ProfileId { get; init; }
-    public required AircraftManifest Manifest { get; init; }
-    public required DetectionRule Detection { get; init; }
-    public required IReadOnlyList<ControlDefinition> Controls { get; init; }
+    public string ProfileId { get; init; } = string.Empty;
+    public AircraftManifest Manifest { get; init; } = new();
+    public DetectionRule Detection { get; init; } = new();
+    public IReadOnlyList<ControlDefinition> Controls { get; init; } = Array.Empty<ControlDefinition>();
+    public IReadOnlyList<ScreenDefinition> Screens { get; init; } = Array.Empty<ScreenDefinition>();
 
     public ControlDefinition? FindControl(string controlId) =>
         Controls.FirstOrDefault(c => c.Id == controlId);
+
+    public ScreenDefinition? FindScreen(string screenId) =>
+        Screens.FirstOrDefault(s => s.Id == screenId);
 }

@@ -182,8 +182,21 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.18",
+    version: "0.1.19",
     title: "Current build",
+    date: "2026-07-30",
+    commits: [
+      "The cockpit now renders shared CDU-style screens from the other PC instead of receiving the data and leaving it invisible, which closes the loop for PMDG read-only display mirroring.",
+      "Session health is now tracked per link: the app tells you whether the relay, your local bridge, your peer's flight data and the shared display feed are healthy, stale or disconnected.",
+      "After a reconnect, We Connect now re-publishes your current controls and read-only screens automatically so both cabins converge again without waiting for the next button press.",
+      "The Community package updater no longer trusts only package_version. It now compares the real package contents, so a new WASM build reaches players even if someone forgot to bump the version string.",
+      "Aircraft compatibility scoring was expanded to count real systems that were previously hidden behind a generic average, and the iFly 737 MAX 8 now reports much higher coverage based on its actual mapped cockpit.",
+      "Profile validation now fails if manifest.yaml and capabilities.yaml drift apart, preventing the UI from showing one compatibility story while the documentation claims another.",
+    ],
+  },
+  {
+    version: "0.1.18",
+    title: "Published release",
     date: "2026-07-30",
     commits: [
       "The cockpit now shows a confirmation popup as soon as both pilots are using the same aircraft and simulator version.",

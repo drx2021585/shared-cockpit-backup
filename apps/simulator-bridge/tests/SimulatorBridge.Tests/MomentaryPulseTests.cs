@@ -53,4 +53,28 @@ public class MomentaryPulseTests
         Assert.False(MomentaryPulse.IsPulse(null));
         Assert.False(MomentaryPulse.IsPulse(string.Empty));
     }
+
+    [Fact]
+    public void TryParseSinglePress_ExtractsTriggerAndCommandCode()
+    {
+        var ok = MomentaryPulse.TryParseSinglePress(
+            "$value 0 > if{ 83 (>L:VC_Communications_trigger_VAL,number) }",
+            out var trigger,
+            out var code);
+
+        Assert.True(ok);
+        Assert.Equal("L:VC_Communications_trigger_VAL", trigger);
+        Assert.Equal(83, code);
+    }
+
+    [Fact]
+    public void TryParseSinglePress_RejectsTwoBranchPulses()
+    {
+        var ok = MomentaryPulse.TryParseSinglePress(
+            "$value 0 > if{ 11 (>L:VC_Navigation_trigger_VAL,number) } els{ 12 (>L:VC_Navigation_trigger_VAL,number) }",
+            out _,
+            out _);
+
+        Assert.False(ok);
+    }
 }

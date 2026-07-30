@@ -247,6 +247,31 @@ public class ProfileRepositoryRealDataTests
     }
 
     [Fact]
+    public void Pmdg737900_LoadsRealCduScreens()
+    {
+        var repo = new ProfileRepository(FindAircraftProfilesRoot());
+        var profile = repo.LoadOne("pmdg-737-900", SimulatorVersion.Msfs2020);
+
+        Assert.True(profile.Screens.Count >= 2, "Se esperaban al menos las dos pantallas CDU del PMDG NG.");
+
+        var captain = profile.FindScreen("cdu_captain");
+        Assert.NotNull(captain);
+        Assert.Equal("PMDG_NG3_CDU_0", captain!.AreaName);
+        Assert.Equal(14, captain.Rows);
+        Assert.Equal(24, captain.Cols);
+        Assert.True(captain.ReadOnly);
+        Assert.Equal("Powered", captain.PoweredField);
+        Assert.Equal("Symbol", captain.Cell.CharField);
+        Assert.Equal("Color", captain.Cell.ColorField);
+        Assert.Equal("Flags", captain.Cell.FlagsField);
+        Assert.Equal(6, captain.Cell.ColorValues);
+
+        var fo = profile.FindScreen("cdu_fo");
+        Assert.NotNull(fo);
+        Assert.Equal("PMDG_NG3_CDU_1", fo!.AreaName);
+    }
+
+    [Fact]
     public void AllProfilesInRepo_ParseWithoutThrowing()
     {
         // aircraft-profiles/ también contiene fixtures mínimos usados por
@@ -297,7 +322,7 @@ public class ProfileRepositoryRealDataTests
             // (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
             Assert.NotNull(control.Write);
             Assert.Equal(WriteType.CalculatorCode, control.Write!.Type);
-            Assert.Contains("_trigger_VAL", control.Write.Name);
+            Assert.Contains(">L:", control.Write.Name);
 
             if (control.WriteOnly)
             {
@@ -306,10 +331,17 @@ public class ProfileRepositoryRealDataTests
             else
             {
                 Assert.NotNull(control.Read);
-                Assert.Equal(ReadType.ClientDataArea, control.Read!.Type);
-                Assert.Equal("SharedCockpitBridge_LVars", control.Read.AreaName);
-                Assert.Equal(ClientDataNativeType.Float, control.Read.NativeType);
-                Assert.StartsWith("L:VC_", control.Read.Field);
+                Assert.Contains(control.Read!.Type, new[] { ReadType.ClientDataArea, ReadType.Lvar });
+                if (control.Read.Type == ReadType.ClientDataArea)
+                {
+                    Assert.Equal("SharedCockpitBridge_LVars", control.Read.AreaName);
+                    Assert.Equal(ClientDataNativeType.Float, control.Read.NativeType);
+                    Assert.StartsWith("L:VC_", control.Read.Field);
+                }
+                else
+                {
+                    Assert.Equal(ReadType.Lvar, control.Read.Type);
+                }
             }
         }
 

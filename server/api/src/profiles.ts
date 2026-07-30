@@ -53,6 +53,16 @@ const SYSTEM_PREFIX_TO_CAPABILITY: Record<string, string> = {
   communications: "radios",
   mcdu: "mcdu",
   navigation: "mcdu",
+  air: "air",
+  anti_ice: "antiIce",
+  engine: "engine",
+  fuel: "fuel",
+  fire_protection: "fireProtection",
+  instruments: "instruments",
+  warnings: "warnings",
+  efb: "efb",
+  misc: "cabinMisc",
+  doors: "cabinMisc",
 };
 
 interface ProfileControl {

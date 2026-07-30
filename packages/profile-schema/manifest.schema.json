@@ -45,7 +45,16 @@
         "hydraulics": { "$ref": "#/definitions/capabilityLevel" },
         "radios": { "$ref": "#/definitions/capabilityLevel" },
         "mcdu": { "$ref": "#/definitions/capabilityLevel" },
-        "failures": { "$ref": "#/definitions/capabilityLevel" }
+        "failures": { "$ref": "#/definitions/capabilityLevel" },
+        "air": { "$ref": "#/definitions/capabilityLevel" },
+        "antiIce": { "$ref": "#/definitions/capabilityLevel" },
+        "engine": { "$ref": "#/definitions/capabilityLevel" },
+        "fuel": { "$ref": "#/definitions/capabilityLevel" },
+        "fireProtection": { "$ref": "#/definitions/capabilityLevel" },
+        "instruments": { "$ref": "#/definitions/capabilityLevel" },
+        "warnings": { "$ref": "#/definitions/capabilityLevel" },
+        "efb": { "$ref": "#/definitions/capabilityLevel" },
+        "cabinMisc": { "$ref": "#/definitions/capabilityLevel" }
       }
     }
   },

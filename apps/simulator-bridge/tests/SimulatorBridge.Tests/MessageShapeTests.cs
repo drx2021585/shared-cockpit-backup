@@ -52,6 +52,41 @@ public class MessageShapeTests
     }
 
     [Fact]
+    public void ScreenSnapshot_SerializesExpectedFieldNames()
+    {
+        var msg = new ScreenSnapshotMessage(
+            "sess-1",
+            "cdu_captain",
+            14,
+            24,
+            new[]
+            {
+                new ScreenCellMessage("A", 2, 0),
+                new ScreenCellMessage(string.Empty, 0, 1),
+            },
+            3,
+            true,
+            1_700_000_000_123);
+
+        var json = msg.ToJson();
+
+        Assert.Equal("screen.snapshot", json["type"]!.GetValue<string>());
+        Assert.Equal("sess-1", json["sessionId"]!.GetValue<string>());
+        Assert.Equal("cdu_captain", json["screenId"]!.GetValue<string>());
+        Assert.Equal(14, json["rows"]!.GetValue<int>());
+        Assert.Equal(24, json["cols"]!.GetValue<int>());
+        Assert.Equal(3, json["revision"]!.GetValue<long>());
+        Assert.True(json["powered"]!.GetValue<bool>());
+        Assert.Equal(1_700_000_000_123, json["timestamp"]!.GetValue<long>());
+
+        var cells = Assert.IsType<System.Text.Json.Nodes.JsonArray>(json["cells"]);
+        Assert.Equal(2, cells.Count);
+        Assert.Equal("A", cells[0]!["char"]!.GetValue<string>());
+        Assert.Equal(2, cells[0]!["colorId"]!.GetValue<int>());
+        Assert.Equal(0, cells[0]!["flags"]!.GetValue<int>());
+    }
+
+    [Fact]
     public void IncomingControlEvent_IsAlwaysMarkedRemote()
     {
         var json = """{"type":"control.event","sessionId":"s","controlId":"lights.beacon","value":true,"source":"peer-1","sequence":1,"timestamp":1}""";

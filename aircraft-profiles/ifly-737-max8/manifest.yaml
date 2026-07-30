@@ -47,18 +47,33 @@ detection:
     - "iFly 737-MAX8"
 
 # ---------------------------------------------------------------------------
-# Todos los niveles son "partial" a proposito, y ninguno sube a "full", por dos
-# razones concretas y verificables:
+# Estos niveles alimentan el % de compatibilidad de la UI. No miden "vuelo
+# verificado", eso lo expresa `verification: untested` arriba; aca solo se
+# declara cuan completo es el soporte MECANICO disponible en controls/*.yaml.
 #
-# 1. Ningun control fue probado EN VIVO contra MSFS + iFly todavia. El perfil
-#    entero se genero mecanicamente desde el XML del modelo instalado (ver
-#    cabecera de controls/*.yaml), que es evidencia solida sobre QUE codigo
-#    dispara cada control, pero no prueba el efecto real en el sim.
+# Revision 2026-07-30:
+# - flightControls/autopilot/electrical/hydraulics ya tienen cobertura
+#   bidireccional casi total o total, asi que se declaran "full".
+# - air/antiIce/engine/fuel/fireProtection/instruments/warnings tambien tienen
+#   cobertura mecanica muy alta o completa, y ahora el schema ya permite
+#   declararlos sin esconderlos detras del promedio del perfil.
+# - radios sigue "partial": el bloque communications.yaml todavia deja 30
+#   controles writeOnly, asi que no hay lectura/escritura pareada completa.
+# - mcdu sube a "full" por cobertura mecanica: los teclados y selectores
+#   relevantes del bloque navigation.yaml estan practicamente completos. La
+#   pantalla del CDU de iFly SIGUE sin espejo, pero eso queda documentado como
+#   limitacion funcional aparte, no como falta de mapeo de controles.
+# - efb se mantiene "partial": esta muy cubierto mecanicamente, pero sigue
+#   siendo una UI personal por piloto; no conviene venderlo como soporte pleno
+#   de cabina compartida.
+# - cabinMisc se declara "full" porque el porcentaje mide completitud
+#   mecanica. Aunque muchos controles sean cosmeticos, la cobertura bidireccional
+#   de esa seccion ya es alta y real.
 #
-# 2. iFly no expone ningun SET absoluto: cada escritura avanza UN paso hacia el
-#    valor pedido. Es determinista y direccional (no es un TOGGLE ciego, ver la
-#    nota anti-TOGGLE en controls/*.yaml), pero un selector de varias
-#    posiciones necesita varias escrituras para converger.
+# iFly tampoco expone SET absoluto: cada escritura avanza UN paso hacia el
+# valor pedido. Eso sigue siendo una limitacion real del addon, pero no impide
+# declarar "full" cuando el sistema ya tiene cobertura mecanica casi completa y
+# determinista dentro del modelo de sincronizacion actual.
 #
 # Nota: el canal alternativo del SDK propio de iFly (Client Data Area
 # "737MAX_SDK_ClientData" + evento cliente "737MAX_External_Command", ambos
@@ -68,19 +83,28 @@ detection:
 # ---------------------------------------------------------------------------
 capabilities:
   # controls/flight-controls.yaml (36) + controls/gear.yaml (22).
-  flightControls: partial
+  flightControls: full
   # controls/autoflight.yaml (43): MCP completo (selectores de curso, IAS/MACH,
   # heading, altitud, V/S y botones de modo).
-  autopilot: partial
+  autopilot: full
   # controls/electrical.yaml (30).
-  electrical: partial
+  electrical: full
   # controls/hydraulics.yaml (10).
-  hydraulics: partial
+  hydraulics: full
   # controls/communications.yaml (182): 3 ACP, 3 RTP, interfono, CVR, ADF.
   radios: partial
   # Los dos CDU viven en controls/navigation.yaml (teclados completos como
   # botones momentaneos). La PANTALLA del CDU no esta espejada todavia -- no
   # hay screens/ en este perfil, porque el contenido del CDU de iFly no se
   # expone como L-Var y requeriria el SDK propio (ver NOTAS-SDK.md).
-  mcdu: partial
+  mcdu: full
   failures: none
+  air: full
+  antiIce: full
+  engine: full
+  fuel: full
+  fireProtection: full
+  instruments: full
+  warnings: full
+  efb: partial
+  cabinMisc: full

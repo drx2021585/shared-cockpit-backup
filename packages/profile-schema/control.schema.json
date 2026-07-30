@@ -28,7 +28,7 @@
     },
     "read": {
       "type": "object",
-      "description": "Unión: forma estándar (simvar/lvar/hvar + name) o forma clientDataArea (SDK de terceros, ej. PMDG_NG3_Data).",
+      "description": "Unión: forma estándar (simvar/lvar/hvar) o forma clientDataArea (SDK de terceros, ej. PMDG_NG3_Data). Para retrocompatibilidad, lvar acepta tanto 'name' como 'field'.",
       "oneOf": [
         {
           "type": "object",
@@ -36,6 +36,15 @@
           "properties": {
             "type": { "type": "string", "enum": ["simvar", "lvar", "hvar"] },
             "name": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "field"],
+          "properties": {
+            "type": { "type": "string", "const": "lvar" },
+            "field": { "type": "string" }
           },
           "additionalProperties": false
         },

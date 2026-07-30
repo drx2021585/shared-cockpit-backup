@@ -370,6 +370,79 @@ public sealed class ProfileYamlDeserializationTests : IDisposable
     }
 
     [Fact]
+    public void ScreenDefinitions_FromScreensYaml_DeserializeCorrectly()
+    {
+        var dir = Path.Combine(_root, "screen-profile");
+        Directory.CreateDirectory(Path.Combine(dir, "controls"));
+        Directory.CreateDirectory(Path.Combine(dir, "screens"));
+
+        File.WriteAllText(Path.Combine(dir, "manifest.yaml"), """
+            schemaVersion: 1
+            aircraft:
+              id: screen-profile
+              name: Test Aircraft
+              developer: Test Dev
+            compatibility:
+              msfs2020: true
+              msfs2024: false
+            """);
+
+        File.WriteAllText(Path.Combine(dir, "detection.yaml"), """
+            titleContains:
+              - "Test Aircraft"
+            fallbackToPartialMatch: true
+            """);
+
+        File.WriteAllText(Path.Combine(dir, "controls", "test.yaml"), """
+            - id: lights.beacon
+              dataType: boolean
+              authority: shared
+              read:
+                type: simvar
+                name: "LIGHT BEACON"
+              write:
+                type: inputEvent
+                name: "BEACON_LIGHTS_SET"
+              synchronization:
+                mode: event
+                debounceMs: 100
+                confirmAfterWrite: true
+                timeoutMs: 1000
+            """);
+
+        File.WriteAllText(Path.Combine(dir, "screens", "cdu.yaml"), """
+            - id: cdu_captain
+              areaName: PMDG_NG3_CDU_0
+              rows: 14
+              cols: 24
+              sdkTier: clientDataArea
+              readOnly: true
+              poweredField: Powered
+              cell:
+                charField: Symbol
+                colorField: Color
+                flagsField: Flags
+                colorValues: 6
+            """);
+
+        var repo = new ProfileRepository(_root);
+        var profile = repo.LoadOne("screen-profile", SimulatorVersion.Msfs2020);
+
+        var screen = profile.FindScreen("cdu_captain");
+        Assert.NotNull(screen);
+        Assert.Equal("PMDG_NG3_CDU_0", screen!.AreaName);
+        Assert.Equal(14, screen.Rows);
+        Assert.Equal(24, screen.Cols);
+        Assert.Equal(ScreenSdkTier.ClientDataArea, screen.SdkTier);
+        Assert.True(screen.ReadOnly);
+        Assert.Equal("Powered", screen.PoweredField);
+        Assert.Equal("Symbol", screen.Cell.CharField);
+        Assert.Equal("Color", screen.Cell.ColorField);
+        Assert.Equal("Flags", screen.Cell.FlagsField);
+        Assert.Equal(6, screen.Cell.ColorValues);
+    }
+
+    [Fact]
     public void WritableControl_DoesNotSetReadOnly()
     {
         var root = WriteProfile("writable-profile", """

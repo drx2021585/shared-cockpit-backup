@@ -221,6 +221,13 @@ systems:
     # vivo -- pendiente de validar contra MSFS+PMDG real antes de confiar en
     # el offset de memoria/orden de bytes.
     missing: [cdu_button_writes_not_verified_live, fmc_navigation, cdu_live_verification]
+  failures:
+    level: none
+    controls: []
+    # El perfil no expone una vía segura para forzar fallos del PMDG NG dentro
+    # del contrato actual. Mantenerlo explícito aquí evita que capabilities.yaml
+    # vuelva a divergir de manifest.yaml, que sí alimenta el % de la UI.
+    missing: [pmdg_failures_not_mapped]
 
   # --- Secciones nuevas 2026-07-26, sin categoría propia en
   # packages/profile-schema/manifest.schema.json (mismo caso que "lights"

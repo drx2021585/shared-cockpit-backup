@@ -133,6 +133,20 @@ public sealed class ProfileRepository
             }
         }
 
+        var screensDir = Path.Combine(dir, "screens");
+        var screens = new List<ScreenDefinition>();
+        if (Directory.Exists(screensDir))
+        {
+            foreach (var file in Directory.GetFiles(screensDir, "*.yaml").OrderBy(f => f, StringComparer.Ordinal))
+            {
+                var dtoList = Deserialize<List<ScreenYamlDto>>(file) ?? new List<ScreenYamlDto>();
+                foreach (var dto in dtoList)
+                {
+                    screens.Add(ToScreenDefinition(dto));
+                }
+            }
+        }
+
         ApplyMappingOverrides(dir, simVersion, controls);
 
         return new AircraftProfile
@@ -141,6 +155,7 @@ public sealed class ProfileRepository
             Manifest = manifest,
             Detection = detection,
             Controls = controls,
+            Screens = screens,
         };
     }
 
@@ -229,7 +244,10 @@ public sealed class ProfileRepository
         return new ControlReadDefinition
         {
             Type = type,
-            Name = dto.Name,
+            // Algunos perfiles reales del repo (ej. ifly-737-max8/controls/doors.yaml)
+            // declaran read.type=lvar usando 'field:' en vez de 'name:'. Para la
+            // forma estándar aceptamos ambas y normalizamos a Name.
+            Name = !string.IsNullOrWhiteSpace(dto.Name) ? dto.Name : dto.Field ?? string.Empty,
         };
     }
 
@@ -270,6 +288,24 @@ public sealed class ProfileRepository
             Name = dto.Name,
         };
     }
+
+    private static ScreenDefinition ToScreenDefinition(ScreenYamlDto dto) => new()
+    {
+        Id = dto.Id,
+        AreaName = dto.AreaName,
+        Rows = dto.Rows,
+        Cols = dto.Cols,
+        SdkTier = ProfileEnumMapper.ScreenSdkTier(dto.SdkTier),
+        ReadOnly = dto.ReadOnly,
+        PoweredField = dto.PoweredField,
+        Cell = new ScreenCellDefinition
+        {
+            CharField = dto.Cell.CharField,
+            ColorField = dto.Cell.ColorField,
+            FlagsField = dto.Cell.FlagsField,
+            ColorValues = dto.Cell.ColorValues,
+        },
+    };
 
     private T Deserialize<T>(string path) where T : new()
     {

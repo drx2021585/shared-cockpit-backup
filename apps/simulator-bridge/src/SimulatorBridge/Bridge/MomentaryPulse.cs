@@ -49,6 +49,8 @@ namespace SharedCockpit.Bridge.Bridge;
 /// </summary>
 public static class MomentaryPulse
 {
+    private sealed record SinglePressShape(string TriggerLVar, int CommandCode);
+
     /// <summary>
     /// `$value 0 >` (o `<`) seguido en algún punto de una rama `els{`: pulsar en un
     /// sentido, soltar en el otro. El `\s*` permite las variaciones de espaciado
@@ -58,7 +60,42 @@ public static class MomentaryPulse
         @"\$value\s+0\s*[<>].*\bels\{",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
+    /// <summary>
+    /// Botón momentáneo de UN solo disparo, sin rama `els{}` y sin L-Var de estado:
+    ///
+    ///   $value 0 > if{ 83 (>L:VC_Communications_trigger_VAL,number) }
+    ///
+    /// El bridge puede escuchar esa L-Var de trigger y traducir el código 83 de
+    /// vuelta a `control.event true`, cerrando la sincronización desde clic local
+    /// de cabina hacia la red para controles `writeOnly`.
+    /// </summary>
+    private static readonly Regex SinglePressShapeRegex = new(
+        @"^\s*\$value\s+0\s*>\s*if\{\s*(?<code>-?\d+)\s*\(> (?<trigger>L:[^,\)]+),\s*number\)\s*\}\s*$"
+            .Replace("> ", ">"),
+        RegexOptions.Compiled | RegexOptions.Singleline);
+
     public static bool IsPulse(string? rpn) => rpn is not null && PulseShape.IsMatch(rpn);
+
+    public static bool TryParseSinglePress(string? rpn, out string triggerLVar, out int commandCode)
+    {
+        triggerLVar = string.Empty;
+        commandCode = 0;
+
+        if (rpn is null)
+        {
+            return false;
+        }
+
+        var match = SinglePressShapeRegex.Match(rpn);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        triggerLVar = match.Groups["trigger"].Value;
+        commandCode = int.Parse(match.Groups["code"].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return true;
+    }
 
     /// <summary>
     /// ¿Este control se escribe como un pulso? Solo aplica a write.type=calculatorCode:

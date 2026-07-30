@@ -18,18 +18,17 @@ módulo.
   (mismos 181 switches cuya ESCRITURA ya está confirmada real contra MSFS,
   vía el evento nativo `ROTOR_BRAKE`).
 - Cada fotograma (`SubscribeToSystemEvent(..., "Frame")`), relee esas 181
-  L-Vars y, si algo cambió, transmite el array completo de `double` (1448
-  bytes) a un Client Data Area propio llamado `SharedCockpitBridge_LVars`
+  L-Vars y, si algo cambió, transmite el array completo de 181 bytes
+  booleanos a un Client Data Area propio llamado `SharedCockpitBridge_LVars`
   (creado por este módulo vía `SimConnect_CreateClientData` — a diferencia
   de `PMDG_NG3_Data`, que PMDG crea y nosotros solo mapeamos, aquí el dueño
   del área somos nosotros).
-- **Todavía NO expone esto a `apps/simulator-bridge`** — ese es el trabajo
-  pendiente del lado C# (un cliente nuevo, mirror de
-  `SimConnectInterop/PmdgClientDataClient.cs`, apuntado a
-  `SharedCockpitBridge_LVars` en vez de `PMDG_NG3_Data`), y actualizar
-  `aircraft-profiles/pmdg-737-900/controls/native-toggle-switches.yaml` para
-  agregar un bloque `read` a cada uno de los 181 controles (hoy son
-  `writeOnly: true` porque no había forma de leerlos).
+- `apps/simulator-bridge` YA consume esa área mediante
+  `SimConnectInterop/SharedCockpitWasmClient.cs`, y `BridgeService` la usa
+  como backend de lectura para controles `read.type: clientDataArea` con
+  `areaName: SharedCockpitBridge_LVars`.
+- Lo que sigue pendiente no es el cliente C#, sino la validación EN VIVO en
+  MSFS real y ampliar los perfiles que todavía no aprovechan este canal.
 
 ## manifest.json / layout.json: generados, no editados a mano
 
@@ -45,10 +44,11 @@ paquetes corruptos, así que un layout que no coincide con los archivos en disco
 es exactamente la clase de cosa que hace que el paquete se ignore en silencio.
 Correr el script después de cada recompilación del `.wasm`.
 
-**Al cambiar el `.wasm` hay que subir `package_version` a mano.** La app decide si
-reemplazar el paquete instalado comparando ese campo contra el que guardó la última
-vez (ver `reinstallCommunityPackageIfOutdated` en `electron/main.cjs`); si no se
-sube, el módulo nuevo no llega a nadie que ya tuviera la app instalada.
+`package_version` sigue siendo útil como versión humana del paquete, pero la app
+ya NO depende solo de ese campo para reinstalarlo: desde 2026-07-30 compara una
+huella del contenido real del paquete (`manifest.json`, `layout.json`, `.wasm`,
+y cualquier archivo futuro). Si cambia el `.wasm`, la copia en `Community` se
+actualiza aunque alguien olvide subir `package_version`.
 
 `minimum_game_version` se bajó de `1.39.9` a `1.0.0` (2026-07-29). `1.39.9` es
 numeración de MSFS **2020**, y MSFS compara estas versiones por tupla: en MSFS
@@ -117,18 +117,17 @@ los valores de L-Var leídos coincidan con el estado real de cada switch.
 
 ## Cómo instalarlo para probar (Community package)
 
-1. Copiar toda la carpeta `PackageSources/` a
-   `%APPDATA%\Microsoft Flight Simulator\Packages\shared-cockpit-bridge\`
-   (o el Community folder equivalente de tu instalación — mismo patrón que
-   ya tienes con YourControls en
-   `apps/desktop-ui/recurso/community/YourControls/`).
+1. Copiar toda la carpeta `PackageSources/` a una subcarpeta dentro de tu
+   `Community` de MSFS. La app usa `Community\\WeConnect\\` al instalarlo en
+   modo normal; a mano puede ser cualquier nombre de carpeta mientras los
+   archivos queden directamente debajo de ella (`manifest.json`, `layout.json`,
+   `modules/SharedCockpitBridge.wasm`).
 2. Reiniciar MSFS (los módulos `content_type: MISC` cargan al iniciar el
    sim, no por avión — no requiere `panel.cfg` ni asociarlo a ninguna
    aeronave, mismo patrón que YourControls).
 3. Si carga bien, no debería haber ningún error visible; para confirmarlo de
-   verdad hace falta el cliente C# nuevo (pendiente) leyendo
-   `SharedCockpitBridge_LVars` y comparando contra el estado real del switch
-   en cabina.
+   verdad hace falta abrir We Connect con el bridge C# corriendo y verificar
+   que `SharedCockpitBridge_LVars` refleje el estado real del switch en cabina.
 
 ## Diseño (por qué esta forma, no otra)
 

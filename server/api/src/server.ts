@@ -338,6 +338,7 @@ const FLIGHT_MESSAGE_TYPES = new Set([
   "control.event",
   "control.axis",
   "aircraft.snapshot",
+  "screen.snapshot",
   "authority.transfer",
 ]);
 
@@ -403,6 +404,28 @@ function validateFlightMessage(msg: any): string | null {
       if (!shortStr(msg.previousOwner, 64)) return "invalid:previousOwner";
       if (!shortStr(msg.newOwner, 64)) return "invalid:newOwner";
       if (!finiteNum(msg.revision)) return "invalid:revision";
+      return null;
+    }
+    case "screen.snapshot": {
+      const required = ["sessionId", "screenId", "rows", "cols", "cells", "revision"];
+      for (const field of required) {
+        if (!(field in msg)) return `missing-field:${field}`;
+      }
+      if (!shortStr(msg.sessionId)) return "invalid:sessionId";
+      if (!shortStr(msg.screenId)) return "invalid:screenId";
+      if (!finiteNum(msg.rows) || msg.rows < 1) return "invalid:rows";
+      if (!finiteNum(msg.cols) || msg.cols < 1) return "invalid:cols";
+      if (!Array.isArray(msg.cells)) return "invalid:cells";
+      if (msg.cells.length > 24 * 14) return "invalid:cells";
+      for (const cell of msg.cells) {
+        if (typeof cell !== "object" || cell === null) return "invalid:cell";
+        if (!("char" in cell) || typeof cell.char !== "string" || cell.char.length > 1) return "invalid:cell.char";
+        if (!finiteNum(cell.colorId) || cell.colorId < 0 || cell.colorId > 5) return "invalid:cell.colorId";
+        if (!finiteNum(cell.flags) || cell.flags < 0) return "invalid:cell.flags";
+      }
+      if ("powered" in msg && typeof msg.powered !== "boolean") return "invalid:powered";
+      if (!finiteNum(msg.revision)) return "invalid:revision";
+      if ("timestamp" in msg && !finiteNum(msg.timestamp)) return "invalid:timestamp";
       return null;
     }
     default:

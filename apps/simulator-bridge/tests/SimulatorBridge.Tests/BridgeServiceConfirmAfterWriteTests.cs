@@ -781,6 +781,119 @@ public class BridgeServiceConfirmAfterWriteTests
                 && b["value"]!.GetValue<bool>());
     }
 
+    [Fact]
+    public void WriteOnlyTriggerMirror_LocalCockpitPulse_IsEmittedAsControlEvent()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        var profile = MakeProfileWithWriteOnlySinglePressButton();
+        SetMatchedProfile(service, profile);
+        InvokePrivate(service, "IndexWriteOnlyTriggerMirrors", profile);
+
+        InvokePrivate(service, "OnNumericValueReceived", "__trigger__:L:VC_Communications_trigger_VAL", 83d);
+
+        Assert.Contains(
+            broadcasts,
+            b => b["type"]?.GetValue<string>() == "control.event"
+                && b["controlId"]?.GetValue<string>() == "communications.acp_1_transmitter_01_sw"
+                && b["value"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void WriteOnlyTriggerMirror_ReadbackOfRemoteWrite_IsSuppressed()
+    {
+        var broadcasts = new List<JsonObject>();
+        var calculator = new FakeCalculatorCodeClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: calculator);
+
+        var profile = MakeProfileWithWriteOnlySinglePressButton();
+        SetMatchedProfile(service, profile);
+        InvokePrivate(service, "IndexWriteOnlyTriggerMirrors", profile);
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "communications.acp_1_transmitter_01_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        InvokePrivate(service, "OnNumericValueReceived", "__trigger__:L:VC_Communications_trigger_VAL", 83d);
+
+        Assert.Single(calculator.ExecutedCodes);
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["type"]?.GetValue<string>() == "control.event"
+                && b["controlId"]?.GetValue<string>() == "communications.acp_1_transmitter_01_sw");
+    }
+
+    [Fact]
+    public void WriteOnlyTriggerMirror_DifferentCodesOnSameTrigger_AreDistinguished()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        var profile = MakeProfileWithTwoWriteOnlyButtonsOnSharedTrigger();
+        SetMatchedProfile(service, profile);
+        InvokePrivate(service, "IndexWriteOnlyTriggerMirrors", profile);
+
+        InvokePrivate(service, "OnNumericValueReceived", "__trigger__:L:VC_Communications_trigger_VAL", 83d);
+        InvokePrivate(service, "OnNumericValueReceived", "__trigger__:L:VC_Communications_trigger_VAL", 84d);
+
+        var emittedIds = broadcasts
+            .Where(b => b["type"]?.GetValue<string>() == "control.event")
+            .Select(b => b["controlId"]!.GetValue<string>())
+            .ToArray();
+
+        Assert.Equal(
+            new[] { "communications.acp_1_transmitter_01_sw", "communications.acp_2_transmitter_01_sw" },
+            emittedIds);
+    }
+
+    [Fact]
+    public void WriteOnlyTriggerMirror_AmbiguousSameCode_IsEmittedUsingCanonicalControl()
+    {
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            calculatorCodeClient: new FakeCalculatorCodeClient());
+
+        var profile = MakeProfileWithAmbiguousWriteOnlyButtons();
+        SetMatchedProfile(service, profile);
+        InvokePrivate(service, "IndexWriteOnlyTriggerMirrors", profile);
+
+        InvokePrivate(service, "OnNumericValueReceived", "__trigger__:L:VC_Navigation_trigger_VAL", 453d);
+
+        Assert.Contains(
+            broadcasts,
+            b => b["type"]?.GetValue<string>() == "control.event"
+                && b["controlId"]?.GetValue<string>() == "navigation.cdu1_handle_click_01");
+        Assert.Contains(
+            broadcasts,
+            b => b["type"]?.GetValue<string>() == "bridge.error"
+                && b["message"]?.GetValue<string>()?.Contains("trigger ambiguo", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
     /// <summary>
     /// Botón momentáneo del teclado del CDU, copiado literal de
     /// aircraft-profiles/ifly-737-max8/controls/navigation.yaml (incluido el
@@ -824,6 +937,128 @@ public class BridgeServiceConfirmAfterWriteTests
             Manifest = new AircraftManifest(),
             Detection = new DetectionRule(),
             Controls = new[] { control },
+        };
+    }
+
+    private static AircraftProfile MakeProfileWithWriteOnlySinglePressButton()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "communications.acp_1_transmitter_01_sw",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = true,
+            Read = null,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "$value 0 > if{ 83 (>L:VC_Communications_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 100,
+                ConfirmAfterWrite = false,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { control },
+        };
+    }
+
+    private static AircraftProfile MakeProfileWithTwoWriteOnlyButtonsOnSharedTrigger()
+    {
+        var first = MakeProfileWithWriteOnlySinglePressButton().Controls[0];
+        var second = new ControlDefinition
+        {
+            Id = "communications.acp_2_transmitter_01_sw",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = true,
+            Read = null,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "$value 0 > if{ 84 (>L:VC_Communications_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 100,
+                ConfirmAfterWrite = false,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { first, second },
+        };
+    }
+
+    private static AircraftProfile MakeProfileWithAmbiguousWriteOnlyButtons()
+    {
+        var first = new ControlDefinition
+        {
+            Id = "navigation.cdu1_handle_click_01",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = true,
+            Read = null,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "$value 0 > if{ 453 (>L:VC_Navigation_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 100,
+                ConfirmAfterWrite = false,
+                TimeoutMs = 400,
+            },
+        };
+
+        var second = new ControlDefinition
+        {
+            Id = "navigation.cdu1_handle_click_02",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = true,
+            Read = null,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.CalculatorCode,
+                Name = "$value 0 > if{ 453 (>L:VC_Navigation_trigger_VAL,number) }",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 100,
+                ConfirmAfterWrite = false,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { first, second },
         };
     }
 

@@ -19,6 +19,32 @@ def load_schema(name):
     with open(os.path.join(ROOT, "packages", "profile-schema", name), encoding="utf-8") as f:
         return json.load(f)
 
+def validate_capabilities_alignment(profile_id, profile_dir, manifest, *, errors_found_ref):
+    capabilities_path = os.path.join(profile_dir, "capabilities.yaml")
+    if not os.path.exists(capabilities_path):
+        return
+
+    with open(capabilities_path, encoding="utf-8") as f:
+        capabilities_doc = yaml.safe_load(f) or {}
+
+    manifest_capabilities = manifest.get("capabilities") or {}
+    documented_systems = (capabilities_doc.get("systems") or {}) if isinstance(capabilities_doc, dict) else {}
+
+    for system_name, manifest_level in manifest_capabilities.items():
+        documented = documented_systems.get(system_name)
+        if documented is None:
+            errors_found_ref[0] = True
+            print(f"[capabilities:{profile_id}/{system_name}] falta en capabilities.yaml pero existe en manifest.yaml")
+            continue
+
+        documented_level = documented.get("level") if isinstance(documented, dict) else None
+        if documented_level != manifest_level:
+            errors_found_ref[0] = True
+            print(
+                f"[capabilities:{profile_id}/{system_name}] "
+                f"desalineado: manifest.yaml={manifest_level!r}, capabilities.yaml={documented_level!r}"
+            )
+
 def main():
     manifest_schema = load_schema("manifest.schema.json")
     control_schema = load_schema("control.schema.json")
@@ -38,6 +64,10 @@ def main():
         for err in manifest_validator.iter_errors(manifest):
             errors_found = True
             print(f"[manifest:{profile_id}] {err.message} at {list(err.path)}")
+
+        errors_found_ref = [errors_found]
+        validate_capabilities_alignment(profile_id, profile_dir, manifest, errors_found_ref=errors_found_ref)
+        errors_found = errors_found_ref[0]
 
         for control_file in glob.glob(os.path.join(profile_dir, "controls", "*.yaml")):
             with open(control_file, encoding="utf-8") as f:

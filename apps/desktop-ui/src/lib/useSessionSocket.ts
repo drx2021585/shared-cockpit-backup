@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "./apiClient";
 import { apiBaseUrl, getParticipantToken } from "./apiClient";
-import type { AuthorityTransfer, ControlAxis, ControlEvent } from "../../../../packages/protocol/types";
+import type { AuthorityTransfer, ControlAxis, ControlEvent, ScreenSnapshot } from "../../../../packages/protocol/types";
 
 export interface SessionSocketState {
   connected: boolean;
@@ -10,16 +10,21 @@ export interface SessionSocketState {
   /** true mientras se está esperando/reintentando tras una desconexión. */
   reconnecting: boolean;
   sessionClosed: boolean;
+  lastPongAt: number | null;
+  lastPeerControlAt: number | null;
+  lastPeerAircraftAt: number | null;
+  lastPeerScreenAt: number | null;
   peerAircraft: Record<string, {
     profileId: string;
     simulatorVersion: "msfs2020" | "msfs2024" | null;
   }>;
+  peerScreens: Record<string, Record<string, ScreenSnapshot>>;
   /**
    * Envía un control.event/control.axis a la sesión de red (ej. un cambio
    * que llegó del bridge local propio, ver bridgeClient + Cockpit.tsx). No-op
    * si el WebSocket de sesión no está abierto todavía.
    */
-  send: (msg: ControlEvent | ControlAxis) => void;
+  send: (msg: ControlEvent | ControlAxis | ScreenSnapshot) => void;
 }
 
 const RECONNECT_BASE_DELAY_MS = 500;
@@ -50,7 +55,12 @@ export function useSessionSocket(
     pingMs: null,
     reconnecting: false,
     sessionClosed: false,
+    lastPongAt: null,
+    lastPeerControlAt: null,
+    lastPeerAircraftAt: null,
+    lastPeerScreenAt: null,
     peerAircraft: {},
+    peerScreens: {},
     send: () => {},
   });
   // Callback siempre actualizado sin forzar que el efecto de conexión (que no
@@ -127,10 +137,11 @@ export function useSessionSocket(
           setState((s) => ({ ...s, session: msg.session }));
         } else if (msg.type === "pong") {
           const rtt = Date.now() - msg.clientSentAt;
-          setState((s) => ({ ...s, pingMs: rtt }));
+          setState((s) => ({ ...s, pingMs: rtt, lastPongAt: Date.now() }));
         } else if (msg.type === "aircraft.snapshot" && msg.sourcePilot && msg.profile) {
           setState((s) => ({
             ...s,
+            lastPeerAircraftAt: Date.now(),
             peerAircraft: {
               ...s.peerAircraft,
               [msg.sourcePilot]: {
@@ -144,7 +155,21 @@ export function useSessionSocket(
           // server/api -- Cockpit.tsx lo aplica al bridge local propio. Este
           // hook NO lo guarda en React state (llegarían decenas por segundo
           // en el canal rápido, control.axis) -- se entrega por callback.
+          setState((s) => ({ ...s, lastPeerControlAt: Date.now() }));
           onPeerControlRef.current?.(msg as ControlEvent | ControlAxis);
+        } else if (msg.type === "screen.snapshot" && msg.sourcePilot && msg.screenId) {
+          const snapshot = msg as ScreenSnapshot & { sourcePilot: string };
+          setState((s) => ({
+            ...s,
+            lastPeerScreenAt: Date.now(),
+            peerScreens: {
+              ...s.peerScreens,
+              [snapshot.sourcePilot]: {
+                ...(s.peerScreens[snapshot.sourcePilot] ?? {}),
+                [snapshot.screenId]: snapshot,
+              },
+            },
+          }));
         } else if (msg.type === "authority.transfer") {
           // Broadcast real de server/api (packages/protocol AuthorityTransfer):
           // { type, sessionId, group, previousOwner, newOwner, revision }, con
@@ -217,7 +242,7 @@ export function useSessionSocket(
   // send se define acá (no dentro del efecto de conexión) para que sea una
   // función estable que siempre lee el WebSocket vigente vía wsRef, sin
   // depender de closures potencialmente obsoletas de una conexión anterior.
-  function send(msg: ControlEvent | ControlAxis) {
+  function send(msg: ControlEvent | ControlAxis | ScreenSnapshot) {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return;

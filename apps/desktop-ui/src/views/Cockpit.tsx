@@ -1,7 +1,7 @@
 import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
-import { useSimulatorBridge } from "../lib/bridgeClient";
+import { useSimulatorBridge, type BridgeScreenSnapshot } from "../lib/bridgeClient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   closeSession,
@@ -11,7 +11,7 @@ import {
   type Session,
   type SessionParticipant,
 } from "../lib/apiClient";
-import type { ControlAxis, ControlEvent } from "../../../../packages/protocol/types";
+import type { ControlAxis, ControlEvent, ScreenSnapshot } from "../../../../packages/protocol/types";
 import { recordPeerControl, recordSessionEvent, resetSessionJournal } from "../lib/sessionJournal";
 import { downloadDiagnosticsReport } from "../lib/diagnosticsReport";
 
@@ -25,6 +25,9 @@ import { downloadDiagnosticsReport } from "../lib/diagnosticsReport";
  * riesgo real de este guard es solo para switches booleanos.
  */
 const ECHO_SUPPRESSION_MS = 3000;
+const STALE_NETWORK_MS = 12_000;
+const STALE_FLIGHT_DATA_MS = 5_000;
+const STALE_SCREEN_MS = 8_000;
 
 interface CockpitProps {
   joinCode: string | null;
@@ -38,6 +41,91 @@ const SEAT_LABEL: Record<string, string> = {
   first_officer: "First officer",
   observer: "Observer",
 };
+
+const CDU_COLOR: Record<number, string> = {
+  0: "#f3f8fb",
+  1: "#67e8f9",
+  2: "#4ade80",
+  3: "#e879f9",
+  4: "#fbbf24",
+  5: "#f87171",
+};
+
+function screenLabel(screenId: string) {
+  if (screenId === "cdu_captain") return "Captain CDU";
+  if (screenId === "cdu_fo") return "First officer CDU";
+  return screenId.replace(/_/g, " ");
+}
+
+function renderScreenCells(rows: number, cols: number, cells: ScreenSnapshot["cells"]) {
+  const total = rows * cols;
+  const normalized = Array.from({ length: total }, (_, index) => cells[index] ?? { char: " ", colorId: 0, flags: 0 });
+  return normalized.map((cell, index) => {
+    const isSmall = (cell.flags & 0x01) !== 0;
+    const isReverse = (cell.flags & 0x02) !== 0;
+    const color = CDU_COLOR[cell.colorId] ?? CDU_COLOR[0];
+    const char = cell.char && cell.char.length > 0 ? cell.char[0] : " ";
+    return (
+      <span
+        key={index}
+        className={`cdu-cell${isSmall ? " cdu-cell-small" : ""}${isReverse ? " cdu-cell-reverse" : ""}`}
+        style={
+          isReverse
+            ? { color: "#0a0a0a", background: color }
+            : { color }
+        }
+      >
+        {char}
+      </span>
+    );
+  });
+}
+
+function ScreenPanel({
+  title,
+  subtitle,
+  screen,
+}: {
+  title: string;
+  subtitle: string;
+  screen: { rows: number; cols: number; cells: ScreenSnapshot["cells"]; powered?: boolean | null; revision: number };
+}) {
+  const powered = screen.powered ?? true;
+  return (
+    <div className="cdu-panel">
+      <div className="cdu-panel-head">
+        <div>
+          <div className="cdu-panel-title">{title}</div>
+          <div className="cdu-panel-subtitle">{subtitle}</div>
+        </div>
+        <div className="cdu-panel-meta">rev {screen.revision}</div>
+      </div>
+      <div className={`cdu-screen${powered ? "" : " cdu-screen-off"}`}>
+        {powered ? (
+          <div
+            className="cdu-grid"
+            style={{ gridTemplateColumns: `repeat(${screen.cols}, minmax(0, 1fr))` }}
+          >
+            {renderScreenCells(screen.rows, screen.cols, screen.cells)}
+          </div>
+        ) : (
+          <div className="cdu-screen-off-label">Display off</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function pilotSeatLabel(pilotName: string, participants: SessionParticipant[]) {
+  const participant = participants.find((p) => p.pilot_name === pilotName);
+  return participant ? (SEAT_LABEL[participant.seat] ?? participant.seat) : "Pilot";
+}
+
+function healthTone(status: "ok" | "warn" | "bad") {
+  if (status === "ok") return { color: "var(--green)", dot: "#4ade80" };
+  if (status === "warn") return { color: "#fbbf24", dot: "#fbbf24" };
+  return { color: "#e24c4b", dot: "#e24c4b" };
+}
 
 /**
  * `controlOwner`/`controlRequestedBy` en `Session` son un `seat`
@@ -82,7 +170,19 @@ export function Cockpit({
     [bridge],
   );
 
-  const { connected, session, pingMs, sessionClosed, peerAircraft, send: sendToSession } = useSessionSocket(
+  const {
+    connected,
+    session,
+    pingMs,
+    sessionClosed,
+    lastPongAt,
+    lastPeerControlAt,
+    lastPeerAircraftAt,
+    lastPeerScreenAt,
+    peerAircraft,
+    peerScreens,
+    send: sendToSession,
+  } = useSessionSocket(
     joinCode,
     pilotName,
     initialSession,
@@ -123,6 +223,64 @@ export function Cockpit({
       } as ControlEvent | ControlAxis);
     }
   }, [bridge.controls, connected, joinCode, pilotName, sendToSession]);
+
+  const prevScreensRef = useRef(bridge.screens);
+  useEffect(() => {
+    const prev = prevScreensRef.current;
+    prevScreensRef.current = bridge.screens;
+    if (!connected || !joinCode) return;
+
+    for (const [screenId, screen] of Object.entries(bridge.screens)) {
+      if (prev[screenId]?.updatedAt === screen.updatedAt) continue;
+
+      sendToSession({
+        type: "screen.snapshot",
+        sessionId: joinCode,
+        screenId,
+        rows: screen.rows,
+        cols: screen.cols,
+        cells: screen.cells,
+        powered: screen.powered ?? undefined,
+        revision: screen.revision,
+        timestamp: Date.now(),
+      } as ScreenSnapshot);
+    }
+  }, [bridge.screens, connected, joinCode, sendToSession]);
+
+  const previousConnectedRef = useRef(false);
+  useEffect(() => {
+    const justReconnected = connected && !previousConnectedRef.current;
+    previousConnectedRef.current = connected;
+    if (!justReconnected || !joinCode || !pilotName) {
+      return;
+    }
+
+    for (const [controlId, entry] of Object.entries(bridge.controls)) {
+      sendToSession({
+        type: entry.channel === "event" ? "control.event" : "control.axis",
+        sessionId: joinCode,
+        controlId,
+        value: entry.value,
+        source: pilotName,
+        sequence: Date.now(),
+        timestamp: Date.now(),
+      } as ControlEvent | ControlAxis);
+    }
+
+    for (const [screenId, screen] of Object.entries(bridge.screens)) {
+      sendToSession({
+        type: "screen.snapshot",
+        sessionId: joinCode,
+        screenId,
+        rows: screen.rows,
+        cols: screen.cols,
+        cells: screen.cells,
+        powered: screen.powered ?? undefined,
+        revision: screen.revision,
+        timestamp: Date.now(),
+      } as ScreenSnapshot);
+    }
+  }, [bridge.controls, bridge.screens, connected, joinCode, pilotName, sendToSession]);
   // --- Bitácora para el reporte de diagnóstico -------------------------------
   // Una sesión nueva empieza con la bitácora limpia: lo de la anterior no
   // describe nada de esta.
@@ -177,6 +335,7 @@ export function Cockpit({
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles } = useAircraftProfiles();
   const [ipBlurred, setIpBlurred] = useState(true);
+  const [healthNow, setHealthNow] = useState(() => Date.now());
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [aircraftMatchConfirmOpen, setAircraftMatchConfirmOpen] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
@@ -188,6 +347,11 @@ export function Cockpit({
   useEffect(() => {
     if (sessionClosed) onSessionClosed?.();
   }, [sessionClosed, onSessionClosed]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setHealthNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleCloseSession() {
     if (!joinCode || !pilotName) return;
@@ -258,6 +422,41 @@ export function Cockpit({
   const remotePilotAircraft = Object.entries(peerAircraft).find(([name]) =>
     remotePilotNames.has(name)
   )?.[1];
+  const remotePilotScreenEntries = Object.entries(peerScreens).filter(([name]) => remotePilotNames.has(name));
+  const localScreenEntries = Object.entries(bridge.screens).sort(([a], [b]) => a.localeCompare(b));
+  const hasAnySharedScreens = localScreenEntries.length > 0 || remotePilotScreenEntries.length > 0;
+  const now = healthNow;
+  const networkHealthy = connected && !!lastPongAt && now - lastPongAt <= STALE_NETWORK_MS;
+  const peerFlightDataFresh =
+    !!remotePilotAircraft &&
+    !!lastPeerAircraftAt &&
+    now - lastPeerAircraftAt <= STALE_FLIGHT_DATA_MS;
+  const peerControlsFresh =
+    !!lastPeerControlAt &&
+    now - lastPeerControlAt <= STALE_FLIGHT_DATA_MS;
+  const peerScreensFresh =
+    remotePilotScreenEntries.length === 0 ||
+    (!!lastPeerScreenAt && now - lastPeerScreenAt <= STALE_SCREEN_MS);
+  const bridgeHealthy =
+    bridge.connectionState === "connected" &&
+    !!bridge.lastMessageAt &&
+    now - bridge.lastMessageAt <= STALE_FLIGHT_DATA_MS;
+  const networkStatus = connected ? (networkHealthy ? "ok" : "warn") : "bad";
+  const bridgeStatus = bridge.connectionState === "connected" ? (bridgeHealthy ? "ok" : "warn") : "bad";
+  const peerDataStatus =
+    remotePilotNames.size === 0
+      ? "warn"
+      : peerFlightDataFresh || peerControlsFresh
+        ? "ok"
+        : connected
+          ? "warn"
+          : "bad";
+  const sharedScreensStatus =
+    remotePilotScreenEntries.length === 0
+      ? "warn"
+      : peerScreensFresh
+        ? "ok"
+        : "warn";
   const aircraftMismatch =
     !!localProfileId &&
     (!!remotePilotAircraft
@@ -420,6 +619,75 @@ export function Cockpit({
             )}
           </div>
 
+          <div style={{ marginTop: 26 }}>
+            <div className="mono-label" style={{ marginBottom: 10 }}>Link health</div>
+            {[
+              {
+                label: "Session relay",
+                value: connected ? (networkHealthy ? "Healthy" : "Connected but stale") : "Disconnected",
+                status: networkStatus as "ok" | "warn" | "bad",
+              },
+              {
+                label: "Local bridge",
+                value:
+                  bridge.connectionState === "connected"
+                    ? bridgeHealthy
+                      ? "Healthy"
+                      : "Connected but stale"
+                    : bridge.connectionState === "connecting"
+                      ? "Connecting"
+                      : bridge.connectionState === "no-bridge-running"
+                        ? "Not running"
+                        : "Disconnected",
+                status: bridgeStatus as "ok" | "warn" | "bad",
+              },
+              {
+                label: "Peer flight data",
+                value:
+                  remotePilotNames.size === 0
+                    ? "Waiting for peer"
+                    : peerFlightDataFresh || peerControlsFresh
+                      ? "Fresh"
+                      : "No recent data",
+                status: peerDataStatus as "ok" | "warn" | "bad",
+              },
+              {
+                label: "Shared displays",
+                value:
+                  remotePilotScreenEntries.length === 0
+                    ? "No remote screens yet"
+                    : peerScreensFresh
+                      ? "Fresh"
+                      : "Screen feed stale",
+                status: sharedScreensStatus as "ok" | "warn" | "bad",
+              },
+            ].map((item) => {
+              const tone = healthTone(item.status);
+              return (
+                <div className="net-row" key={item.label}>
+                  <div className="net-label">{item.label}</div>
+                  <div className="net-value" style={{ color: tone.color }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: tone.dot,
+                        marginRight: 8,
+                      }}
+                    />
+                    {item.value}
+                  </div>
+                </div>
+              );
+            })}
+            <p style={{ fontSize: 11, color: "var(--text-45)", lineHeight: 1.6, marginTop: 10 }}>
+              After a reconnect, We Connect now re-publishes your current controls and read-only screens so both
+              cabins converge again without waiting for the next manual action.
+            </p>
+          </div>
+
           {/* Reporte de diagnóstico. Antes, entender por qué una sesión no
               sincronizaba obligaba a pedirle al usuario que buscara bridge.log en
               %APPDATA% y lo mandara a mano -- un archivo ruidoso que además no
@@ -460,6 +728,38 @@ export function Cockpit({
                 : "Saves everything needed to diagnose a sync problem: bridge errors, what arrived from your co-pilot, and your FSUIPC7 status. Both pilots should download one."}
             </p>
           </div>
+
+          {hasAnySharedScreens && (
+            <div style={{ marginTop: 26 }}>
+              <div className="mono-label" style={{ marginBottom: 10 }}>Shared displays</div>
+              <div className="cdu-wall">
+                {localScreenEntries.map(([screenId, screen]) => (
+                  <ScreenPanel
+                    key={`local:${screenId}`}
+                    title={screenLabel(screenId)}
+                    subtitle="Your bridge"
+                    screen={screen}
+                  />
+                ))}
+                {remotePilotScreenEntries.flatMap(([remotePilot, screens]) =>
+                  Object.entries(screens)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([screenId, screen]) => (
+                      <ScreenPanel
+                        key={`${remotePilot}:${screenId}`}
+                        title={screenLabel(screenId)}
+                        subtitle={`${remotePilot} · ${pilotSeatLabel(remotePilot, session?.participants ?? [])}`}
+                        screen={screen}
+                      />
+                    ))
+                )}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-45)", lineHeight: 1.6, marginTop: 10 }}>
+                Read-only cockpit displays mirrored through `screen.snapshot`. This confirms whether the screen data is
+                actually crossing between both PCs.
+              </p>
+            </div>
+          )}
         </div>
 
         <div>

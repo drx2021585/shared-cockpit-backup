@@ -145,11 +145,22 @@ function readSetupConfig() {
       // getBundledPackageVersion para por qué hace falta.
       installedPackageVersion:
         typeof parsed.installedPackageVersion === "string" ? parsed.installedPackageVersion : null,
+      // Huella del contenido REAL del paquete (manifest/layout/wasm y cualquier
+      // archivo futuro). Es la comparación más fiable para decidir si hay que
+      // reinstalar Community: el .wasm puede cambiar sin que alguien recuerde
+      // subir package_version.
+      installedPackageFingerprint:
+        typeof parsed.installedPackageFingerprint === "string" ? parsed.installedPackageFingerprint : null,
     };
   } catch {
     // No existe todavía (primer inicio real) o está corrupto -- se trata
     // igual que "nunca configurado", nunca se crashea por esto.
-    return { firstLaunchCompleted: false, communityPath: null, installedPackageVersion: null };
+    return {
+      firstLaunchCompleted: false,
+      communityPath: null,
+      installedPackageVersion: null,
+      installedPackageFingerprint: null,
+    };
   }
 }
 
@@ -162,6 +173,49 @@ function getBundledPackageVersion() {
     const manifestPath = path.join(getBundledCommunityPackagesDir(), "manifest.json");
     const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
     return typeof parsed.package_version === "string" ? parsed.package_version : null;
+  } catch {
+    return null;
+  }
+}
+
+function hashDirectoryTree(rootDir) {
+  const hash = crypto.createHash("sha256");
+
+  function walk(currentDir, prefix = "") {
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const abs = path.join(currentDir, entry.name);
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      hash.update(rel);
+      if (entry.isDirectory()) {
+        hash.update("dir");
+        walk(abs, rel);
+      } else {
+        hash.update("file");
+        hash.update(fs.readFileSync(abs));
+      }
+    }
+  }
+
+  walk(rootDir);
+  return hash.digest("hex");
+}
+
+function getBundledPackageFingerprint() {
+  try {
+    return hashDirectoryTree(getBundledCommunityPackagesDir());
+  } catch {
+    return null;
+  }
+}
+
+function getInstalledPackageFingerprint(communityPath) {
+  try {
+    const destination = path.join(communityPath, INSTALLED_PACKAGE_FOLDER_NAME);
+    if (!fs.existsSync(destination)) {
+      return null;
+    }
+    return hashDirectoryTree(destination);
   } catch {
     return null;
   }
@@ -290,7 +344,11 @@ ipcMain.handle("setup:install-packages", (_event, folderPath) => {
     };
   }
 
-  return { ok: true, version: getBundledPackageVersion() };
+  return {
+    ok: true,
+    version: getBundledPackageVersion(),
+    fingerprint: getBundledPackageFingerprint(),
+  };
 });
 
 ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
@@ -298,6 +356,7 @@ ipcMain.handle("setup:mark-completed", (_event, communityPath) =>
     firstLaunchCompleted: true,
     communityPath,
     installedPackageVersion: getBundledPackageVersion(),
+    installedPackageFingerprint: getBundledPackageFingerprint(),
   }),
 );
 
@@ -330,7 +389,13 @@ function reinstallCommunityPackageIfOutdated() {
   }
 
   const bundled = getBundledPackageVersion();
-  if (!bundled || bundled === config.installedPackageVersion) {
+  const bundledFingerprint = getBundledPackageFingerprint();
+  const installedFingerprint = getInstalledPackageFingerprint(config.communityPath);
+  if (
+    bundledFingerprint &&
+    installedFingerprint &&
+    bundledFingerprint === installedFingerprint
+  ) {
     return;
   }
 
@@ -343,9 +408,12 @@ function reinstallCommunityPackageIfOutdated() {
     if (!fs.existsSync(path.join(destination, "manifest.json"))) {
       throw new Error("manifest.json missing after copy");
     }
-    writeSetupConfig({ installedPackageVersion: bundled });
+    writeSetupConfig({
+      installedPackageVersion: bundled,
+      installedPackageFingerprint: bundledFingerprint,
+    });
     console.log(
-      `[setup] Community package updated ${config.installedPackageVersion ?? "(unknown)"} -> ${bundled} at ${destination}`,
+      `[setup] Community package updated ${config.installedPackageVersion ?? "(unknown)"} -> ${bundled ?? "(unknown)"} at ${destination}`,
     );
   } catch (err) {
     console.error(`[setup] Could not update the Community package: ${err?.message ?? String(err)}`);

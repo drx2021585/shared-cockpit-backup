@@ -13,6 +13,7 @@ public static class MessageTypes
     public const string ControlEvent = "control.event";
     public const string ControlAxis = "control.axis";
     public const string AircraftSnapshot = "aircraft.snapshot";
+    public const string ScreenSnapshot = "screen.snapshot";
     public const string AuthorityTransfer = "authority.transfer";
     public const string SessionJoin = "session.join";
     public const string SessionLeave = "session.leave";
@@ -101,6 +102,52 @@ public sealed record AircraftSnapshotMessage(
         ["profile"] = Profile,
         ["systems"] = Systems.DeepClone(),
     };
+}
+
+public sealed record ScreenCellMessage(
+    string Char,
+    int ColorId,
+    int Flags)
+{
+    public JsonObject ToJson() => new()
+    {
+        ["char"] = Char,
+        ["colorId"] = ColorId,
+        ["flags"] = Flags,
+    };
+}
+
+public sealed record ScreenSnapshotMessage(
+    string SessionId,
+    string ScreenId,
+    int Rows,
+    int Cols,
+    IReadOnlyList<ScreenCellMessage> Cells,
+    long Revision,
+    bool? Powered,
+    long Timestamp)
+{
+    public JsonObject ToJson()
+    {
+        var cells = new JsonArray();
+        foreach (var cell in Cells)
+        {
+            cells.Add(cell.ToJson());
+        }
+
+        return new JsonObject
+        {
+            ["type"] = MessageTypes.ScreenSnapshot,
+            ["sessionId"] = SessionId,
+            ["screenId"] = ScreenId,
+            ["rows"] = Rows,
+            ["cols"] = Cols,
+            ["cells"] = cells,
+            ["powered"] = Powered,
+            ["revision"] = Revision,
+            ["timestamp"] = Timestamp,
+        };
+    }
 }
 
 /// <summary>
