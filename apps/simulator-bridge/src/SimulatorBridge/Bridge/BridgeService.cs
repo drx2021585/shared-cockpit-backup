@@ -906,10 +906,16 @@ public sealed class BridgeService : IAsyncDisposable
         // simultánea que sí genera sincronizar un panel entero de posicionales, que
         // es lo que este reparto viene a arreglar.
         var trigger = MomentaryPulse.IsPulseControl(control) ? null : ExtractTriggerLVar(code);
-        if (trigger is not null && !TryReserveTriggerSlot(trigger))
+        if (trigger is not null)
         {
-            _deferredTriggerWrites[control.Id] = new DeferredTriggerWrite(control, trigger, code);
-            return true; // aceptada: sale en cuanto el trigger quede libre
+            lock (_triggerLock)
+            {
+                if (!TryReserveTriggerSlotLocked(trigger))
+                {
+                    _deferredTriggerWrites[control.Id] = new DeferredTriggerWrite(control, trigger, code);
+                    return true; // aceptada: sale en cuanto el trigger quede libre
+                }
+            }
         }
 
         return ExecuteCalculatorCode(control, code);
@@ -998,6 +1004,18 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private const int TriggerWriteSpacingMs = 50;
 
+    /// <summary>
+    /// Protege los dos diccionarios del reparto de turnos. NO es opcional: el camino
+    /// de escritura corre en DOS hilos -- el del WebSocket cuando llega un control
+    /// del otro piloto (HandleIncoming), y el del pump en los reintentos de
+    /// confirmación. Sin este lock los dos escriben el mismo Dictionary a la vez, y
+    /// eso no se queda en una excepción: puede corromper la estructura y dejar al
+    /// hilo del pump girando para siempre dentro de ella. Como el pump es quien lee
+    /// del sim y atiende el WebSocket, el bridge entero se ve "colgado sin conectar"
+    /// -- que es exactamente lo que rompió la 0.1.28 respecto a la 0.1.27.
+    /// </summary>
+    private readonly object _triggerLock = new();
+
     private readonly Dictionary<string, long> _lastTriggerWriteAtMs = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -1028,6 +1046,15 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private bool TryReserveTriggerSlot(string trigger)
     {
+        lock (_triggerLock)
+        {
+            return TryReserveTriggerSlotLocked(trigger);
+        }
+    }
+
+    /// <summary>Requiere <see cref="_triggerLock"/> ya tomado por el llamador.</summary>
+    private bool TryReserveTriggerSlotLocked(string trigger)
+    {
         var nowMs = NowMs();
         if (_lastTriggerWriteAtMs.TryGetValue(trigger, out var lastMs)
             && nowMs - lastMs < TriggerWriteSpacingMs)
@@ -1046,19 +1073,38 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private void DrainDeferredTriggerWrites()
     {
-        if (_deferredTriggerWrites.Count == 0)
+        List<DeferredTriggerWrite>? ready = null;
+
+        lock (_triggerLock)
+        {
+            if (_deferredTriggerWrites.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var (controlId, deferred) in _deferredTriggerWrites.ToArray())
+            {
+                if (!TryReserveTriggerSlotLocked(deferred.Trigger))
+                {
+                    continue; // su trigger sigue ocupado; se reintenta en el proximo pump
+                }
+
+                _deferredTriggerWrites.Remove(controlId);
+                (ready ??= new List<DeferredTriggerWrite>()).Add(deferred);
+            }
+        }
+
+        // Las ejecuciones van FUERA del lock a propósito: ExecuteCalculatorCode
+        // cruza a FSUIPC y puede tardar cientos de ms. Sostener el lock durante eso
+        // bloquearía al hilo del WebSocket en cada control que llegara del otro
+        // piloto, cambiando un cuelgue por un atasco.
+        if (ready is null)
         {
             return;
         }
 
-        foreach (var (controlId, deferred) in _deferredTriggerWrites.ToArray())
+        foreach (var deferred in ready)
         {
-            if (!TryReserveTriggerSlot(deferred.Trigger))
-            {
-                continue; // su trigger sigue ocupado; se reintenta en el proximo pump
-            }
-
-            _deferredTriggerWrites.Remove(controlId);
             ExecuteCalculatorCode(deferred.Control, deferred.Code);
         }
     }

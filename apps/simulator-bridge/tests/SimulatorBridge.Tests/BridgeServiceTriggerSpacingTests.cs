@@ -97,6 +97,59 @@ public class BridgeServiceTriggerSpacingTests
         Assert.Contains("20", calculator.ExecutedCodes[1]);
     }
 
+    /// <summary>
+    /// Regresion de la 0.1.28, que se veia como "el bridge deja de conectar". El
+    /// camino de escritura corre en DOS hilos: el del WebSocket cuando llega un
+    /// control del otro piloto, y el del pump al drenar. Los diccionarios del
+    /// reparto de turnos salieron sin lock, y dos hilos escribiendo el mismo
+    /// Dictionary pueden corromperlo y dejar al pump girando para siempre dentro de
+    /// el -- con el pump muerto, el bridge no lee del sim ni atiende el WebSocket.
+    ///
+    /// El test machaca desde los dos lados a la vez. Sin el lock salta
+    /// InvalidOperationException/NullReferenceException o directamente no termina.
+    /// </summary>
+    [Fact]
+    public void ConcurrentWritesAndDrains_DoNotCorruptTheTriggerBookkeeping()
+    {
+        var calculator = new FakeCalculatorCode();
+        var service = NewService(calculator);
+        SetMatchedProfile(service, FuelProfile());
+
+        var ids = new[] { "fuel.fuel_l_aft_sw", "fuel.fuel_l_fwd_sw", "misc.taxi_light_sw" };
+        var failure = (Exception?)null;
+
+        var writer = new Thread(() =>
+        {
+            try
+            {
+                for (var i = 0; i < 4000; i++)
+                {
+                    SendRemote(service, ids[i % ids.Length], i % 2 == 0 ? 10d : 20d);
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+
+        var drainer = new Thread(() =>
+        {
+            try
+            {
+                for (var i = 0; i < 4000; i++)
+                {
+                    InvokePrivate(service, "DrainDeferredTriggerWrites");
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+
+        writer.Start();
+        drainer.Start();
+
+        Assert.True(writer.Join(TimeSpan.FromSeconds(30)), "el hilo de escritura se colgo");
+        Assert.True(drainer.Join(TimeSpan.FromSeconds(30)), "el hilo de drenado se colgo");
+        Assert.Null(failure);
+    }
+
     // --- andamiaje -----------------------------------------------------------
 
     private static BridgeService NewService(FakeCalculatorCode calculator) =>
