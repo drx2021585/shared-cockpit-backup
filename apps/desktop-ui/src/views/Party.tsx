@@ -24,6 +24,7 @@ export function Party({
   relayConfig,
   onRelayConfigChange,
 }: PartyProps) {
+  const localDirectRelayBaseUrl = "http://127.0.0.1:8787";
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
 
@@ -103,20 +104,21 @@ export function Party({
       setError("Local IPv4 is not available on this PC yet.");
       return;
     }
-    const directBaseUrl = `http://${ipv4}:8787`;
     setSubmitting(true);
     setError(null);
     try {
       const directRelay = window.weconnectDirectRelay;
+      let readyBaseUrl = localDirectRelayBaseUrl;
       if (directRelay) {
         const started = await directRelay.ensureHost();
         if (!started.ok) {
           setError(started.error ?? "Could not start the direct host on this PC.");
           return;
         }
+        readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
       }
-      await fetchServerHealth(directBaseUrl);
-      onRelayConfigChange({ mode: "self-hosted", customBaseUrl: directBaseUrl });
+      await fetchServerHealth(readyBaseUrl);
+      onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
       await createParty();
     } catch (err) {
       if (err instanceof ApiError) {

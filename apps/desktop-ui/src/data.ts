@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.37",
+    version: "0.1.38",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "Host direct session now starts the local direct relay automatically from the desktop app instead of asking the user to run server/api by hand.",
-      "Use this PC as host now also guarantees the direct relay is running before switching the app to the self-hosted route.",
-      "The old manual setup copy for self-hosted relay was removed from the profile screen to match the new automatic direct-host flow.",
+      "Host direct session now validates the direct relay against localhost on the host PC, instead of trying to round-trip through that same machine's LAN IP.",
+      "Use this PC as host now keeps the local app pointed at 127.0.0.1 while still generating a LAN invite code for the other computer.",
+      "This fixes the direct-host flow where the relay was already running locally but session creation still failed with 'Could not start the direct host on this PC.'",
     ],
   },
   {

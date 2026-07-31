@@ -27,6 +27,7 @@ export function Profile({
   relayConfig,
   onRelayConfigChange,
 }: ProfileProps) {
+  const localDirectRelayBaseUrl = "http://127.0.0.1:8787";
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
   const [relayDraft, setRelayDraft] = useState(relayConfig.customBaseUrl);
@@ -37,7 +38,9 @@ export function Profile({
   const suggestedRelayUrl =
     ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:8787` : null;
   const activeRelayUrl =
-    relayConfig.mode === "managed" ? getDefaultRelayApiBaseUrl() : normalizeRelayBaseUrl(relayConfig.customBaseUrl);
+    relayConfig.mode === "managed"
+      ? getDefaultRelayApiBaseUrl()
+      : normalizeRelayBaseUrl(relayConfig.customBaseUrl) || localDirectRelayBaseUrl;
 
   useEffect(() => {
     setRelayDraft(relayConfig.customBaseUrl);
@@ -104,8 +107,8 @@ export function Profile({
         return;
       }
     }
-    setRelayDraft(suggestedRelayUrl);
-    handleSaveRelay("self-hosted", suggestedRelayUrl);
+    setRelayDraft(localDirectRelayBaseUrl);
+    handleSaveRelay("self-hosted", localDirectRelayBaseUrl);
   }
 
   async function handleTestRelay() {
