@@ -50,6 +50,7 @@ import {
   syncFlightControlsOwner,
   FLIGHT_CONTROLS_GROUP_ID,
 } from "./authority.ts";
+import { buildHealthPayload, isClientVersionSupported } from "./compat.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 
@@ -63,6 +64,11 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "16kb" }));
 app.use(securityHeaders);
 app.use(corsMiddleware);
+
+function clientVersion(req: Request): string | null {
+  const value = req.headers["x-weconnect-client-version"];
+  return typeof value === "string" ? value : null;
+}
 
 /** Extrae el Bearer token del header Authorization (o null). */
 function bearerToken(req: Request): string | null {
@@ -109,7 +115,23 @@ function requireParticipant(req: Request, res: Response, next: NextFunction) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", uptimeSeconds: process.uptime() });
+  res.json(buildHealthPayload());
+});
+
+app.use("/api", (req, res, next) => {
+  if (req.path === "/health") {
+    next();
+    return;
+  }
+  const version = clientVersion(req);
+  if (!isClientVersionSupported(version)) {
+    res.status(426).json({
+      error: "client-update-required",
+      ...buildHealthPayload(),
+    });
+    return;
+  }
+  next();
 });
 
 app.get("/api/aircraft-profiles", rateLimit("profiles", 60, 60_000), async (_req, res) => {
@@ -338,6 +360,7 @@ const FLIGHT_MESSAGE_TYPES = new Set([
   "control.event",
   "control.axis",
   "aircraft.snapshot",
+  "flight.pose",
   "screen.snapshot",
   "authority.transfer",
 ]);
@@ -393,6 +416,38 @@ function validateFlightMessage(msg: any): string | null {
       if (!finiteNum(msg.revision)) return "invalid:revision";
       if (!shortStr(msg.profile)) return "invalid:profile";
       if (typeof msg.systems !== "object" || msg.systems === null) return "invalid:systems";
+      return null;
+    }
+    case "flight.pose": {
+      const required = [
+        "sessionId",
+        "sequence",
+        "timestamp",
+        "lat",
+        "lon",
+        "alt",
+        "pitch",
+        "bank",
+        "heading",
+        "groundSpeed",
+        "indicatedAirspeed",
+        "verticalSpeed",
+      ];
+      for (const field of required) {
+        if (!(field in msg)) return `missing-field:${field}`;
+      }
+      if (!shortStr(msg.sessionId)) return "invalid:sessionId";
+      if (!finiteNum(msg.sequence)) return "invalid:sequence";
+      if (!finiteNum(msg.timestamp)) return "invalid:timestamp";
+      if (!finiteNum(msg.lat) || msg.lat < -90 || msg.lat > 90) return "invalid:lat";
+      if (!finiteNum(msg.lon) || msg.lon < -180 || msg.lon > 180) return "invalid:lon";
+      if (!finiteNum(msg.alt)) return "invalid:alt";
+      if (!finiteNum(msg.pitch)) return "invalid:pitch";
+      if (!finiteNum(msg.bank)) return "invalid:bank";
+      if (!finiteNum(msg.heading)) return "invalid:heading";
+      if (!finiteNum(msg.groundSpeed)) return "invalid:groundSpeed";
+      if (!finiteNum(msg.indicatedAirspeed)) return "invalid:indicatedAirspeed";
+      if (!finiteNum(msg.verticalSpeed)) return "invalid:verticalSpeed";
       return null;
     }
     case "authority.transfer": {
@@ -513,6 +568,12 @@ wss.on("connection", async (ws, req) => {
   const url = new URL(req.url ?? "", "http://localhost");
   const joinCode = (url.searchParams.get("code") ?? "").toUpperCase();
   const token = url.searchParams.get("token");
+  const version = url.searchParams.get("clientVersion");
+
+  if (!isClientVersionSupported(version)) {
+    ws.close(4002, "client update required");
+    return;
+  }
 
   // El socket queda ligado a la identidad AUTENTICADA (token emitido en
   // create/join), no a un nombre elegido libremente en la query string.
@@ -591,6 +652,13 @@ wss.on("connection", async (ws, req) => {
             console.warn(
               `[ws] control descartado (${decision.reason}) controlId=${msg.controlId} de ${pilotName}@${joinCode}`
             );
+            return;
+          }
+        }
+        if (msg.type === "flight.pose") {
+          const authorityState = ensureSessionAuthority(meta.joinCode, undefined);
+          if (!authorityState.authorityManager.canWrite(FLIGHT_CONTROLS_GROUP_ID, meta.seat as any)) {
+            console.warn(`[ws] flight.pose descartado (no-authority) de ${pilotName}@${joinCode}`);
             return;
           }
         }

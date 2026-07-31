@@ -43,6 +43,7 @@ async function init() {
       name TEXT NOT NULL,
       developer TEXT NOT NULL,
       version TEXT NOT NULL,
+      availability TEXT NOT NULL DEFAULT 'released',
       coverage INTEGER NOT NULL,
       capabilities_json TEXT NOT NULL,
       msfs2020 BOOLEAN NOT NULL,
@@ -80,6 +81,9 @@ async function init() {
   // en manifest.yaml (ver server/api/src/profiles.ts). Default false porque el
   // lado seguro es no afirmar que algo está probado. Va aparte de `coverage` a
   // propósito: coverage mide completitud mecánica, esto mide evidencia real.
+  await pool.query(
+    "ALTER TABLE aircraft_profiles ADD COLUMN IF NOT EXISTS availability TEXT NOT NULL DEFAULT 'released'"
+  );
   await pool.query(
     "ALTER TABLE aircraft_profiles ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT false"
   );
@@ -168,11 +172,11 @@ export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
   await pruneRemovedAircraftProfiles(profiles.map((p) => p.id));
   for (const p of profiles) {
     await pool.query(
-      `INSERT INTO aircraft_profiles (id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024, verified, variants_json)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO aircraft_profiles (id, name, developer, version, availability, coverage, capabilities_json, msfs2020, msfs2024, verified, variants_json)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, developer=excluded.developer, version=excluded.version,
-         coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
+         availability=excluded.availability, coverage=excluded.coverage, capabilities_json=excluded.capabilities_json,
          msfs2020=excluded.msfs2020, msfs2024=excluded.msfs2024,
          verified=excluded.verified, variants_json=excluded.variants_json`,
       [
@@ -180,6 +184,7 @@ export async function syncAircraftProfiles(profiles: ScannedProfile[]) {
         p.name,
         p.developer,
         p.version,
+        p.availability,
         p.coverage,
         JSON.stringify(p.capabilities),
         p.compatibility.msfs2020,
@@ -240,6 +245,7 @@ export async function listAircraftProfiles() {
     name: r.name,
     developer: r.developer,
     version: r.version,
+    availability: r.availability === "soon" ? "soon" : "released",
     coverage: r.coverage,
     capabilities: JSON.parse(r.capabilities_json),
     compatibility: { msfs2020: !!r.msfs2020, msfs2024: !!r.msfs2024 },
@@ -270,11 +276,14 @@ export interface CreateSessionInput {
 export async function createSession(input: CreateSessionInput) {
   await dbReady;
   const { rows: profileRows } = await pool.query(
-    "SELECT id, msfs2020, msfs2024 FROM aircraft_profiles WHERE id = $1",
+    "SELECT id, availability, msfs2020, msfs2024 FROM aircraft_profiles WHERE id = $1",
     [input.aircraftProfileId]
   );
   if (profileRows.length === 0) {
     throw new Error(`unknown aircraft profile: ${input.aircraftProfileId}`);
+  }
+  if (profileRows[0].availability !== "released") {
+    throw new Error("aircraft-coming-soon");
   }
   if (!profileRows[0][input.sim]) {
     throw new Error(`aircraft-not-compatible-with-${input.sim}`);

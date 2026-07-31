@@ -1,0 +1,204 @@
+# Sistemas hidráulicos del LVFR A330-300 vía Cliente Data Area + SimConnect
+# VALIDADO: LVars y eventos idénticos al A330-200
+
+- id: hydraulics.pump_elec_1_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pump_Elec_1_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_HYD_Pump_Elec_1)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_elec_2_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pump_Elec_2_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_HYD_Pump_Elec_2)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_eng_1_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pump_Eng_1_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_HYD_Pump_Eng_1)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pump_eng_2_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pump_Eng_2_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_HYD_Pump_Eng_2)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.isolation_valve
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_IsolationValve"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_HYD_IsolationValve)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: hydraulics.pressure_green
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pressure_Green"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.pressure_blue
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pressure_Blue"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.pressure_yellow
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Pressure_Yellow"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.quantity_green
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Quantity_Green"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.quantity_blue
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Quantity_Blue"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.quantity_yellow
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Quantity_Yellow"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.temperature_green
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Temp_Green"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.temperature_blue
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Temp_Blue"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: hydraulics.temperature_yellow
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_HYD_Temp_Yellow"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

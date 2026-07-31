@@ -6,6 +6,7 @@
   "required": ["schemaVersion", "aircraft", "compatibility", "versions", "detection", "capabilities"],
   "properties": {
     "schemaVersion": { "type": "integer", "const": 1 },
+    "availability": { "type": "string", "enum": ["released", "soon"] },
     "aircraft": {
       "type": "object",
       "required": ["id", "name", "developer"],

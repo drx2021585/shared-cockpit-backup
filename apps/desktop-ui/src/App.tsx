@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Nav } from "./components/Nav";
 import { UpdateModal } from "./components/UpdateModal";
+import { RequiredUpdateModal } from "./components/RequiredUpdateModal";
 import { FirstLaunchSetup } from "./components/FirstLaunchSetup";
 import { TitleBar } from "./components/TitleBar";
 import { Home } from "./views/Home";
@@ -11,10 +12,33 @@ import { Join } from "./views/Join";
 import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
-import type { Session } from "./lib/apiClient";
+import { fetchServerHealth, type Session } from "./lib/apiClient";
 import { prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
+import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
+
+interface UpdateNoticeState {
+  visible: boolean;
+  version: string | null;
+}
+
+interface ServerCompatibilityState {
+  updateRequired: boolean;
+  minVersion: string | null;
+  latestVersion: string | null;
+}
+
+function compareVersions(left: string, right: string): number {
+  const a = left.trim().replace(/^v/i, "").split(".").map((part) => Number(part));
+  const b = right.trim().replace(/^v/i, "").split(".").map((part) => Number(part));
+  const length = Math.max(a.length, b.length, 3);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (a[index] ?? 0) - (b[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
 
 export function App() {
   const [view, setView] = useState<ViewId>("home");
@@ -27,11 +51,40 @@ export function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionPilotName, setSessionPilotName] = useState<string | null>(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState<UpdateNoticeState>({ visible: false, version: null });
   const [showFirstLaunchSetup, setShowFirstLaunchSetup] = useState(false);
   const [communityPath, setCommunityPath] = useState<string | null>(null);
+  const [serverCompatibility, setServerCompatibility] = useState<ServerCompatibilityState>({
+    updateRequired: false,
+    minVersion: null,
+    latestVersion: null,
+  });
 
   useEffect(() => {
     prefetchAircraftProfiles();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchServerHealth()
+      .then((health) => {
+        if (cancelled) return;
+        const updateRequired = compareVersions(currentVersion, health.minClientVersion) < 0;
+        setServerCompatibility({
+          updateRequired,
+          minVersion: health.minClientVersion,
+          latestVersion: health.latestClientVersion,
+        });
+        if (updateRequired) {
+          setUpdateModalOpen(false);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -56,9 +109,19 @@ export function App() {
       .weconnectUpdater;
     if (!bridge) return;
     return bridge.onEvent((payload) => {
-      if (payload.status === "available") setUpdateModalOpen(true);
+      if (payload.status === "available") {
+        setUpdateNotice({
+          visible: true,
+          version: "version" in payload && typeof payload.version === "string" ? payload.version : null,
+        });
+      }
     });
   }, []);
+
+  function handleOpenUpdateModal() {
+    setUpdateNotice((current) => ({ ...current, visible: false }));
+    setUpdateModalOpen(true);
+  }
 
   function handleSessionReady(session: Session, name: string) {
     setCreatedSession(null);
@@ -139,6 +202,10 @@ export function App() {
         onNavigate={handleNavigate}
         sessionActive={activeSession !== null}
         partyCreated={createdSession !== null}
+        showUpdateNotice={updateNotice.visible}
+        updateVersion={updateNotice.version}
+        onOpenUpdate={handleOpenUpdateModal}
+        onDismissUpdate={() => setUpdateNotice((current) => ({ ...current, visible: false }))}
       />
       {view !== "cockpit" && renderView()}
       {activeSession ? (
@@ -154,6 +221,12 @@ export function App() {
         view === "cockpit" && <Cockpit joinCode={null} pilotName={null} />
       )}
       <UpdateModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)} />
+      <RequiredUpdateModal
+        open={serverCompatibility.updateRequired}
+        minVersion={serverCompatibility.minVersion ?? currentVersion}
+        latestVersion={serverCompatibility.latestVersion ?? serverCompatibility.minVersion ?? currentVersion}
+        onOpenUpdater={handleOpenUpdateModal}
+      />
       {showFirstLaunchSetup && (
         <FirstLaunchSetup
           onClose={() => setShowFirstLaunchSetup(false)}

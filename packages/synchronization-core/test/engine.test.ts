@@ -5,6 +5,7 @@ import {
   SyncEngine,
   type IncomingControlEvent,
   type IncomingControlAxis,
+  type IncomingFlightPose,
   type IncomingScreenSnapshot,
 } from "../src/engine.ts";
 
@@ -301,6 +302,36 @@ test("applyIncomingMessage: applies a screen.snapshot, stamps origin remote, and
     assert.equal(result.message.origin, "remote");
     assert.equal(result.rebroadcast, false, "un screen.snapshot remoto jamás debe reenviarse como cambio local");
   }
+});
+
+test("applyIncomingMessage: applies a flight.pose, stamps origin remote, and deduplicates by sequence", () => {
+  const engine = new SyncEngine({ authority: makeAuthority() });
+
+  const msg: IncomingFlightPose = {
+    type: "flight.pose",
+    sequence: 10,
+    timestamp: 1000,
+    lat: 18.4,
+    lon: -66.0,
+    alt: 1200,
+    pitch: 2,
+    bank: 0.5,
+    heading: 182,
+    groundSpeed: 140,
+    indicatedAirspeed: 138,
+    verticalSpeed: 300,
+  };
+
+  const first = engine.applyIncomingMessage(msg);
+  assert.equal(first.ok, true);
+  if (first.ok) {
+    assert.equal(first.message.origin, "remote");
+    assert.equal(first.rebroadcast, false);
+  }
+
+  const duplicate = engine.applyIncomingMessage({ ...msg });
+  assert.equal(duplicate.ok, false);
+  if (!duplicate.ok) assert.equal(duplicate.reason, "duplicate-or-out-of-order");
 });
 
 test("applyIncomingMessage: discards a screen.snapshot whose revision is <= the last one seen", () => {

@@ -1,0 +1,225 @@
+# Radios y comunicaciones del LVFR A330-200 vía SimConnect estándar + LVars
+
+- id: radios.com1_active_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM ACTIVE FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:COM_RADIO_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.com1_standby_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM STANDBY FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:COM_STBY_RADIO_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.com2_active_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM ACTIVE FREQUENCY:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:COM_RADIO_SET_HZ:2)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.com2_standby_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "COM STANDBY FREQUENCY:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:COM_STBY_RADIO_SET_HZ:2)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.nav1_active_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV ACTIVE FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV_RADIO_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.nav1_standby_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV STANDBY FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV_STBY_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.nav2_active_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV ACTIVE FREQUENCY:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV_RADIO_SET_HZ:2)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.nav2_standby_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV STANDBY FREQUENCY:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV_STBY_SET_HZ:2)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.adf_active_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ADF ACTIVE FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:ADF_RADIO_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.adf_standby_freq
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ADF STANDBY FREQUENCY:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:ADF_STBY_SET_HZ:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.com1_dme_flag
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "COM LOST SIGNAL:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: radios.nav1_dme_flag
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "NAV HAS DME:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: radios.nav2_dme_flag
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "NAV HAS DME:2"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: radios.dme_distance
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "NAV DME:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: radios.transponder_code
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "TRANSPONDER CODE:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:XPNDR_SET:1)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: radios.transponder_mode
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "TRANSPONDER STATE:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:XPNDR_MODE_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

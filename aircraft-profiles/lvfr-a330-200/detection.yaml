@@ -1,0 +1,8 @@
+# titleContains se compara contra la simvar TITLE del avion cargado.
+# El addon no versiona aircraft.cfg dentro de este repo, asi que se usa un
+# match conservador por nombre comercial del paquete.
+titleContains:
+  - "LVFR A330-200"
+  - "Airbus A330-200"
+
+fallbackToPartialMatch: false

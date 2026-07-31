@@ -16,6 +16,31 @@ namespace SharedCockpit.Bridge.Bridge;
 /// </summary>
 public sealed class BridgeService : IAsyncDisposable
 {
+    private enum FlightCorrectionMode
+    {
+        Ground,
+        Taxi,
+        Airborne,
+        Handoff,
+    }
+
+    private sealed record FlightPoseState(
+        double Lat,
+        double Lon,
+        double Alt,
+        double Pitch,
+        double Bank,
+        double Heading,
+        double GroundSpeed,
+        double IndicatedAirspeed,
+        double VerticalSpeed);
+
+    private sealed record RemoteFlightPoseTarget(
+        FlightPoseState Pose,
+        long Sequence,
+        long ReceivedAtMs,
+        bool RequiresSnap);
+
     private sealed record WriteOnlyTriggerMirror(string TriggerLVar, int CommandCode, ControlDefinition Control);
 
     private sealed record PendingWriteConfirmation(
@@ -64,6 +89,18 @@ public sealed class BridgeService : IAsyncDisposable
 
     private const string TitleKey = "__aircraft_title__";
     private const string SimSource = "bridge:sim";
+    private const string PoseLatKey = "__flight_pose_lat__";
+    private const string PoseLonKey = "__flight_pose_lon__";
+    private const string PoseAltKey = "__flight_pose_alt__";
+    private const string PosePitchKey = "__flight_pose_pitch__";
+    private const string PoseBankKey = "__flight_pose_bank__";
+    private const string PoseHeadingKey = "__flight_pose_heading__";
+    private const string PoseGroundSpeedKey = "__flight_pose_ground_speed__";
+    private const string PoseIndicatedAirspeedKey = "__flight_pose_ias__";
+    private const string PoseVerticalSpeedKey = "__flight_pose_vertical_speed__";
+    private const int FlightPoseBroadcastIntervalMs = 100;
+    private const int FlightPoseCorrectionIntervalMs = 50;
+    private const int FlightPoseMaxExtrapolationMs = 350;
 
     private readonly ISimConnectClient _sim;
 
@@ -201,6 +238,10 @@ public sealed class BridgeService : IAsyncDisposable
     /// ningún comportamiento de escritura.
     /// </summary>
     private static readonly TimeSpan ExclusiveSequenceAnomalyWindow = TimeSpan.FromSeconds(2);
+    private readonly Dictionary<string, double> _lastObservedPoseValues = new(StringComparer.Ordinal);
+    private RemoteFlightPoseTarget? _remoteFlightPoseTarget;
+    private long _lastFlightPoseBroadcastAtMs;
+    private long _lastFlightPoseCorrectionAtMs;
 
     public BridgeService(
         ISimConnectClient sim,
@@ -339,6 +380,7 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
             PumpSafely("write-confirmations", ProcessPendingWriteConfirmations);
+            PumpSafely("flight-pose-correction", ProcessRemoteFlightPoseCorrection);
             PumpSafely("diagnostics", EmitDiagnosticsIfDue);
 
             try
@@ -395,6 +437,9 @@ public sealed class BridgeService : IAsyncDisposable
             case IncomingControlAxis ca:
                 HandleIncomingControlAxis(ca);
                 break;
+            case IncomingFlightPose fp:
+                HandleIncomingFlightPose(fp);
+                break;
             case IncomingUnknown unknown:
                 _log.Debug($"Mensaje entrante de tipo no manejado por el bridge: '{unknown.RawType}'");
                 break;
@@ -445,6 +490,35 @@ public sealed class BridgeService : IAsyncDisposable
     /// no cambiarían nada (ver AlreadyAtValue).
     /// </summary>
     private readonly Dictionary<string, object> _lastObservedByControl = new(StringComparer.Ordinal);
+
+    private void HandleIncomingFlightPose(IncomingFlightPose pose)
+    {
+        var target = new FlightPoseState(
+            pose.Lat,
+            pose.Lon,
+            pose.Alt,
+            pose.Pitch,
+            pose.Bank,
+            NormalizeHeading(pose.Heading),
+            pose.GroundSpeed,
+            pose.IndicatedAirspeed,
+            pose.VerticalSpeed);
+
+        var requiresSnap = true;
+        if (TryBuildCurrentFlightPoseState(out var current))
+        {
+            var initialTarget = new RemoteFlightPoseTarget(target, pose.Sequence, NowMs(), false);
+            var mode = ResolveFlightCorrectionMode(current!, initialTarget);
+            requiresSnap = ShouldSnapToPose(current!, target, mode);
+        }
+
+        _remoteFlightPoseTarget = new RemoteFlightPoseTarget(target, pose.Sequence, NowMs(), requiresSnap);
+
+        if (requiresSnap)
+        {
+            ApplyFlightPose(target);
+        }
+    }
 
     /// <summary>
     /// ¿El control ya está en el valor que nos piden escribir? Entonces la
@@ -1100,6 +1174,10 @@ public sealed class BridgeService : IAsyncDisposable
         // Las lecturas cacheadas son de la aeronave anterior: conservarlas haria
         // que AlreadyAtValue descartara escrituras validas del avion nuevo.
         _lastObservedByControl.Clear();
+        _lastObservedPoseValues.Clear();
+        _remoteFlightPoseTarget = null;
+        _lastFlightPoseBroadcastAtMs = 0;
+        _lastFlightPoseCorrectionAtMs = 0;
         // Un pulso que quedo "pulsado por nosotros" al cambiar de avion o perder la
         // conexion ya no tiene par que cerrar: dejarlo marcado haria que el primer
         // "soltar" del avion nuevo se ejecutara sin haber pulsado nada.
@@ -1332,6 +1410,7 @@ public sealed class BridgeService : IAsyncDisposable
         _lastTitle = null;
         _pmdgUnavailableWarned = false;
         _sim.SubscribeString(TitleKey, "TITLE", PollMode.OnChange);
+        SubscribeFlightPoseVariables();
         Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel));
     }
 
@@ -1341,6 +1420,7 @@ public sealed class BridgeService : IAsyncDisposable
         ClearPendingWriteConfirmations();
         _matchedProfile = null;
         _lastTitle = null;
+        _remoteFlightPoseTarget = null;
         Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
     }
 
@@ -1376,6 +1456,11 @@ public sealed class BridgeService : IAsyncDisposable
 
     private void OnNumericValueReceived(string key, double value)
     {
+        if (HandleFlightPoseNumeric(key, value))
+        {
+            return;
+        }
+
         var control = _matchedProfile?.FindControl(key);
         if (control is null)
         {
@@ -1401,6 +1486,421 @@ public sealed class BridgeService : IAsyncDisposable
         ObserveConfirmedValue(control, typedValue);
         EmitDebounced(control, typedValue);
     }
+
+    private void SubscribeFlightPoseVariables()
+    {
+        _sim.SubscribeNumeric(PoseLatKey, "PLANE LATITUDE", "degrees", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseLonKey, "PLANE LONGITUDE", "degrees", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseAltKey, "PLANE ALTITUDE", "feet", PollMode.Continuous);
+        _sim.SubscribeNumeric(PosePitchKey, "PLANE PITCH DEGREES", "degrees", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseBankKey, "PLANE BANK DEGREES", "degrees", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseHeadingKey, "PLANE HEADING DEGREES TRUE", "degrees", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseGroundSpeedKey, "GROUND VELOCITY", "knots", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseIndicatedAirspeedKey, "AIRSPEED INDICATED", "knots", PollMode.Continuous);
+        _sim.SubscribeNumeric(PoseVerticalSpeedKey, "VERTICAL SPEED", "feet per minute", PollMode.Continuous);
+    }
+
+    private bool HandleFlightPoseNumeric(string key, double value)
+    {
+        if (!IsFlightPoseKey(key))
+        {
+            return false;
+        }
+
+        _lastObservedPoseValues[key] = key == PoseHeadingKey ? NormalizeHeading(value) : value;
+        EmitFlightPoseIfDue();
+        return true;
+    }
+
+    private void EmitFlightPoseIfDue()
+    {
+        if (!TryBuildCurrentFlightPoseState(out var pose))
+        {
+            return;
+        }
+
+        var nowMs = NowMs();
+        if (nowMs - _lastFlightPoseBroadcastAtMs < FlightPoseBroadcastIntervalMs)
+        {
+            return;
+        }
+
+        _lastFlightPoseBroadcastAtMs = nowMs;
+        Broadcast(new FlightPoseMessage(
+            LocalSessionId,
+            NextSequence(),
+            nowMs,
+            pose!.Lat,
+            pose.Lon,
+            pose.Alt,
+            pose.Pitch,
+            pose.Bank,
+            pose.Heading,
+            pose.GroundSpeed,
+            pose.IndicatedAirspeed,
+            pose.VerticalSpeed).ToJson());
+    }
+
+    private void ProcessRemoteFlightPoseCorrection()
+    {
+        if (_remoteFlightPoseTarget is null)
+        {
+            return;
+        }
+
+        var nowMs = NowMs();
+        if (nowMs - _lastFlightPoseCorrectionAtMs < FlightPoseCorrectionIntervalMs)
+        {
+            return;
+        }
+        _lastFlightPoseCorrectionAtMs = nowMs;
+
+        if (!TryBuildCurrentFlightPoseState(out var current))
+        {
+            return;
+        }
+
+        var mode = ResolveFlightCorrectionMode(current!, _remoteFlightPoseTarget);
+        var target = ExtrapolateFlightPose(_remoteFlightPoseTarget, mode, nowMs);
+        if (PoseCloseEnough(current!, target, mode))
+        {
+            _remoteFlightPoseTarget = null;
+            return;
+        }
+
+        if (_remoteFlightPoseTarget.RequiresSnap || ShouldSnapToPose(current!, target, mode))
+        {
+            ApplyFlightPose(target);
+            _remoteFlightPoseTarget = _remoteFlightPoseTarget with { RequiresSnap = false };
+            return;
+        }
+
+        ApplyFlightPose(InterpolatePose(current!, target, mode, nowMs));
+    }
+
+    private bool TryBuildCurrentFlightPoseState(out FlightPoseState? pose)
+    {
+        if (!_lastObservedPoseValues.TryGetValue(PoseLatKey, out var lat)
+            || !_lastObservedPoseValues.TryGetValue(PoseLonKey, out var lon)
+            || !_lastObservedPoseValues.TryGetValue(PoseAltKey, out var alt)
+            || !_lastObservedPoseValues.TryGetValue(PosePitchKey, out var pitch)
+            || !_lastObservedPoseValues.TryGetValue(PoseBankKey, out var bank)
+            || !_lastObservedPoseValues.TryGetValue(PoseHeadingKey, out var heading)
+            || !_lastObservedPoseValues.TryGetValue(PoseGroundSpeedKey, out var groundSpeed)
+            || !_lastObservedPoseValues.TryGetValue(PoseIndicatedAirspeedKey, out var ias)
+            || !_lastObservedPoseValues.TryGetValue(PoseVerticalSpeedKey, out var verticalSpeed))
+        {
+            pose = null;
+            return false;
+        }
+
+        pose = new FlightPoseState(
+            lat,
+            lon,
+            alt,
+            pitch,
+            bank,
+            NormalizeHeading(heading),
+            groundSpeed,
+            ias,
+            verticalSpeed);
+        return true;
+    }
+
+    private static bool IsFlightPoseKey(string key) => key is
+        PoseLatKey or
+        PoseLonKey or
+        PoseAltKey or
+        PosePitchKey or
+        PoseBankKey or
+        PoseHeadingKey or
+        PoseGroundSpeedKey or
+        PoseIndicatedAirspeedKey or
+        PoseVerticalSpeedKey;
+
+    private static bool ShouldSnapToPose(FlightPoseState current, FlightPoseState target, FlightCorrectionMode mode)
+    {
+        var error = ComputeLocalPoseError(current, target);
+        var altitude = Math.Abs(current.Alt - target.Alt);
+        var attitude = Math.Max(
+            Math.Max(Math.Abs(current.Pitch - target.Pitch), Math.Abs(current.Bank - target.Bank)),
+            Math.Abs(ShortestAngleDegrees(current.Heading, target.Heading)));
+
+        var horizontalThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 25d,
+            FlightCorrectionMode.Taxi => 40d,
+            FlightCorrectionMode.Airborne => 120d,
+            FlightCorrectionMode.Handoff => 160d,
+            _ => 120d,
+        };
+        var altitudeThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 40d,
+            FlightCorrectionMode.Taxi => 75d,
+            FlightCorrectionMode.Airborne => 250d,
+            FlightCorrectionMode.Handoff => 320d,
+            _ => 250d,
+        };
+        var attitudeThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 4d,
+            FlightCorrectionMode.Taxi => 6d,
+            FlightCorrectionMode.Airborne => 12d,
+            FlightCorrectionMode.Handoff => 16d,
+            _ => 12d,
+        };
+
+        return error.HorizontalMeters >= horizontalThreshold
+            || altitude >= altitudeThreshold
+            || attitude >= attitudeThreshold;
+    }
+
+    private static bool PoseCloseEnough(FlightPoseState current, FlightPoseState target, FlightCorrectionMode mode)
+    {
+        var error = ComputeLocalPoseError(current, target);
+        var altitude = Math.Abs(current.Alt - target.Alt);
+        var attitude = Math.Max(
+            Math.Max(Math.Abs(current.Pitch - target.Pitch), Math.Abs(current.Bank - target.Bank)),
+            Math.Abs(ShortestAngleDegrees(current.Heading, target.Heading)));
+
+        var horizontalThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 0.6d,
+            FlightCorrectionMode.Taxi => 1.2d,
+            FlightCorrectionMode.Airborne => 2.5d,
+            FlightCorrectionMode.Handoff => 3.5d,
+            _ => 1.5d,
+        };
+        var altitudeThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 3d,
+            FlightCorrectionMode.Taxi => 5d,
+            FlightCorrectionMode.Airborne => 10d,
+            FlightCorrectionMode.Handoff => 14d,
+            _ => 8d,
+        };
+        var attitudeThreshold = mode switch
+        {
+            FlightCorrectionMode.Ground => 0.25d,
+            FlightCorrectionMode.Taxi => 0.4d,
+            FlightCorrectionMode.Airborne => 0.8d,
+            FlightCorrectionMode.Handoff => 1.2d,
+            _ => 0.6d,
+        };
+
+        return error.HorizontalMeters <= horizontalThreshold
+            && altitude <= altitudeThreshold
+            && attitude <= attitudeThreshold;
+    }
+
+    private static FlightPoseState InterpolatePose(
+        FlightPoseState current,
+        FlightPoseState target,
+        FlightCorrectionMode mode,
+        long nowMs)
+    {
+        var dt = Math.Max(FlightPoseCorrectionIntervalMs / 1000d, 0.001d);
+        var error = ComputeLocalPoseError(current, target);
+
+        var horizontalRate = mode switch
+        {
+            FlightCorrectionMode.Ground => 1.5d,
+            FlightCorrectionMode.Taxi => 4d,
+            FlightCorrectionMode.Airborne => 18d,
+            FlightCorrectionMode.Handoff => 28d,
+            _ => 8d,
+        };
+        var verticalRate = mode switch
+        {
+            FlightCorrectionMode.Ground => 12d,
+            FlightCorrectionMode.Taxi => 20d,
+            FlightCorrectionMode.Airborne => 90d,
+            FlightCorrectionMode.Handoff => 130d,
+            _ => 40d,
+        };
+        var attitudeRate = mode switch
+        {
+            FlightCorrectionMode.Ground => 1.5d,
+            FlightCorrectionMode.Taxi => 2.5d,
+            FlightCorrectionMode.Airborne => 6d,
+            FlightCorrectionMode.Handoff => 9d,
+            _ => 4d,
+        };
+
+        var maxHorizontalStep = horizontalRate * dt;
+        var errorMagnitude = Math.Sqrt(error.EastMeters * error.EastMeters + error.NorthMeters * error.NorthMeters);
+        var horizontalScale = errorMagnitude > 0d ? Math.Min(1d, maxHorizontalStep / errorMagnitude) : 0d;
+        var correctedEast = error.EastMeters * horizontalScale;
+        var correctedNorth = error.NorthMeters * horizontalScale;
+        var (lat, lon) = OffsetLatLonMeters(current.Lat, current.Lon, correctedEast, correctedNorth);
+
+        var correctedAlt = MoveTowards(current.Alt, target.Alt, verticalRate * dt);
+        var correctedPitch = MoveTowards(current.Pitch, target.Pitch, attitudeRate * dt);
+        var correctedBank = MoveTowards(current.Bank, target.Bank, attitudeRate * dt);
+        var correctedHeading = MoveTowardsAngle(current.Heading, target.Heading, attitudeRate * dt * 1.2d);
+
+        var speedFactor = mode switch
+        {
+            FlightCorrectionMode.Ground => 0.12d,
+            FlightCorrectionMode.Taxi => 0.18d,
+            FlightCorrectionMode.Airborne => 0.28d,
+            FlightCorrectionMode.Handoff => 0.35d,
+            _ => 0.2d,
+        };
+
+        return new FlightPoseState(
+            lat,
+            lon,
+            correctedAlt,
+            correctedPitch,
+            correctedBank,
+            correctedHeading,
+            Lerp(current.GroundSpeed, target.GroundSpeed, speedFactor),
+            Lerp(current.IndicatedAirspeed, target.IndicatedAirspeed, speedFactor),
+            Lerp(current.VerticalSpeed, target.VerticalSpeed, speedFactor));
+    }
+
+    private void ApplyFlightPose(FlightPoseState pose)
+    {
+        _sim.WriteNumeric(PoseLatKey, pose.Lat);
+        _sim.WriteNumeric(PoseLonKey, pose.Lon);
+        _sim.WriteNumeric(PoseAltKey, pose.Alt);
+        _sim.WriteNumeric(PosePitchKey, pose.Pitch);
+        _sim.WriteNumeric(PoseBankKey, pose.Bank);
+        _sim.WriteNumeric(PoseHeadingKey, pose.Heading);
+        _sim.WriteNumeric(PoseGroundSpeedKey, pose.GroundSpeed);
+        _sim.WriteNumeric(PoseVerticalSpeedKey, pose.VerticalSpeed);
+    }
+
+    private static double NormalizeHeading(double heading)
+    {
+        var normalized = heading % 360d;
+        return normalized < 0 ? normalized + 360d : normalized;
+    }
+
+    private static double ShortestAngleDegrees(double from, double to)
+    {
+        var delta = (to - from + 540d) % 360d - 180d;
+        return delta < -180d ? delta + 360d : delta;
+    }
+
+    private static FlightCorrectionMode ResolveFlightCorrectionMode(FlightPoseState current, RemoteFlightPoseTarget target)
+    {
+        if (target.RequiresSnap)
+        {
+            return FlightCorrectionMode.Handoff;
+        }
+
+        var groundSpeed = Math.Max(current.GroundSpeed, target.Pose.GroundSpeed);
+        var airborne = current.IndicatedAirspeed > 70d || target.Pose.IndicatedAirspeed > 70d || current.Alt > 250d || target.Pose.Alt > 250d;
+        if (airborne)
+        {
+            return FlightCorrectionMode.Airborne;
+        }
+
+        if (groundSpeed > 8d)
+        {
+            return FlightCorrectionMode.Taxi;
+        }
+
+        return FlightCorrectionMode.Ground;
+    }
+
+    private static FlightPoseState ExtrapolateFlightPose(RemoteFlightPoseTarget target, FlightCorrectionMode mode, long nowMs)
+    {
+        var elapsedMs = Math.Clamp(nowMs - target.ReceivedAtMs, 0, FlightPoseMaxExtrapolationMs);
+        var dt = elapsedMs / 1000d;
+        if (dt <= 0d)
+        {
+            return target.Pose;
+        }
+
+        var speedScale = mode switch
+        {
+            FlightCorrectionMode.Ground => 0.15d,
+            FlightCorrectionMode.Taxi => 0.65d,
+            FlightCorrectionMode.Airborne => 1d,
+            FlightCorrectionMode.Handoff => 0.85d,
+            _ => 0.75d,
+        };
+        var heading = NormalizeHeading(target.Pose.Heading);
+        var trackRadians = DegreesToRadians(heading);
+        var speedMetersPerSecond = target.Pose.GroundSpeed * 0.514444d * speedScale;
+        var eastMeters = Math.Sin(trackRadians) * speedMetersPerSecond * dt;
+        var northMeters = Math.Cos(trackRadians) * speedMetersPerSecond * dt;
+        var (lat, lon) = OffsetLatLonMeters(target.Pose.Lat, target.Pose.Lon, eastMeters, northMeters);
+        var alt = target.Pose.Alt + (target.Pose.VerticalSpeed / 60d) * dt * speedScale;
+
+        return target.Pose with
+        {
+            Lat = lat,
+            Lon = lon,
+            Alt = alt,
+        };
+    }
+
+    private sealed record LocalPoseError(double EastMeters, double NorthMeters)
+    {
+        public double HorizontalMeters => Math.Sqrt(EastMeters * EastMeters + NorthMeters * NorthMeters);
+    }
+
+    private static LocalPoseError ComputeLocalPoseError(FlightPoseState current, FlightPoseState target)
+    {
+        var lat0 = DegreesToRadians((current.Lat + target.Lat) / 2d);
+        var east = DegreesToRadians(target.Lon - current.Lon) * 6371000d * Math.Cos(lat0);
+        var north = DegreesToRadians(target.Lat - current.Lat) * 6371000d;
+        return new LocalPoseError(east, north);
+    }
+
+    private static (double Lat, double Lon) OffsetLatLonMeters(double originLat, double originLon, double eastMeters, double northMeters)
+    {
+        const double earthRadiusMeters = 6371000d;
+        var lat = originLat + RadiansToDegrees(northMeters / earthRadiusMeters);
+        var cosLat = Math.Cos(DegreesToRadians(originLat));
+        var safeCosLat = Math.Abs(cosLat) < 0.000001d ? 0.000001d : cosLat;
+        var lon = originLon + RadiansToDegrees(eastMeters / (earthRadiusMeters * safeCosLat));
+        return (lat, lon);
+    }
+
+    private static double Lerp(double current, double target, double factor) => current + (target - current) * factor;
+
+    private static double LerpAngle(double current, double target, double factor) =>
+        NormalizeHeading(current + ShortestAngleDegrees(current, target) * factor);
+
+    private static double MoveTowards(double current, double target, double maxDelta)
+    {
+        var delta = target - current;
+        if (Math.Abs(delta) <= maxDelta)
+        {
+            return target;
+        }
+        return current + Math.Sign(delta) * maxDelta;
+    }
+
+    private static double MoveTowardsAngle(double current, double target, double maxDelta)
+    {
+        var delta = ShortestAngleDegrees(current, target);
+        if (Math.Abs(delta) <= maxDelta)
+        {
+            return NormalizeHeading(target);
+        }
+        return NormalizeHeading(current + Math.Sign(delta) * maxDelta);
+    }
+
+    private static double HorizontalDistanceMeters(double latA, double lonA, double latB, double lonB)
+    {
+        const double earthRadiusMeters = 6371000d;
+        var lat1 = DegreesToRadians(latA);
+        var lat2 = DegreesToRadians(latB);
+        var dLat = lat2 - lat1;
+        var dLon = DegreesToRadians(lonB - lonA);
+        var x = dLon * Math.Cos((lat1 + lat2) / 2d);
+        return Math.Sqrt(x * x + dLat * dLat) * earthRadiusMeters;
+    }
+
+    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180d;
+    private static double RadiansToDegrees(double radians) => radians * 180d / Math.PI;
 
     private static string WriteOnlyTriggerSyntheticKey(string triggerLVar) => $"__trigger__:{triggerLVar}";
 

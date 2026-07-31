@@ -1,0 +1,326 @@
+# MCDU / CDU - Teclado del Flight Management System del LVFR A330-200
+# Escribibles via eventos H:
+
+- id: mcdu.btn_sel_left
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_SEL_LEFT) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_sel_right
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_SEL_RIGHT) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_dir
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_DIR) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_rad_nav
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_RAD_NAV) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_perf
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_PERF) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_init
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_INIT) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_data
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_DATA) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_aids
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_AIDS) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_clr
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_CLR) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk1l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK1L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk1r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK1R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk2l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK2L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk2r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK2R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk3l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK3L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk3r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK3R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk4l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK4L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk4r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK4R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk5l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK5L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk5r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK5R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk6l
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK6L) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_lsk6r
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_LSK6R) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_menu
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_MENU) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_plus
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_PLUS) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_minus
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_MINUS) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_n1_limit
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_N1_LIMIT) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_fpl
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_MCDU_FPL) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: mcdu.btn_prev_next
+  dataType: number
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 1 == if{ (>H:LVFR_Airbus_MCDU_NEXT) } els{ $value -1 == if{ (>H:LVFR_Airbus_MCDU_PREV) } }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false

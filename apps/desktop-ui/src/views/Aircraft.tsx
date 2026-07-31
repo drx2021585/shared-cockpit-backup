@@ -21,6 +21,9 @@ function statusFor(coverage: number): { label: string; color: string } {
 }
 
 function describeCapabilities(profile: AircraftProfile): string {
+  if (profile.availability === "soon") {
+    return "Profile preview only. This aircraft is planned for We Connect, but players cannot use it in shared cockpit yet.";
+  }
   const levels = Object.values(profile.capabilities);
   const hasFullSync = levels.includes("full");
   const hasPartialSync = levels.includes("partial");
@@ -44,7 +47,7 @@ export function Aircraft() {
 
   return (
     <div className="section" style={{ paddingTop: 32, paddingBottom: 64 }}>
-      <div className="section-head section-top" style={{ marginBottom: 10 }}>
+      <div className="section-head" style={{ marginBottom: 10 }}>
         <h2 className="h2-sm">Aircraft</h2>
       </div>
       <p className="lead" style={{ maxWidth: 560 }}>
@@ -65,10 +68,16 @@ export function Aircraft() {
       <div className="grid-2">
         {profiles.map((ac) => {
           const status = statusFor(ac.coverage);
+          const isNew = ac.id === "ifly-737-max8";
+          const isSoon = ac.availability === "soon";
           return (
-            <div key={ac.id}>
+            <div key={ac.id} className="aircraft-card">
               <div className="aircraft-card-head">
-                <div className="aircraft-card-name">{ac.name}</div>
+                <div className="aircraft-card-name-wrap">
+                  <div className="aircraft-card-name">{ac.name}</div>
+                  {isNew && <span className="aircraft-card-badge-new">Nuevo</span>}
+                  {isSoon && <span className="aircraft-card-badge-soon">Soon</span>}
+                </div>
                 <div className="aircraft-card-pct">{ac.coverage}%</div>
               </div>
               <div className="status-line">
@@ -76,7 +85,6 @@ export function Aircraft() {
                 <span className="status-label" style={{ color: status.color }}>
                   {status.label}
                 </span>
-                {!ac.verified && <span className="badge-untested">Not tested in the sim yet</span>}
               </div>
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${ac.coverage}%` }} />

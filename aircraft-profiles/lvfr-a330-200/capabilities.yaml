@@ -1,0 +1,98 @@
+# Detalles expandidos del LVFR A330-200 - Completamente soportado
+# Todos los sistemas principales están implementados para operaciones de cabina compartida
+
+systems:
+  flightControls:
+    level: full
+    controls: [yoke, rudder, trim_pitch, trim_roll, trim_yaw, flaps, slats, spoilers, gear, yaw_damper, alternate_fctl]
+    description: "Control completo de superficies de vuelo, compensadores, tren de aterrizaje, y dispositivos hipersustentadores"
+    missing: []
+
+  autopilot:
+    level: full
+    controls: [heading_selected, heading_mode_selected, heading_mode_managed, altitude_selected, altitude_mode_selected, altitude_mode_managed, altitude_increment, vertical_speed_selected, vertical_speed_hold, vertical_speed_zero, airspeed_is_mach, trk_fpa_mode_active]
+    description: "Sistema de autopiloto completo con modos de navegación, control de altitud y velocidad"
+    missing: []
+
+  electrical:
+    level: full
+    controls: [bat_selector, gen_switches, apu_master, apu_gen_switch, external_power, bus_transfers]
+    description: "Sistema eléctrico completo con generadores, baterías, APU y transferencias de barra"
+    missing: []
+
+  hydraulics:
+    level: full
+    controls: [pump_elec_1_switch, pump_elec_2_switch, pump_eng_1_switch, pump_eng_2_switch, isolation_valve, pressure_monitoring, quantity_monitoring, temperature_monitoring]
+    description: "Sistemas hidráulicos (verde, azul, amarillo) con bombas y monitoreo completo"
+    missing: []
+
+  radios:
+    level: full
+    controls: [com1_active_freq, com1_standby_freq, com2_active_freq, com2_standby_freq, nav1_active_freq, nav1_standby_freq, nav2_active_freq, nav2_standby_freq, adf_active_freq, adf_standby_freq, transponder_code, transponder_mode]
+    description: "Suite completa de comunicación y navegación: COM, NAV, ADF, XPNDR"
+    missing: []
+
+  mcdu:
+    level: full
+    controls: [btn_sel_left, btn_sel_right, btn_dir, btn_rad_nav, btn_perf, btn_init, btn_data, btn_aids, btn_clr, btn_lsk1l_6l, btn_lsk1r_6r, btn_menu, btn_plus, btn_minus, btn_n1_limit, btn_fpl, btn_prev_next]
+    description: "Teclado MCDU completo con todas las teclas del Control Display Unit"
+    missing: []
+
+  engine:
+    level: full
+    controls: [throttle_left, throttle_right, fuel_control_switch_left, fuel_control_switch_right, start_selector_left, start_selector_right, engine_mode_selector, anti_ice_left, anti_ice_right, eng_temp, eng_vibration, eng_oil_temp, eng_oil_pressure]
+    description: "Control completo de motores: aceleración, combustible, arranque, monitoreo"
+    missing: []
+
+  fuel:
+    level: full
+    controls: [center_transfer_running, outer_transfer_running, target_cg, trim_mode, fuel_quantity_left, fuel_quantity_center, fuel_quantity_right, fuel_flow_left, fuel_flow_right]
+    description: "Sistema completo de combustible con transferencias automáticas y monitoreo de cantidades"
+    missing: []
+
+  antiIce:
+    level: full
+    controls: [wing_anti_ice, engine_anti_ice_left, engine_anti_ice_right, probe_heat_captain, probe_heat_fo, window_heat_left, window_heat_right, duct_heat_left, duct_heat_right, icing_detected]
+    description: "Protección completa contra el hielo: alas, motores, sondas, ventanas"
+    missing: []
+
+  instruments:
+    level: full
+    controls: [nd_range, terr_on_nd, efis_filters, hsv_select, nav_select, heading_display, altitude_display, speed_display]
+    description: "Instrumentos de vuelo: ND, HSI, altímetro, velocímetro"
+    missing: []
+
+  air:
+    level: partial
+    controls: [pressurization_mode, cabin_alt_select, landing_altitude, vent_controller]
+    description: "Sistema de presurización y aire acondicionado"
+    missing: [full_bleed_air_control, pneumatic_system_valves]
+
+  failures:
+    level: partial
+    controls: [fire_detection, fire_suppression_arming]
+    description: "Sistema de fuego y detección de fallos"
+    missing: [full_failure_simulation]
+
+  fireProtection:
+    level: partial
+    controls: [fire_detect_left, fire_detect_right, fire_suppress_left, fire_suppress_right]
+    description: "Protección contra incendios en motores"
+    missing: []
+
+  warnings:
+    level: partial
+    controls: [master_warning, master_caution, annunciators]
+    description: "Sistema de advertencias y anunciadores"
+    missing: []
+
+  cabinMisc:
+    level: partial
+    controls: [cabin_pressure, cabin_temperature, oxygen_system, lighting_controls]
+    description: "Sistemas varios de cabina"
+    missing: []
+
+  efb:
+    level: none
+    controls: []
+    missing: [intentionally_excluded]

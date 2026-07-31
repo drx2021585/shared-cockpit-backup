@@ -11,6 +11,7 @@ simconnect-bridge-agent, wasm-agent, sync-engine-agent, networking-agent, fronte
 | `control.event` | confiable | on-change | interruptor/valor discreto (SET_ON/SET_OFF/SET_VALUE, nunca TOGGLE) |
 | `control.axis` | rápido | 20-60Hz | eje continuo (yoke, rudder, throttle, spoilers) |
 | `aircraft.snapshot` | confiable | baja frecuencia / on-demand | estado persistente completo por sistema |
+| `flight.pose` | rápido | 8-15Hz | pose física autoritativa de la aeronave, con corrección suave en el receptor |
 | `authority.transfer` | confiable | on-demand | cambio de dueño de un grupo de controles |
 | `session.*` | confiable | on-demand | ciclo de vida de sesión (join, leave, roles) |
 | `screen.snapshot` | confiable | baja frecuencia / on-demand (on-change) | contenido completo de una pantalla de solo lectura de un addon de terceros (ej. CDU/MCDU del PMDG NG3 SDK vía Client Data Area `PMDG_NG3_CDU_0`/`PMDG_NG3_CDU_1`); grilla de celdas carácter+color+flags, **estrictamente solo lectura** en esta versión (sin escritura de botones, ver `docs/plan-737-fullsync-2026-07-25.md`) |
@@ -30,6 +31,21 @@ si fuera un cambio local nuevo. Ver `sync-engine-agent.md`.
 (equivalente a SET_ON/SET_OFF), nunca un pulso de tipo TOGGLE. Esto evita que dos
 jugadores que cambian el mismo interruptor casi simultáneamente terminen con estados
 invertidos entre sí.
+
+## `flight.pose` — posicionamiento físico autoritativo
+
+`flight.pose` existe para la parte de física/pose que no cabe en `control.axis` ni en
+`aircraft.snapshot`:
+
+- `aircraft.snapshot` sigue reservado a **sistemas persistentes** de cabina.
+- `flight.pose` solo describe **lat/lon/alt + actitud + velocidades**, y solo debe
+  ser emitido por el asiento que hoy posee `flight_controls`.
+- El receptor no debe aplicar cada muestra como snap inmediato. La arquitectura
+  esperada es: buffer de objetivo remoto + corrección gradual + snap solo para
+  errores grandes o resincronización inicial.
+
+Este mensaje existe para que la posición del avión sea una señal explícita del
+protocolo, no un side-effect implícito de otra sincronización.
 
 ## `screen.snapshot` — pantallas de solo lectura (ej. CDU/MCDU)
 

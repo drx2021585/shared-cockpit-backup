@@ -1,0 +1,29 @@
+# LVFR A330-300 - Flight Instruments Scaffold
+# EFIS/ND system - Requiere auditoría del ND.xml del A330-300
+
+- id: instruments.nd_range
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    # TODO: Confirmar nombre del LVar para A330-300
+    field: "A320_Neo_MFD_Range"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:A320_Neo_MFD_Range,number) $value != if{ $value (>L:A320_Neo_MFD_Range) }"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# TODO: Agregar controles faltantes:
+# - terr_on_nd
+# - hsi_course_knob
+# - efis_mode_captain / efis_mode_fo
+# - nav1_obs / nav2_obs
+# - altitude/speed displays
+# Ver A330-200 controls/instruments.yaml para estructura completa

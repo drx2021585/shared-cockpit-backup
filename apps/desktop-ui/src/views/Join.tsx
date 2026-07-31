@@ -50,36 +50,78 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
 
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
-      <div className="section-head section-top" style={{ marginBottom: 6, paddingTop: 16 }}>
+      <div className="section-head" style={{ marginBottom: 6, paddingTop: 16 }}>
         <h2 className="h2-modal">Join a party</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
         Enter the code your friend shared to join their cockpit.
       </p>
-      <div style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}>
+      <form
+        autoComplete="off"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleJoin();
+        }}
+        style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}
+      >
+        <input
+          type="text"
+          name="fake-username"
+          autoComplete="username"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="autofill-decoy"
+        />
+        <input
+          type="password"
+          name="fake-password"
+          autoComplete="current-password"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="autofill-decoy"
+        />
         <div className="field">
           <label>Your pilot name</label>
           <input
             type="text"
+            name="weconnect-pilot-name"
             placeholder="Friend"
             value={pilotName}
             onChange={(e) => onPilotNameChange(e.target.value)}
+            autoComplete="off"
           />
         </div>
         <div className="field">
           <label>Session code</label>
           <input
             type="text"
-            placeholder="X7K-92Q"
+            name="weconnect-session-code"
+            placeholder=""
             className="mono"
             style={{ fontSize: 20, letterSpacing: "0.1em" }}
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            data-form-type="other"
           />
         </div>
         <div className="field">
           <label>Password (if required)</label>
-          <input type="password" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            name="weconnect-session-password"
+            placeholder="••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-form-type="other"
+          />
         </div>
         <div className="field">
           <label>Your role</label>
@@ -106,14 +148,17 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
               Observer
             </button>
           </div>
+          <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 8 }}>
+            Only the captain and the first officer can request or receive flight controls.
+          </p>
         </div>
         {error && <div style={{ color: "#e24c4b", fontSize: 13 }}>{error}</div>}
         <div style={{ paddingTop: 6 }}>
-          <button className="btn" onClick={handleJoin} disabled={submitting}>
+          <button className="btn" type="submit" disabled={submitting}>
             {submitting ? "Joining…" : "Join session"}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

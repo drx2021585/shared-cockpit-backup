@@ -1,0 +1,165 @@
+# Anti-ice y protección contra congelamiento del LVFR A330-200
+
+- id: antiIce.wing_anti_ice
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Wing_AntiIce_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_WING_AntiIce)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.engine_anti_ice_left
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_AntiIce_Left"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_AntiIce_Left)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.engine_anti_ice_right
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_AntiIce_Right"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_AntiIce_Right)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.probe_heat_captain
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ProbeHeat_Captain"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ProbeHeat_Captain)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.probe_heat_fo
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ProbeHeat_FO"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ProbeHeat_FO)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.window_heat_left
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_WindowHeat_Left"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_WindowHeat_Left)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.window_heat_right
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_WindowHeat_Right"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_WindowHeat_Right)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.duct_heat_left
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_DuctHeat_Left"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_DuctHeat_Left)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.duct_heat_right
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_DuctHeat_Right"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_DuctHeat_Right)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: antiIce.icing_detected
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "STRUCTURAL ICE PCT"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

@@ -1,0 +1,49 @@
+schemaVersion: 1
+
+availability: released
+
+# Full support with live validation for shared cockpit operations
+
+aircraft:
+  id: lvfr-a330-200
+  name: LVFR A330-200
+  developer: LatinVFR
+
+compatibility:
+  msfs2020: true
+  msfs2024: false
+
+verification: live-tested
+
+versions:
+  minimum: "1.2.3"
+  tested:
+    - "1.2.3"
+
+variants:
+  - "LVFR A330-200GE"
+  - "LVFR A330-200PW"
+  - "LVFR A330-200RR"
+
+detection:
+  titleContains:
+    - "LVFR A330-200"
+    - "Airbus A330-200"
+
+capabilities:
+  flightControls: full
+  autopilot: full
+  electrical: full
+  hydraulics: full
+  radios: full
+  mcdu: full
+  failures: partial
+  air: partial
+  antiIce: full
+  engine: full
+  fuel: full
+  fireProtection: partial
+  instruments: full
+  warnings: partial
+  efb: none
+  cabinMisc: partial

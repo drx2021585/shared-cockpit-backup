@@ -1,0 +1,70 @@
+# LVFR A330-300 - Flight Controls Scaffold
+# Controles de vuelo: alerón, timón, compensador, dispositivos hipersustentadores
+
+- id: flightControls.aileron_left
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AILERON LEFT DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:AILERON_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.elevator
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ELEVATOR DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:ELEVATOR_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.rudder
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "RUDDER DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:RUDDER_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.flaps_handle_index
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "FLAPS HANDLE INDEX"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:FLAPS_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# TODO: Agregar controles faltantes:
+# - Trim (pitch, roll, yaw) completo
+# - Slats
+# - Spoilers
+# - Gear
+# - Yaw damper
+# Ver A330-200 controls/flight-controls.yaml para estructura completa

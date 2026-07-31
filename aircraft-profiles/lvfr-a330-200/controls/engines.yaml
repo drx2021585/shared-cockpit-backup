@@ -1,0 +1,238 @@
+# Motor y APU del LVFR A330-200 vía Cliente Data Area SharedCockpitBridge_LVars y eventos H:.
+
+- id: engine.throttle_left
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG THROTTLE LEVER POSITION:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:THROTTLE1_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.throttle_right
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG THROTTLE LEVER POSITION:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:THROTTLE2_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.fuel_control_switch_left
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Eng_Fuel_Control_Switch_L"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_Eng_Fuel_Control_Switch_L)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.fuel_control_switch_right
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Eng_Fuel_Control_Switch_R"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_Eng_Fuel_Control_Switch_R)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.start_selector_left
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_Start_Selector_L"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_Start_Selector_L)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.start_selector_right
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_Start_Selector_R"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_Start_Selector_R)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.engine_mode_selector
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_Mode_Selector"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_Engine_Mode_Selector)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.anti_ice_left
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_AntiIce_Left"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_AntiIce_Left)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.anti_ice_right
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Engine_AntiIce_Right"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ENGINE_AntiIce_Right)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.eng_temp_left
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG EXHAUST GAS TEMP:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_temp_right
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG EXHAUST GAS TEMP:2"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_vibration_left
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG VIBRATION:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_vibration_right
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG VIBRATION:2"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_oil_temp_left
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG OIL TEMPERATURE:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_oil_temp_right
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG OIL TEMPERATURE:2"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_oil_pressure_left
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG OIL PRESSURE:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: engine.eng_oil_pressure_right
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GENERAL ENG OIL PRESSURE:2"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

@@ -15,12 +15,22 @@
 // recogía commits nuevos) — ver render.yaml en la raíz del repo. La base de
 // datos (Supabase) no cambió, solo dónde corre este proceso.
 const API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
+import { currentVersion } from "../data";
+
+export interface ServerHealth {
+  status: "ok";
+  uptimeSeconds: number;
+  apiVersion: number;
+  minClientVersion: string;
+  latestClientVersion: string;
+}
 
 export interface AircraftProfile {
   id: string;
   name: string;
   developer: string;
   version: string;
+  availability?: "released" | "soon";
   coverage: number;
   capabilities: Record<string, string>;
   compatibility: { msfs2020: boolean; msfs2024: boolean };
@@ -80,13 +90,20 @@ export function getParticipantToken(): string | null {
 }
 
 function authHeaders(): Record<string, string> {
-  return participantToken ? { Authorization: `Bearer ${participantToken}` } : {};
+  return {
+    ...(participantToken ? { Authorization: `Bearer ${participantToken}` } : {}),
+    "X-WeConnect-Client-Version": currentVersion,
+  };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      "X-WeConnect-Client-Version": currentVersion,
+      ...init?.headers,
+    },
   });
   const body = await res.json();
   if (!res.ok) {
@@ -106,6 +123,10 @@ export class ApiError extends Error {
 
 export function fetchAircraftProfiles() {
   return request<AircraftProfile[]>("/api/aircraft-profiles");
+}
+
+export function fetchServerHealth() {
+  return request<ServerHealth>("/api/health");
 }
 
 export async function createSession(input: {

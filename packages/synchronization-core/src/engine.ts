@@ -53,6 +53,21 @@ export interface IncomingControlAxis {
   timestamp: number;
 }
 
+export interface IncomingFlightPose {
+  type: "flight.pose";
+  sequence: number;
+  timestamp: number;
+  lat: number;
+  lon: number;
+  alt: number;
+  pitch: number;
+  bank: number;
+  heading: number;
+  groundSpeed: number;
+  indicatedAirspeed: number;
+  verticalSpeed: number;
+}
+
 export interface IncomingAuthorityTransfer {
   type: "authority.transfer";
   group: string;
@@ -80,6 +95,7 @@ export interface IncomingScreenSnapshot {
 export type IncomingSyncMessage =
   | IncomingControlEvent
   | IncomingControlAxis
+  | IncomingFlightPose
   | IncomingAuthorityTransfer
   | IncomingScreenSnapshot;
 
@@ -133,6 +149,8 @@ export class SyncEngine {
         return this.applyControlAxis(raw);
       case "authority.transfer":
         return this.applyAuthorityTransfer(raw);
+      case "flight.pose":
+        return this.applyFlightPose(raw);
       case "screen.snapshot":
         return this.applyScreenSnapshot(raw);
     }
@@ -200,6 +218,19 @@ export class SyncEngine {
     const result = this.authority.transfer(raw.group, raw.previousOwner, raw.newOwner);
     if (!result.ok) {
       return { ok: false, reason: "transfer-owner-mismatch" };
+    }
+
+    return this.finalize(raw, loopMsg);
+  }
+
+  private applyFlightPose(raw: IncomingFlightPose): ApplyResult<IncomingFlightPose> {
+    const loopMsg: IncomingMessage = {
+      controlId: "flight.pose",
+      sequence: raw.sequence,
+      origin: "remote",
+    };
+    if (!this.loopGuard.shouldApply(loopMsg)) {
+      return { ok: false, reason: "duplicate-or-out-of-order" };
     }
 
     return this.finalize(raw, loopMsg);

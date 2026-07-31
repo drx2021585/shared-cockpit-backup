@@ -27,16 +27,20 @@ export function Party({
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("captain");
+  const [joinCodeBlurred, setJoinCodeBlurred] = useState(true);
   const [ipBlurred, setIpBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const compatibleProfiles = profiles.filter((profile) => profile.compatibility[sim]);
+  const compatibleProfiles = profiles.filter(
+    (profile) => profile.availability !== "soon" && profile.compatibility[sim]
+  );
   const selectedProfileIsCompatible = compatibleProfiles.some(
     (profile) => profile.id === aircraftProfileId
   );
   const effectiveProfileId =
     (selectedProfileIsCompatible ? aircraftProfileId : compatibleProfiles[0]?.id) || "";
+  const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
 
   async function handleCreate() {
@@ -69,7 +73,7 @@ export function Party({
 
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
-      <div className="section-head section-top" style={{ marginBottom: 6, paddingTop: 16 }}>
+      <div className="section-head" style={{ marginBottom: 6, paddingTop: 16 }}>
         <h2 className="h2-modal">Create a party</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
@@ -105,7 +109,7 @@ export function Party({
               <select value={effectiveProfileId} onChange={(e) => setAircraftProfileId(e.target.value)}>
                 {compatibleProfiles.map((ac) => (
                   <option key={ac.id} value={ac.id}>
-                    {ac.name} ({ac.coverage}%)
+                    {ac.name}
                   </option>
                 ))}
               </select>
@@ -158,9 +162,12 @@ export function Party({
                 Observer
               </button>
             </div>
+            <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 8 }}>
+              Flight controls can only be transferred between the captain and the first officer.
+            </p>
             {seat === "observer" && (
               <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 8 }}>
-                You'll host without flying. Controls start on the captain's seat, so
+                You'll join without flying. Controls start on the captain's seat, so
                 whoever joins as captain gets them.
               </p>
             )}
@@ -177,10 +184,15 @@ export function Party({
 
         <div>
           <div className="divider-row" style={{ marginBottom: 10, border: "none" }}>
-            <label className="mono-label">Code for your friend</label>
+            <div className="mono-label">Code for your friend</div>
+            <button className="link-action" onClick={() => setJoinCodeBlurred((value) => !value)}>
+              {joinCodeBlurred ? "Show" : "Hide"}
+            </button>
           </div>
           <div className="code-box">
-            <div className="code-value">{createdSession?.joinCode ?? "— — — —"}</div>
+            <div className="code-value" style={joinCodeStyle}>
+              {createdSession?.joinCode ?? "— — — —"}
+            </div>
             <div className="code-caption">
               {createdSession
                 ? "Share this code so they can join your cockpit"

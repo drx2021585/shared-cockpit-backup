@@ -54,7 +54,32 @@ export interface AircraftSnapshot {
   sessionId: string;
   revision: number;
   profile: string;
+  simulatorVersion?: "msfs2020" | "msfs2024";
+  detectedTitle?: string;
+  appVersion?: string;
   systems: AircraftSnapshotSystems;
+}
+
+/**
+ * Estado físico autoritativo de la aeronave. A diferencia de aircraft.snapshot,
+ * que describe sistemas persistentes de cabina, este mensaje existe solo para
+ * posicionamiento/actitud y debe ser emitido por el piloto que hoy tiene la
+ * autoridad de vuelo.
+ */
+export interface FlightPose {
+  type: "flight.pose";
+  sessionId: string;
+  sequence: number;
+  timestamp: number;
+  lat: number;
+  lon: number;
+  alt: number;
+  pitch: number;
+  bank: number;
+  heading: number;
+  groundSpeed: number;
+  indicatedAirspeed: number;
+  verticalSpeed: number;
 }
 
 export interface AuthorityTransfer {
@@ -123,6 +148,7 @@ export type SharedCockpitMessage =
   | ControlEvent
   | ControlAxis
   | AircraftSnapshot
+  | FlightPose
   | AuthorityTransfer
   | SessionMessage
   | ScreenSnapshot;
@@ -136,6 +162,9 @@ export function isControlAxis(m: SharedCockpitMessage): m is ControlAxis {
 }
 export function isAircraftSnapshot(m: SharedCockpitMessage): m is AircraftSnapshot {
   return m.type === "aircraft.snapshot";
+}
+export function isFlightPose(m: SharedCockpitMessage): m is FlightPose {
+  return m.type === "flight.pose";
 }
 export function isAuthorityTransfer(m: SharedCockpitMessage): m is AuthorityTransfer {
   return m.type === "authority.transfer";

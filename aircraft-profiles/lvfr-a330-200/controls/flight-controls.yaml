@@ -1,0 +1,265 @@
+# Controles de vuelo del LVFR A330-200 - Alerón, timón, compensador, flaps, tren
+
+- id: flightControls.aileron_left
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AILERON LEFT DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:AILERON_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.aileron_right
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AILERON RIGHT DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:AILERON_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.elevator
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ELEVATOR DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:ELEVATOR_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.rudder
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "RUDDER DEFLECTION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:RUDDER_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.trim_pitch
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "ELEVATOR TRIM PCT"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:ELEVATOR_TRIM_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.trim_roll
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AILERON TRIM PCT"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:AILERON_TRIM_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.trim_yaw
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "RUDDER TRIM PCT"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:RUDDER_TRIM_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.flaps_handle_index
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "FLAPS HANDLE INDEX"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:FLAPS_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.slats_handle
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "SLAT HANDLE"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:SLATS_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.spoilers_armed
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "SPOILERS ARMED"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:SPOILERS_ARM_TOGGLE)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.spoilers_handle
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "SPOILERS HANDLE POSITION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:SPOILERS_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.gear_handle
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "GEAR HANDLE POSITION"
+  write:
+    type: calculatorCode
+    name: "$value 1 == if{ (>K:2:GEAR_DOWN) } els{ (>K:2:GEAR_UP) }"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.gear_left_pos
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GEAR LEFT POSITION"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flightControls.gear_right_pos
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GEAR RIGHT POSITION"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flightControls.gear_center_pos
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "GEAR CENTER POSITION"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: flightControls.yaw_damper
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_YawDamper_Switch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_YawDamper)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.stabilizer_trim_manual
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Stabilizer_Manual"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_Stabilizer_Manual)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: flightControls.alternate_fctl
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_AlternateFlightControl"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_AlternateFlightControl)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000

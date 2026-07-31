@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json.Nodes;
 
 namespace SharedCockpit.Bridge.Protocol;
@@ -13,6 +14,7 @@ public static class MessageTypes
     public const string ControlEvent = "control.event";
     public const string ControlAxis = "control.axis";
     public const string AircraftSnapshot = "aircraft.snapshot";
+    public const string FlightPose = "flight.pose";
     public const string ScreenSnapshot = "screen.snapshot";
     public const string AuthorityTransfer = "authority.transfer";
     public const string SessionJoin = "session.join";
@@ -104,6 +106,38 @@ public sealed record AircraftSnapshotMessage(
     };
 }
 
+public sealed record FlightPoseMessage(
+    string SessionId,
+    long Sequence,
+    long Timestamp,
+    double Lat,
+    double Lon,
+    double Alt,
+    double Pitch,
+    double Bank,
+    double Heading,
+    double GroundSpeed,
+    double IndicatedAirspeed,
+    double VerticalSpeed)
+{
+    public JsonObject ToJson() => new()
+    {
+        ["type"] = MessageTypes.FlightPose,
+        ["sessionId"] = SessionId,
+        ["sequence"] = Sequence,
+        ["timestamp"] = Timestamp,
+        ["lat"] = Lat,
+        ["lon"] = Lon,
+        ["alt"] = Alt,
+        ["pitch"] = Pitch,
+        ["bank"] = Bank,
+        ["heading"] = Heading,
+        ["groundSpeed"] = GroundSpeed,
+        ["indicatedAirspeed"] = IndicatedAirspeed,
+        ["verticalSpeed"] = VerticalSpeed,
+    };
+}
+
 public sealed record ScreenCellMessage(
     string Char,
     int ColorId,
@@ -159,6 +193,20 @@ public sealed record ScreenSnapshotMessage(
 /// </summary>
 public static class BridgeStatus
 {
+    public const int BridgeApiVersion = 2;
+
+    private static string ResolveBridgeBuildVersion()
+    {
+        var assembly = typeof(BridgeStatus).Assembly;
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            return informational.Split('+')[0];
+        }
+
+        return assembly.GetName().Version?.ToString() ?? "unknown";
+    }
+
     public static JsonObject Build(
         bool simConnected,
         string? matchedProfileId,
@@ -173,6 +221,8 @@ public static class BridgeStatus
             ["matchedProfileId"] = matchedProfileId,
             ["detectedTitle"] = detectedTitle,
             ["simulatorVersion"] = simulatorVersion,
+            ["bridgeApiVersion"] = BridgeApiVersion,
+            ["bridgeBuildVersion"] = ResolveBridgeBuildVersion(),
             ["error"] = error,
             ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };

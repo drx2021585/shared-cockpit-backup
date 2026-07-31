@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "./apiClient";
 import { apiBaseUrl, getParticipantToken } from "./apiClient";
-import type { AuthorityTransfer, ControlAxis, ControlEvent, ScreenSnapshot } from "../../../../packages/protocol/types";
+import type { AuthorityTransfer, ControlAxis, ControlEvent, FlightPose, ScreenSnapshot } from "../../../../packages/protocol/types";
+import { currentVersion } from "../data";
 
 export interface SessionSocketState {
   connected: boolean;
@@ -13,10 +14,13 @@ export interface SessionSocketState {
   lastPongAt: number | null;
   lastPeerControlAt: number | null;
   lastPeerAircraftAt: number | null;
+  lastPeerPoseAt: number | null;
   lastPeerScreenAt: number | null;
   peerAircraft: Record<string, {
     profileId: string;
     simulatorVersion: "msfs2020" | "msfs2024" | null;
+    detectedTitle: string | null;
+    appVersion: string | null;
   }>;
   peerScreens: Record<string, Record<string, ScreenSnapshot>>;
   /**
@@ -24,7 +28,7 @@ export interface SessionSocketState {
    * que llegó del bridge local propio, ver bridgeClient + Cockpit.tsx). No-op
    * si el WebSocket de sesión no está abierto todavía.
    */
-  send: (msg: ControlEvent | ControlAxis | ScreenSnapshot) => void;
+  send: (msg: ControlEvent | ControlAxis | ScreenSnapshot | FlightPose) => void;
 }
 
 const RECONNECT_BASE_DELAY_MS = 500;
@@ -48,6 +52,7 @@ export function useSessionSocket(
   localProfileId: string | null = null,
   localSimulatorVersion: "msfs2020" | "msfs2024" | null = null,
   onPeerControl?: (msg: ControlEvent | ControlAxis) => void,
+  onPeerPose?: (msg: FlightPose) => void,
 ): SessionSocketState {
   const [state, setState] = useState<SessionSocketState>({
     connected: false,
@@ -58,6 +63,7 @@ export function useSessionSocket(
     lastPongAt: null,
     lastPeerControlAt: null,
     lastPeerAircraftAt: null,
+    lastPeerPoseAt: null,
     lastPeerScreenAt: null,
     peerAircraft: {},
     peerScreens: {},
@@ -68,6 +74,8 @@ export function useSessionSocket(
   // onPeerControl -- mismo patrón que wsRef.
   const onPeerControlRef = useRef(onPeerControl);
   onPeerControlRef.current = onPeerControl;
+  const onPeerPoseRef = useRef(onPeerPose);
+  onPeerPoseRef.current = onPeerPose;
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,7 +122,7 @@ export function useSessionSocket(
       // el servidor deriva el piloto del token, no de un nombre en la query.
       const token = getParticipantToken() ?? "";
       const ws = new WebSocket(
-        `${wsUrl}/ws?code=${encodeURIComponent(joinCode!)}&token=${encodeURIComponent(token)}`,
+        `${wsUrl}/ws?code=${encodeURIComponent(joinCode!)}&token=${encodeURIComponent(token)}&clientVersion=${encodeURIComponent(currentVersion)}`,
       );
       wsRef.current = ws;
 
@@ -147,9 +155,14 @@ export function useSessionSocket(
               [msg.sourcePilot]: {
                 profileId: msg.profile,
                 simulatorVersion: msg.simulatorVersion ?? null,
+                detectedTitle: typeof msg.detectedTitle === "string" ? msg.detectedTitle : null,
+                appVersion: typeof msg.appVersion === "string" ? msg.appVersion : null,
               },
             },
           }));
+        } else if (msg.type === "flight.pose") {
+          setState((s) => ({ ...s, lastPeerPoseAt: Date.now() }));
+          onPeerPoseRef.current?.(msg as FlightPose);
         } else if (msg.type === "control.event" || msg.type === "control.axis") {
           // Cambio real del compañero de vuelo (switch o eje) reenviado por
           // server/api -- Cockpit.tsx lo aplica al bridge local propio. Este
@@ -229,6 +242,8 @@ export function useSessionSocket(
       revision: 0,
       profile: localProfileId,
       simulatorVersion: localSimulatorVersion,
+      detectedTitle: null,
+      appVersion: currentVersion,
       systems: {},
     }));
   }, [
@@ -242,7 +257,7 @@ export function useSessionSocket(
   // send se define acá (no dentro del efecto de conexión) para que sea una
   // función estable que siempre lee el WebSocket vigente vía wsRef, sin
   // depender de closures potencialmente obsoletas de una conexión anterior.
-  function send(msg: ControlEvent | ControlAxis | ScreenSnapshot) {
+  function send(msg: ControlEvent | ControlAxis | ScreenSnapshot | FlightPose) {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return;

@@ -1,0 +1,160 @@
+# EFIS/ND sistema completo de instrumentos con navegación y displayes
+
+- id: instruments.hsi_course_knob
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "HSI CARD"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:HEADING_BUG_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.hsi_to_from_flag
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "NAV TO FLAG:1"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: instruments.nav1_obs
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV OBS:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV1_RADIO_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.nav2_obs
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "NAV OBS:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:NAV2_RADIO_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.efis_mode_captain
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_EFIS_Mode_Captain"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_EFIS_Mode_Captain)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.efis_mode_fo
+  dataType: number
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_EFIS_Mode_FO"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_EFIS_Mode_FO)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.vvi_display_captain
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "VERTICAL SPEED"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: instruments.altitude_display_captain
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "INDICATED ALTITUDE"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: instruments.airspeed_display_captain
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "AIRSPEED INDICATED"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: instruments.terr_on_nd
+  dataType: boolean
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "BTN_TERRONND_ACTIVE"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:BTN_TERRONND_ACTIVE,number) $value != if{ (>H:LVFR_Airbus_MFD_BTN_TERRONND) }"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: instruments.nd_range
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "A320_Neo_MFD_Range"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:A320_Neo_MFD_Range,number) $value != if{ $value (>L:A320_Neo_MFD_Range) }"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

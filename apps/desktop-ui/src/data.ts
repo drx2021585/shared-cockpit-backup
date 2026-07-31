@@ -182,9 +182,21 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.19",
+    version: "0.1.21",
     title: "Current build",
-    date: "2026-07-30",
+    date: "2026-07-31",
+    commits: [
+      "Flight-position synchronization is now much more precise: instead of snapping to the other pilot's aircraft coordinates, We Connect corrects using local meter-based error, short extrapolation and separate limits for horizontal movement, altitude and attitude.",
+      "The app now enforces minimum compatibility across the whole stack: app to bridge and app to server/API. If your build is too old, the session is blocked before a mismatched cockpit can form.",
+      "The required-update flow is now explicit and actionable. When an update is mandatory, the modal tells you and lets you restart We Connect directly instead of leaving you in a dead-end state.",
+      "Aircraft mismatch checks now say exactly what differs between both pilots: aircraft, variant, simulator version or app version.",
+      "Crew roles are now clearer inside the session, with explicit captain and first officer ownership for who can hold and transfer the flight controls.",
+    ],
+  },
+  {
+    version: "0.1.20",
+    title: "Published release",
+    date: "2026-07-31",
     commits: [
       "The cockpit now renders shared CDU-style screens from the other PC instead of receiving the data and leaving it invisible, which closes the loop for PMDG read-only display mirroring.",
       "Session health is now tracked per link: the app tells you whether the relay, your local bridge, your peer's flight data and the shared display feed are healthy, stale or disconnected.",

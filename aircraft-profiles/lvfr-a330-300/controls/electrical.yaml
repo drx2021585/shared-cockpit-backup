@@ -1,0 +1,30 @@
+# LVFR A330-300 - Electrical System Control Scaffold
+# Requiere auditoría contra XML del A330-300 para LVar names
+
+- id: electrical.bat_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    # TODO: Confirmar nombre exacto del LVar para A330-300
+    field: "XMLVAR_ELEC_BATSWITCH_State"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:XMLVAR_ELEC_BATSWITCH_State,number) $value != if{ $value (>L:XMLVAR_ELEC_BATSWITCH_State) }"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# TODO: Agregar controles faltantes:
+# - gen_switch_left / gen_switch_right
+# - apu_master
+# - apu_gen_switch
+# - external_power_available
+# - bus_transfer_switch
+# - standby_power_switch
+# Ver A330-200 controls/electrical.yaml para estructura completa

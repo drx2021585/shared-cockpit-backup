@@ -6,6 +6,7 @@
     { "$ref": "#/definitions/ControlEvent" },
     { "$ref": "#/definitions/ControlAxis" },
     { "$ref": "#/definitions/AircraftSnapshot" },
+    { "$ref": "#/definitions/FlightPose" },
     { "$ref": "#/definitions/AuthorityTransfer" },
     { "$ref": "#/definitions/SessionMessage" },
     { "$ref": "#/definitions/ScreenSnapshot" }
@@ -59,6 +60,40 @@
             "radios": { "type": "object" }
           }
         }
+      }
+    },
+    "FlightPose": {
+      "type": "object",
+      "description": "Pose física autoritativa de la aeronave. Se usa para alineación/seguimiento suave entre cabinas; NO reemplaza aircraft.snapshot para sistemas.",
+      "required": [
+        "type",
+        "sessionId",
+        "sequence",
+        "timestamp",
+        "lat",
+        "lon",
+        "alt",
+        "pitch",
+        "bank",
+        "heading",
+        "groundSpeed",
+        "indicatedAirspeed",
+        "verticalSpeed"
+      ],
+      "properties": {
+        "type": { "const": "flight.pose" },
+        "sessionId": { "type": "string" },
+        "sequence": { "type": "integer" },
+        "timestamp": { "type": "integer" },
+        "lat": { "type": "number" },
+        "lon": { "type": "number" },
+        "alt": { "type": "number", "description": "Altitud MSL en pies." },
+        "pitch": { "type": "number", "description": "Grados, nariz arriba positivo." },
+        "bank": { "type": "number", "description": "Grados, ala derecha abajo positivo." },
+        "heading": { "type": "number", "description": "Grados verdaderos 0..360." },
+        "groundSpeed": { "type": "number", "description": "Velocidad sobre el suelo en nudos." },
+        "indicatedAirspeed": { "type": "number", "description": "IAS en nudos, útil para extrapolación/diagnóstico." },
+        "verticalSpeed": { "type": "number", "description": "Pies por minuto." }
       }
     },
     "AuthorityTransfer": {

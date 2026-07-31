@@ -1,0 +1,136 @@
+# LVFR expone los switches eléctricos como LVars persistentes. Sistema eléctrico completo.
+
+- id: electrical.apu_master
+  dataType: boolean
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG ANTI ICE POSITION"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:APU_STARTER)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.gen_switch_left
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_GenSwitch_Left"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_Gen_Switch_Left)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.gen_switch_right
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_GenSwitch_Right"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_Gen_Switch_Right)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.apu_gen_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_APU_GenSwitch"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_APU_GenSwitch)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.external_power_available
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_ExtPowerAvail"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_ExtPower)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.bus_transfer_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_BusTransfer"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_BusTransfer)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.standby_power_switch
+  dataType: boolean
+  authority: shared
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_StandbyPower"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>H:LVFR_Airbus_StandbyPower)"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: electrical.bat_selector
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_ELEC_BATSWITCH_State"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "(L:XMLVAR_ELEC_BATSWITCH_State,number) $value != if{ $value (>L:XMLVAR_ELEC_BATSWITCH_State) }"
+  synchronization:
+    mode: event
+    debounceMs: 100
+    confirmAfterWrite: true
+    timeoutMs: 1000

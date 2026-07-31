@@ -1,0 +1,169 @@
+# Perfil minimo auditado desde los XML reales de LVFR A330-200 incluidos en
+# apps/desktop-ui/recurso/Aeronaves/lvfr-a330-200/. Estrategia:
+# - lectura de LVars via clientDataArea SharedCockpitBridge_LVars
+# - escritura por calculatorCode, envolviendo H: events cuando el addon no
+#   expone un set directo
+# - confirmAfterWrite true en selectores persistentes
+
+- id: autoflight.heading_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT HEADING LOCK DIR:3"
+  write:
+    type: calculatorCode
+    name: "(A:AUTOPILOT HEADING LOCK DIR:3,degrees) $value != if{ $value (>K:2:HEADING_BUG_SET) (A:AUTOPILOT HEADING LOCK DIR:3,degrees) $value < if{ (>H:LVFR_Airbus_CDU_AP_INC_HEADING) } els{ (>H:LVFR_Airbus_CDU_AP_DEC_HEADING) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.heading_mode_selected
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_CDU_MODE_SELECTED_HEADING) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.heading_mode_managed
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_CDU_MODE_MANAGED_HEADING) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.altitude_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT ALTITUDE LOCK VAR:3"
+  write:
+    type: calculatorCode
+    name: "(A:AUTOPILOT ALTITUDE LOCK VAR:3,feet) $value != if{ $value (>K:2:AP_ALT_VAR_SET_ENGLISH) (A:AUTOPILOT ALTITUDE LOCK VAR:3,feet) $value < if{ (>H:AP_KNOB_Up) (>H:LVFR_Airbus_CDU_AP_INC_ALT) } els{ (>H:AP_KNOB_Down) (>H:LVFR_Airbus_CDU_AP_DEC_ALT) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.altitude_mode_selected
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_CDU_MODE_SELECTED_ALTITUDE) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.altitude_mode_managed
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_CDU_MODE_MANAGED_ALTITUDE) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.altitude_increment
+  dataType: number
+  authority: shared
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_Autopilot_Altitude_Increment"
+    nativeType: float
+  write:
+    type: calculatorCode
+    name: "$value (>L:XMLVAR_Autopilot_Altitude_Increment)"
+  synchronization:
+    mode: event
+    debounceMs: 80
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.vertical_speed_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT VERTICAL HOLD VAR:3"
+  write:
+    type: calculatorCode
+    name: "(A:AUTOPILOT VERTICAL HOLD VAR:3,feet per minute) $value != if{ $value (>K:2:AP_VS_VAR_SET_ENGLISH) (A:AUTOPILOT VERTICAL HOLD VAR:3,feet per minute) $value < if{ (>H:LVFR_Airbus_FCU_VS_INC) } els{ (>H:LVFR_Airbus_FCU_VS_DEC) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.vertical_speed_hold
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_FCU_VS_HOLD) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.vertical_speed_zero
+  dataType: boolean
+  authority: shared
+  writeOnly: true
+  write:
+    type: calculatorCode
+    name: "$value 0 > if{ (>H:LVFR_Airbus_FCU_VS_ZERO) }"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: false
+
+- id: autoflight.airspeed_is_mach
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_AirSpeedIsInMach"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: autoflight.trk_fpa_mode_active
+  dataType: boolean
+  authority: shared
+  readOnly: true
+  sdkTier: clientDataArea
+  read:
+    type: clientDataArea
+    areaName: "SharedCockpitBridge_LVars"
+    field: "XMLVAR_TRK_FPA_MODE_ACTIVE"
+    nativeType: float
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false

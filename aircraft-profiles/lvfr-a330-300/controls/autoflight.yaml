@@ -1,0 +1,59 @@
+# LVFR A330-300 - Autopilot Control Scaffold
+# Patrones copiados del A330-200. Requiere validación contra XML real del A330-300.
+# TODO: Confirmar LVar names y eventos H: contra aircraft-profiles/lvfr-a330-300/...
+
+- id: autoflight.heading_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT HEADING LOCK DIR:3"
+  write:
+    type: calculatorCode
+    # TODO: Verificar evento H: correcto para A330-300
+    name: "(A:AUTOPILOT HEADING LOCK DIR:3,degrees) $value != if{ $value (>K:2:HEADING_BUG_SET) (A:AUTOPILOT HEADING LOCK DIR:3,degrees) $value < if{ (>H:LVFR_Airbus_CDU_AP_INC_HEADING) } els{ (>H:LVFR_Airbus_CDU_AP_DEC_HEADING) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.altitude_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT ALTITUDE LOCK VAR:3"
+  write:
+    type: calculatorCode
+    # TODO: Verificar evento H: correcto para A330-300
+    name: "(A:AUTOPILOT ALTITUDE LOCK VAR:3,feet) $value != if{ $value (>K:2:AP_ALT_VAR_SET_ENGLISH) (A:AUTOPILOT ALTITUDE LOCK VAR:3,feet) $value < if{ (>H:AP_KNOB_Up) (>H:LVFR_Airbus_CDU_AP_INC_ALT) } els{ (>H:AP_KNOB_Down) (>H:LVFR_Airbus_CDU_AP_DEC_ALT) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: autoflight.vertical_speed_selected
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "AUTOPILOT VERTICAL HOLD VAR:3"
+  write:
+    type: calculatorCode
+    # TODO: Verificar evento H: correcto para A330-300
+    name: "(A:AUTOPILOT VERTICAL HOLD VAR:3,feet per minute) $value != if{ $value (>K:2:AP_VS_VAR_SET_ENGLISH) (A:AUTOPILOT VERTICAL HOLD VAR:3,feet per minute) $value < if{ (>H:LVFR_Airbus_FCU_VS_INC) } els{ (>H:LVFR_Airbus_FCU_VS_DEC) } }"
+  synchronization:
+    mode: event
+    debounceMs: 120
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# TODO: Agregar controles adicionales:
+# - heading_mode_selected/managed
+# - altitude_mode_selected/managed
+# - vertical_speed_hold/zero
+# - airspeed_is_mach
+# - trk_fpa_mode_active
+# Ver A330-200 controls/autoflight.yaml para referencia completa

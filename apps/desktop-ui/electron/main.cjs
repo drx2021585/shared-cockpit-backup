@@ -14,6 +14,8 @@ const { autoUpdater } = require("electron-updater");
 // sockets dentro del mismo proceso (ver docs/decisiones/postgres-shared-backend.md).
 
 let mainWindow = null;
+let lastUpdaterEvent = null;
+let startupUpdateCheckInFlight = false;
 
 // autoDownload=false: el usuario confirma la descarga desde el modal
 // (UpdateModal.tsx) — mismo flujo que ya existía, ahora con datos reales en
@@ -24,7 +26,19 @@ autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.logger = console;
 
 function sendUpdaterEvent(payload) {
+  lastUpdaterEvent = payload;
   mainWindow?.webContents.send("updater:event", payload);
+}
+
+function runStartupUpdateCheck() {
+  if (!app.isPackaged || startupUpdateCheckInFlight) return;
+  startupUpdateCheckInFlight = true;
+  autoUpdater
+    .checkForUpdates()
+    .catch((err) => sendUpdaterEvent({ status: "error", message: String(err) }))
+    .finally(() => {
+      startupUpdateCheckInFlight = false;
+    });
 }
 
 autoUpdater.on("checking-for-update", () => sendUpdaterEvent({ status: "checking" }));
@@ -595,6 +609,12 @@ function createWindow() {
 
   mainWindow.on("maximize", () => mainWindow?.webContents.send("window:state", { maximized: true }));
   mainWindow.on("unmaximize", () => mainWindow?.webContents.send("window:state", { maximized: false }));
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (lastUpdaterEvent) {
+      mainWindow?.webContents.send("updater:event", lastUpdaterEvent);
+    }
+    runStartupUpdateCheck();
+  });
 
   const devServerUrl = process.env.ELECTRON_START_URL;
   if (devServerUrl) {
@@ -642,13 +662,6 @@ app.whenReady().then(() => {
   // haber cargado un avión en los primeros segundos de vida de la app, así que no
   // hay ninguna prisa por hacerlo antes.
   setTimeout(reinstallCommunityPackageIfOutdated, 3000);
-
-  if (app.isPackaged) {
-    // Chequeo silencioso al abrir la app — el resultado llega por el mismo
-    // canal de eventos que consume UpdateModal.tsx; si hay una versión
-    // nueva, la UI decide mostrar el aviso (ver App.tsx).
-    autoUpdater.checkForUpdates().catch((err) => sendUpdaterEvent({ status: "error", message: String(err) }));
-  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

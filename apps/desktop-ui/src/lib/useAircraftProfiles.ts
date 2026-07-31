@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchAircraftProfiles, type AircraftProfile } from "./apiClient";
+import { mergeLocalAircraftProfiles } from "./localAircraftProfiles";
 
 export interface AircraftProfilesState {
   profiles: AircraftProfile[];
@@ -18,7 +19,7 @@ function readStoredProfiles(): AircraftProfile[] | null {
     const raw = window.localStorage.getItem(AIRCRAFT_PROFILES_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as AircraftProfile[]) : null;
+    return Array.isArray(parsed) ? mergeLocalAircraftProfiles(parsed as AircraftProfile[]) : null;
   } catch {
     return null;
   }
@@ -26,7 +27,10 @@ function readStoredProfiles(): AircraftProfile[] | null {
 
 function storeProfiles(profiles: AircraftProfile[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(AIRCRAFT_PROFILES_STORAGE_KEY, JSON.stringify(profiles));
+  window.localStorage.setItem(
+    AIRCRAFT_PROFILES_STORAGE_KEY,
+    JSON.stringify(mergeLocalAircraftProfiles(profiles))
+  );
 }
 
 function getCachedProfiles(): AircraftProfile[] {
@@ -43,9 +47,10 @@ function loadAircraftProfiles() {
   if (!inFlightProfilesRequest) {
     inFlightProfilesRequest = fetchAircraftProfiles()
       .then((profiles) => {
-        cachedProfiles = profiles;
-        storeProfiles(profiles);
-        return profiles;
+        const mergedProfiles = mergeLocalAircraftProfiles(profiles);
+        cachedProfiles = mergedProfiles;
+        storeProfiles(mergedProfiles);
+        return mergedProfiles;
       })
       .finally(() => {
         inFlightProfilesRequest = null;

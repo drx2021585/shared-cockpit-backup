@@ -1,7 +1,11 @@
 import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
-import { useSimulatorBridge, type BridgeScreenSnapshot } from "../lib/bridgeClient";
+import {
+  MIN_SUPPORTED_BRIDGE_API_VERSION,
+  useSimulatorBridge,
+  type BridgeScreenSnapshot,
+} from "../lib/bridgeClient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   closeSession,
@@ -11,9 +15,10 @@ import {
   type Session,
   type SessionParticipant,
 } from "../lib/apiClient";
-import type { ControlAxis, ControlEvent, ScreenSnapshot } from "../../../../packages/protocol/types";
+import type { ControlAxis, ControlEvent, FlightPose, ScreenSnapshot } from "../../../../packages/protocol/types";
 import { recordPeerControl, recordSessionEvent, resetSessionJournal } from "../lib/sessionJournal";
 import { downloadDiagnosticsReport } from "../lib/diagnosticsReport";
+import { currentVersion } from "../data";
 
 /**
  * Cuánto tiempo se suprime el reenvío de un valor que acabamos de aplicar
@@ -28,6 +33,7 @@ const ECHO_SUPPRESSION_MS = 3000;
 const STALE_NETWORK_MS = 12_000;
 const STALE_FLIGHT_DATA_MS = 5_000;
 const STALE_SCREEN_MS = 8_000;
+const POSE_SEND_INTERVAL_MS = 100;
 
 interface CockpitProps {
   joinCode: string | null;
@@ -140,6 +146,16 @@ function seatOwnerLabel(seat: string | null, participants: SessionParticipant[])
   return owner ? owner.pilot_name : (SEAT_LABEL[seat] ?? seat);
 }
 
+function formatSimLabel(sim: "msfs2020" | "msfs2024" | null | undefined) {
+  if (sim === "msfs2024") return "Microsoft Flight Simulator 2024";
+  if (sim === "msfs2020") return "Microsoft Flight Simulator 2020";
+  return "Unknown";
+}
+
+function normalizeText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
 export function Cockpit({
   joinCode,
   pilotName,
@@ -170,6 +186,13 @@ export function Cockpit({
     [bridge],
   );
 
+  const handlePeerPose = useCallback(
+    (msg: FlightPose) => {
+      bridge.send(msg);
+    },
+    [bridge],
+  );
+
   const {
     connected,
     session,
@@ -178,6 +201,7 @@ export function Cockpit({
     lastPongAt,
     lastPeerControlAt,
     lastPeerAircraftAt,
+    lastPeerPoseAt,
     lastPeerScreenAt,
     peerAircraft,
     peerScreens,
@@ -189,6 +213,7 @@ export function Cockpit({
     localProfileId,
     bridge.simulatorVersion,
     handlePeerControl,
+    handlePeerPose,
   );
 
   // Reenvía a la sesión de red cada valor NUEVO que aparece en el bridge
@@ -281,6 +306,32 @@ export function Cockpit({
       } as ScreenSnapshot);
     }
   }, [bridge.controls, bridge.screens, connected, joinCode, pilotName, sendToSession]);
+
+  const lastSentPoseRef = useRef<{ sequence: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!connected || !joinCode || !bridge.pose) {
+      return;
+    }
+    const localSeat = session?.participants.find((p) => p.pilot_name === pilotName)?.seat ?? null;
+    const localHasFlightAuthority = !!localSeat && session?.controlOwner === localSeat;
+    if (!localHasFlightAuthority) {
+      return;
+    }
+
+    const previous = lastSentPoseRef.current;
+    if (previous && previous.sequence === bridge.pose.sequence) {
+      return;
+    }
+    if (previous && bridge.pose.updatedAt - previous.at < POSE_SEND_INTERVAL_MS) {
+      return;
+    }
+
+    lastSentPoseRef.current = { sequence: bridge.pose.sequence, at: bridge.pose.updatedAt };
+    sendToSession({
+      ...bridge.pose,
+      sessionId: joinCode,
+    });
+  }, [bridge.pose, connected, joinCode, pilotName, sendToSession, session]);
   // --- Bitácora para el reporte de diagnóstico -------------------------------
   // Una sesión nueva empieza con la bitácora limpia: lo de la anterior no
   // describe nada de esta.
@@ -399,7 +450,7 @@ export function Cockpit({
   if (!joinCode || !pilotName) {
     return (
       <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
-        <div className="section-head section-top" style={{ marginBottom: 6, paddingTop: 16 }}>
+        <div className="section-head" style={{ marginBottom: 6, paddingTop: 16 }}>
           <h2 className="h2-modal">In cockpit</h2>
         </div>
         <p className="lead-sm" style={{ maxWidth: 560 }}>
@@ -431,6 +482,9 @@ export function Cockpit({
     !!remotePilotAircraft &&
     !!lastPeerAircraftAt &&
     now - lastPeerAircraftAt <= STALE_FLIGHT_DATA_MS;
+  const peerPoseFresh =
+    !!lastPeerPoseAt &&
+    now - lastPeerPoseAt <= STALE_FLIGHT_DATA_MS;
   const peerControlsFresh =
     !!lastPeerControlAt &&
     now - lastPeerControlAt <= STALE_FLIGHT_DATA_MS;
@@ -446,7 +500,7 @@ export function Cockpit({
   const peerDataStatus =
     remotePilotNames.size === 0
       ? "warn"
-      : peerFlightDataFresh || peerControlsFresh
+      : peerFlightDataFresh || peerControlsFresh || peerPoseFresh
         ? "ok"
         : connected
           ? "warn"
@@ -462,13 +516,31 @@ export function Cockpit({
     (!!remotePilotAircraft
       ? remotePilotAircraft.profileId !== localProfileId
       : localProfileId !== session?.aircraftProfileId);
+  const variantMismatch =
+    !aircraftMismatch &&
+    !!bridge.detectedTitle &&
+    !!remotePilotAircraft?.detectedTitle &&
+    normalizeText(bridge.detectedTitle) !== normalizeText(remotePilotAircraft.detectedTitle);
   const simulatorMismatch =
     !!bridge.simulatorVersion &&
     (!!remotePilotAircraft?.simulatorVersion
       ? remotePilotAircraft.simulatorVersion !== bridge.simulatorVersion
       : bridge.simulatorVersion !== session?.sim);
+  const appVersionMismatch =
+    !!remotePilotAircraft?.appVersion &&
+    remotePilotAircraft.appVersion !== currentVersion;
+  const bridgeCompatibilityError =
+    bridge.connectionState === "connected" &&
+    (bridge.bridgeApiVersion === null || bridge.bridgeApiVersion < MIN_SUPPORTED_BRIDGE_API_VERSION);
+  const setupMismatchReasons = [
+    aircraftMismatch ? "aircraft" : null,
+    variantMismatch ? "variant" : null,
+    simulatorMismatch ? "simulator" : null,
+    appVersionMismatch ? "app version" : null,
+  ].filter((value): value is string => value !== null);
+  const setupMismatch = setupMismatchReasons.length > 0;
   const aircraftMatched =
-    !aircraftMismatch && !simulatorMismatch && !!localProfileId && !!remotePilotAircraft;
+    !setupMismatch && !!localProfileId && !!remotePilotAircraft;
   const previousAircraftMatchedRef = useRef(false);
 
   useEffect(() => {
@@ -483,7 +555,7 @@ export function Cockpit({
 
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
-      <div className="section-head section-top" style={{ marginBottom: 6, paddingTop: 16 }}>
+      <div className="section-head" style={{ marginBottom: 6, paddingTop: 16 }}>
         <h2 className="h2-modal">In cockpit</h2>
         <button
           className="btn"
@@ -520,7 +592,29 @@ export function Cockpit({
         </span>
       </div>
 
-      {(aircraftMismatch || simulatorMismatch) && (
+      {bridgeCompatibilityError && (
+        <div
+          className="connected-banner"
+          style={{
+            borderColor: "rgba(226,76,75,0.4)",
+            background: "rgba(226,76,75,0.08)",
+            marginTop: 12,
+          }}
+        >
+          <span className="connected-dot" style={{ background: "#e24c4b" }} />
+          <span className="connected-label" style={{ color: "#e24c4b" }}>Bridge update required</span>
+          <span className="connected-desc">
+            {`This app requires bridge API ${MIN_SUPPORTED_BRIDGE_API_VERSION} or newer. `}
+            {bridge.bridgeApiVersion === null
+              ? "Your local bridge is too old to report its compatibility level."
+              : `Your local bridge reports API ${bridge.bridgeApiVersion}.`}
+            {bridge.bridgeBuildVersion ? ` Build ${bridge.bridgeBuildVersion}.` : ""}
+            {" Close any old manual bridge and reopen We Connect so the bundled bridge starts."}
+          </span>
+        </div>
+      )}
+
+      {setupMismatch && (
         <div
           className="connected-banner"
           style={{
@@ -532,12 +626,12 @@ export function Cockpit({
           <span className="connected-dot" style={{ background: "#e2b64c" }} />
           <span className="connected-label" style={{ color: "#e2b64c" }}>Setup mismatch</span>
           <span className="connected-desc">
-            {aircraftMismatch && simulatorMismatch
-              ? "The pilots are using different aircraft and simulator versions. Match both before continuing."
-              : aircraftMismatch
-                ? "The pilots are using different aircraft. Match them before continuing."
-                : "The pilots are using different simulator versions. Match them before continuing."}
+            {`Mismatch found in: ${setupMismatchReasons.join(", ")}. Match both sides before continuing.`}
           </span>
+          <div style={{ width: "100%", marginTop: 10, fontSize: 12, color: "var(--text-65)" }}>
+            <div><strong>You:</strong> {localProfileId ?? "Unknown aircraft"} · {bridge.detectedTitle ?? "Unknown variant"} · {formatSimLabel(bridge.simulatorVersion)} · v{currentVersion}</div>
+            <div><strong>Peer:</strong> {remotePilotAircraft?.profileId ?? session?.aircraftProfileId ?? "Unknown aircraft"} · {remotePilotAircraft?.detectedTitle ?? "Unknown variant"} · {formatSimLabel(remotePilotAircraft?.simulatorVersion ?? session?.sim ?? null)} · v{remotePilotAircraft?.appVersion ?? "Unknown"}</div>
+          </div>
         </div>
       )}
 
@@ -594,7 +688,7 @@ export function Cockpit({
               <button
                 className="btn"
                 onClick={() => handleControlAction("give")}
-                disabled={sessionActionBusy || aircraftMismatch || simulatorMismatch}
+                disabled={sessionActionBusy || setupMismatch || bridgeCompatibilityError}
                 style={{ marginTop: 12 }}
               >
                 Give controls to {seatOwnerLabel(session.controlRequestedBy, session.participants)}
@@ -606,8 +700,8 @@ export function Cockpit({
                 onClick={() => handleControlAction("request")}
                 disabled={
                   sessionActionBusy ||
-                  aircraftMismatch ||
-                  simulatorMismatch ||
+                  setupMismatch ||
+                  bridgeCompatibilityError ||
                   (!!localParticipant && session?.controlRequestedBy === localParticipant.seat)
                 }
                 style={{ marginTop: 12 }}
@@ -631,7 +725,9 @@ export function Cockpit({
                 label: "Local bridge",
                 value:
                   bridge.connectionState === "connected"
-                    ? bridgeHealthy
+                    ? bridgeCompatibilityError
+                      ? "Incompatible build"
+                      : bridgeHealthy
                       ? "Healthy"
                       : "Connected but stale"
                     : bridge.connectionState === "connecting"
@@ -639,14 +735,14 @@ export function Cockpit({
                       : bridge.connectionState === "no-bridge-running"
                         ? "Not running"
                         : "Disconnected",
-                status: bridgeStatus as "ok" | "warn" | "bad",
+                status: (bridgeCompatibilityError ? "bad" : bridgeStatus) as "ok" | "warn" | "bad",
               },
               {
                 label: "Peer flight data",
                 value:
                   remotePilotNames.size === 0
                     ? "Waiting for peer"
-                    : peerFlightDataFresh || peerControlsFresh
+                    : peerFlightDataFresh || peerControlsFresh || peerPoseFresh
                       ? "Fresh"
                       : "No recent data",
                 status: peerDataStatus as "ok" | "warn" | "bad",
@@ -792,6 +888,20 @@ export function Cockpit({
                   : "—"}
             </div>
           </div>
+          <div className="net-row">
+            <div className="net-label">App version</div>
+            <div className="net-value">v{currentVersion}</div>
+          </div>
+          <div className="net-row">
+            <div className="net-label">Bridge build</div>
+            <div className="net-value">
+              {bridge.bridgeBuildVersion
+                ? `v${bridge.bridgeBuildVersion} · API ${bridge.bridgeApiVersion ?? "?"}`
+                : bridge.bridgeApiVersion !== null
+                  ? `API ${bridge.bridgeApiVersion}`
+                  : "Unknown"}
+            </div>
+          </div>
 
           <div className="divider-row" style={{ marginTop: 24, marginBottom: 10, border: "none" }}>
             <div className="mono-label">Network</div>
@@ -856,6 +966,7 @@ export function Cockpit({
             </h2>
             <p style={{ color: "var(--text-55)", fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>
               Ambos pilotos estan usando el mismo modelo de avion y la misma version del simulador.
+              Tambien coinciden en la variante detectada y la version de la app.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button

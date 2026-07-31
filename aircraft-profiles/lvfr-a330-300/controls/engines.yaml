@@ -1,0 +1,40 @@
+# LVFR A330-300 - Engines Control Scaffold
+# Motores y APU - Requiere auditoría del XML del A330-300
+
+- id: engine.throttle_left
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG THROTTLE LEVER POSITION:1"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:THROTTLE1_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+- id: engine.throttle_right
+  dataType: number
+  authority: shared
+  read:
+    type: simvar
+    name: "GENERAL ENG THROTTLE LEVER POSITION:2"
+  write:
+    type: calculatorCode
+    name: "$value (>K:2:THROTTLE2_SET)"
+  synchronization:
+    mode: event
+    debounceMs: 50
+    confirmAfterWrite: true
+    timeoutMs: 1000
+
+# TODO: Agregar controles faltantes:
+# - fuel_control_switch_left / fuel_control_switch_right
+# - start_selector_left / start_selector_right
+# - engine_mode_selector
+# - anti_ice_left / anti_ice_right
+# - Engine monitoring (temp, vibration, oil pressure, etc.)
+# Ver A330-200 controls/engines.yaml para estructura completa

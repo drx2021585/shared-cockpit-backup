@@ -30,6 +30,10 @@ variants:
   - "PMDG 737-700"
   - "PMDG 737-800"
   - "PMDG 737-900"
+  - "PMDG 737 BBJ2"
+  - "PMDG 737 900ER"
+  - "PMDG 737 800 BDSF"
+  - "PMDG 737 800 BCF"
 
 # titleContains cubre TODA la familia 737 NG de PMDG, no solo el 900. El match
 # es substring case-insensitive (ver ProfileMatcher.cs), así que las cuatro

@@ -1,0 +1,106 @@
+# LVFR A330-300 - Scaffold en desarrollo
+# Estructura lista para implementación completa. Basada en patrones del A330-200.
+
+systems:
+  flightControls:
+    level: partial
+    controls: [yoke, rudder, trim, flaps, slats, spoilers, gear]
+    description: "Control básico de superficies de vuelo - PENDIENTE: compensadores completos"
+    missing: [trim_pitch_complete, trim_roll_complete, trim_yaw_complete, yaw_damper, alternate_fctl]
+
+  autopilot:
+    level: partial
+    controls: [heading_selected, altitude_selected, vertical_speed_selected]
+    description: "Sistema de autopiloto básico - PENDIENTE: modos completos, validación en vivo"
+    missing: [managed_modes, full_validation, speed_knob_absolute]
+
+  electrical:
+    level: partial
+    controls: [bat_selector]
+    description: "Selector de batería solo - PENDIENTE: generadores, APU, transferencias"
+    missing: [gen_switches, apu_master, apu_gen, external_power, bus_transfers, standby_power]
+
+  hydraulics:
+    level: partial
+    controls: []
+    description: "Sistema hidráulico - PENDIENTE: auditoría completa contra XML del addon"
+    missing: [all_hydraulic_systems]
+
+  radios:
+    level: partial
+    controls: []
+    description: "Radios y navegación - PENDIENTE: mapeo de eventos"
+    missing: [com_frequencies, nav_frequencies, adf_frequencies, transponder]
+
+  mcdu:
+    level: none
+    controls: []
+    description: "MCDU/CDU - PENDIENTE: auditoría de eventos H: contra addon LVFR"
+    missing: [complete_keyboard]
+
+  engine:
+    level: partial
+    controls: []
+    description: "Motores y APU - PENDIENTE: throttle, fuel control, start selectors"
+    missing: [throttle_levers, fuel_control_switches, start_selectors, engine_monitoring]
+
+  fuel:
+    level: partial
+    controls: []
+    description: "Sistema de combustible - PENDIENTE: transferencias, pumps, monitoring"
+    missing: [fuel_quantities, fuel_transfers, fuel_pumps, cg_trim]
+
+  antiIce:
+    level: partial
+    controls: []
+    description: "Anti-ice - PENDIENTE: wing anti-ice, engine anti-ice, probe heat, window heat"
+    missing: [wing_anti_ice, engine_anti_ice, probe_heaters, window_heaters, duct_heaters]
+
+  instruments:
+    level: partial
+    controls: [nd_range]
+    description: "Instrumentos - PENDIENTE: EFIS completo, HSI, displays"
+    missing: [efis_modes, hsi_course, nav_obs, altitude_display, speed_display]
+
+  air:
+    level: partial
+    controls: []
+    description: "Aire acondicionado y presurización - PENDIENTE: auditoria"
+    missing: [pressurization, conditioning, bleed_air_control]
+
+  failures:
+    level: none
+    controls: []
+    description: "Sistema de fallos - PENDIENTE: NO AUDITADO"
+    missing: [all_failure_systems]
+
+  fireProtection:
+    level: none
+    controls: []
+    description: "Protección contra incendios - PENDIENTE: NO AUDITADO"
+    missing: [fire_detection, fire_suppression]
+
+  warnings:
+    level: none
+    controls: []
+    description: "Sistema de advertencias - PENDIENTE: NO AUDITADO"
+    missing: [master_warning, master_caution]
+
+  cabinMisc:
+    level: partial
+    controls: []
+    description: "Sistemas varios de cabina - PENDIENTE: auditoria"
+    missing: [oxygen_system, lighting, cabin_pressure]
+
+  efb:
+    level: none
+    controls: []
+    description: "Electronic Flight Bag - Intencionalmente excluido"
+    missing: [intentionally_excluded]
+
+# NOTAS DE DESARROLLO:
+# 1. Comprobar XML del LVFR A330-300 para LVar names y eventos H:
+#    - Esperado en: apps/desktop-ui/recurso/Aeronaves/lvfr-a330-300/
+# 2. Copiar patrones del A330-200 y adaptar a A330-300
+# 3. Validar en vivo antes de marcar como "live-tested"
+# 4. Crear EVENT_IDS_PENDIENTES.md con checklist de validación

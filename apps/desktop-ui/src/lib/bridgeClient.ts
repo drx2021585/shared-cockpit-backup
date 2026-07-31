@@ -4,6 +4,7 @@ import type {
   AircraftSnapshot,
   ControlAxis,
   ControlEvent,
+  FlightPose,
   ScreenSnapshot,
   SharedCockpitMessage,
 } from "../../../../packages/protocol/types";
@@ -35,6 +36,8 @@ export type BridgeConnectionState =
   | "connected"
   | "disconnected"
   | "no-bridge-running";
+
+export const MIN_SUPPORTED_BRIDGE_API_VERSION = 2;
 
 export interface BridgeControlValue {
   controlId: string;
@@ -71,6 +74,10 @@ export interface BridgeScreenSnapshot {
   updatedAt: number;
 }
 
+export interface BridgeFlightPose extends FlightPose {
+  updatedAt: number;
+}
+
 export interface SimulatorBridgeState {
   mode: BridgeMode;
   connectionState: BridgeConnectionState;
@@ -85,7 +92,11 @@ export interface SimulatorBridgeState {
   /** Último aircraft.snapshot recibido (o generado en mock), si alguno. */
   snapshot: AircraftSnapshot | null;
   detectedProfileId: string | null;
+  detectedTitle: string | null;
   simulatorVersion: "msfs2020" | "msfs2024" | null;
+  bridgeApiVersion: number | null;
+  bridgeBuildVersion: string | null;
+  pose: BridgeFlightPose | null;
   /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
   controls: Record<string, BridgeControlValue>;
   /** Última pantalla conocida por screenId (ej. cdu_captain/cdu_fo). */
@@ -97,7 +108,7 @@ export interface SimulatorBridgeState {
    * Cockpit.tsx). No-op en modo mock (no hay bridge real al que escribir) y
    * si el WebSocket no está abierto todavía.
    */
-  send: (msg: ControlEvent | ControlAxis) => void;
+  send: (msg: ControlEvent | ControlAxis | FlightPose) => void;
 }
 
 const BRIDGE_WS_URL = "ws://localhost:7620";
@@ -113,7 +124,7 @@ export function resolveBridgeMode(): BridgeMode {
   return raw === "mock" ? "mock" : "real";
 }
 
-function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis) => void = () => {}): SimulatorBridgeState {
+function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis | FlightPose) => void = () => {}): SimulatorBridgeState {
   return {
     mode,
     connectionState: "connecting",
@@ -121,7 +132,11 @@ function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis) =>
     diagnostics: null,
     snapshot: null,
     detectedProfileId: null,
+    detectedTitle: null,
     simulatorVersion: null,
+    bridgeApiVersion: null,
+    bridgeBuildVersion: null,
+    pose: null,
     controls: {},
     screens: {},
     lastMessageAt: null,
@@ -137,13 +152,21 @@ function applyMessage(
   if ((msg as unknown as { type: string }).type === "bridge.status") {
     const status = msg as unknown as {
       matchedProfileId?: string | null;
+      detectedTitle?: string | null;
       simulatorVersion?: "msfs2020" | "msfs2024";
+      bridgeApiVersion?: number;
+      bridgeBuildVersion?: string | null;
     };
     return {
       ...state,
       lastMessageAt: now,
       detectedProfileId: status.matchedProfileId ?? null,
+      detectedTitle: status.detectedTitle ?? null,
       simulatorVersion: status.simulatorVersion ?? null,
+      bridgeApiVersion:
+        typeof status.bridgeApiVersion === "number" ? status.bridgeApiVersion : null,
+      bridgeBuildVersion:
+        typeof status.bridgeBuildVersion === "string" ? status.bridgeBuildVersion : null,
     };
   }
   if ((msg as unknown as { type: string }).type === "bridge.error") {
@@ -203,6 +226,16 @@ function applyMessage(
   if (msg.type === "aircraft.snapshot") {
     return { ...state, lastMessageAt: now, snapshot: msg as AircraftSnapshot };
   }
+  if (msg.type === "flight.pose") {
+    return {
+      ...state,
+      lastMessageAt: now,
+      pose: {
+        ...(msg as FlightPose),
+        updatedAt: now,
+      },
+    };
+  }
   if (msg.type === "screen.snapshot") {
     const screen = msg as ScreenSnapshot;
     return {
@@ -259,7 +292,7 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
   // build web puro o si el bridge corre lanzado a mano) — ver preload.cjs.
   let bridgeToken: string | null = null;
 
-  function send(msg: ControlEvent | ControlAxis) {
+  function send(msg: ControlEvent | ControlAxis | FlightPose) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return;
     }
@@ -390,10 +423,32 @@ function runMockBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
         sessionId: "mock-session",
         revision: 0,
         profile: "mock-generic-aircraft",
+        simulatorVersion: "msfs2020",
+        detectedTitle: "Mock Generic Aircraft",
+        appVersion: "mock",
         systems: {},
       },
       detectedProfileId: "mock-generic-aircraft",
+      detectedTitle: "Mock Generic Aircraft",
       simulatorVersion: "msfs2020",
+      bridgeApiVersion: MIN_SUPPORTED_BRIDGE_API_VERSION,
+      bridgeBuildVersion: "mock",
+      pose: {
+        type: "flight.pose",
+        sessionId: "mock-session",
+        sequence: 1,
+        timestamp: Date.now(),
+        lat: 18.438,
+        lon: -66.002,
+        alt: 1200,
+        pitch: 1.5,
+        bank: 0.2,
+        heading: 182,
+        groundSpeed: 138,
+        indicatedAirspeed: 136,
+        verticalSpeed: 200,
+        updatedAt: Date.now(),
+      },
     }));
   }, 400);
 

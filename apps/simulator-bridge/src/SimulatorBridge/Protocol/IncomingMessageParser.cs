@@ -27,6 +27,21 @@ public sealed record IncomingControlAxis(
     long Timestamp,
     MessageOrigin Origin) : IncomingMessage(Origin);
 
+public sealed record IncomingFlightPose(
+    string SessionId,
+    long Sequence,
+    long Timestamp,
+    double Lat,
+    double Lon,
+    double Alt,
+    double Pitch,
+    double Bank,
+    double Heading,
+    double GroundSpeed,
+    double IndicatedAirspeed,
+    double VerticalSpeed,
+    MessageOrigin Origin) : IncomingMessage(Origin);
+
 public sealed record IncomingUnknown(string RawType, MessageOrigin Origin) : IncomingMessage(Origin);
 
 /// <summary>
@@ -87,6 +102,23 @@ public static class IncomingMessageParser
                     Value: valueNode.GetValue<double>(),
                     Sequence: obj["sequence"]?.GetValue<long>() ?? 0,
                     Timestamp: obj["timestamp"]?.GetValue<long>() ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    Origin: MessageOrigin.Remote);
+            }
+            case MessageTypes.FlightPose:
+            {
+                return new IncomingFlightPose(
+                    SessionId: obj["sessionId"]?.GetValue<string>() ?? string.Empty,
+                    Sequence: obj["sequence"]?.GetValue<long>() ?? 0,
+                    Timestamp: obj["timestamp"]?.GetValue<long>() ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    Lat: obj["lat"]?.GetValue<double>() ?? 0d,
+                    Lon: obj["lon"]?.GetValue<double>() ?? 0d,
+                    Alt: obj["alt"]?.GetValue<double>() ?? 0d,
+                    Pitch: obj["pitch"]?.GetValue<double>() ?? 0d,
+                    Bank: obj["bank"]?.GetValue<double>() ?? 0d,
+                    Heading: obj["heading"]?.GetValue<double>() ?? 0d,
+                    GroundSpeed: obj["groundSpeed"]?.GetValue<double>() ?? 0d,
+                    IndicatedAirspeed: obj["indicatedAirspeed"]?.GetValue<double>() ?? 0d,
+                    VerticalSpeed: obj["verticalSpeed"]?.GetValue<double>() ?? 0d,
                     Origin: MessageOrigin.Remote);
             }
             default:

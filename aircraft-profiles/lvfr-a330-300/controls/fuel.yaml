@@ -1,0 +1,42 @@
+# LVFR A330-300 - Fuel System Control Scaffold
+# Requiere auditoría del sistema de combustible del A330-300
+
+- id: fuel.fuel_quantity_left
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "FUEL LEFT QUANTITY"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.fuel_quantity_center
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "FUEL CENTER QUANTITY"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+- id: fuel.fuel_quantity_right
+  dataType: number
+  authority: shared
+  readOnly: true
+  read:
+    type: simvar
+    name: "FUEL RIGHT QUANTITY"
+  synchronization:
+    mode: polled
+    confirmAfterWrite: false
+
+# TODO: Agregar controles faltantes:
+# - fuel_flow_left / fuel_flow_right
+# - fuel_pump_left_ac / fuel_pump_right_ac / fuel_pump_center_ac
+# - center_transfer_running / outer_transfer_running
+# - target_cg / trim_mode
+# Ver A330-200 controls/fuel.yaml para estructura completa

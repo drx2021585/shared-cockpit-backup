@@ -53,8 +53,28 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
 
   // --- syncAircraftProfiles / listAircraftProfiles ---
   if (text.includes("INSERT INTO aircraft_profiles (id, name, developer")) {
-    const [id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024] = params;
-    state.profiles.set(id, { id, name, developer, version, coverage, capabilities_json, msfs2020, msfs2024 });
+    const isLegacyInsert = params.length === 8;
+    const [id, name, developer, version] = params;
+    const availability = isLegacyInsert ? "released" : params[4];
+    const coverage = isLegacyInsert ? params[4] : params[5];
+    const capabilities_json = isLegacyInsert ? params[5] : params[6];
+    const msfs2020 = isLegacyInsert ? params[6] : params[7];
+    const msfs2024 = isLegacyInsert ? params[7] : params[8];
+    const verified = isLegacyInsert ? false : params[9];
+    const variants_json = isLegacyInsert ? "[]" : params[10];
+    state.profiles.set(id, {
+      id,
+      name,
+      developer,
+      version,
+      availability,
+      coverage,
+      capabilities_json,
+      msfs2020,
+      msfs2024,
+      verified,
+      variants_json,
+    });
     return { rows: [] };
   }
   if (text.includes("SELECT * FROM aircraft_profiles ORDER BY coverage DESC")) {
@@ -70,10 +90,14 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
   }
 
   // --- createSession: lookup del perfil ---
-  if (text.includes("SELECT id, msfs2020, msfs2024 FROM aircraft_profiles WHERE id = $1")) {
+  if (text.includes("SELECT id, availability, msfs2020, msfs2024 FROM aircraft_profiles WHERE id = $1")) {
     const [id] = params;
     const p = state.profiles.get(id);
-    return { rows: p ? [{ id: p.id, msfs2020: p.msfs2020, msfs2024: p.msfs2024 }] : [] };
+    return {
+      rows: p
+        ? [{ id: p.id, availability: p.availability ?? "released", msfs2020: p.msfs2020, msfs2024: p.msfs2024 }]
+        : [],
+    };
   }
 
   // --- createSession: insert de la sesión ---

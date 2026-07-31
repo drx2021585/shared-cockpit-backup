@@ -1,0 +1,48 @@
+schemaVersion: 1
+
+availability: released
+
+# Completado 2026-07-30: Todos los sistemas implementados. Requiere validación en vivo.
+
+aircraft:
+  id: lvfr-a330-300
+  name: LVFR A330-300
+  developer: LatinVFR
+
+compatibility:
+  msfs2020: true
+  msfs2024: false
+
+verification: untested-live-ready
+
+versions:
+  minimum: "1.0.0"
+  tested:
+    - "1.0.0-beta"
+
+variants:
+  - "LVFR A330-300"
+  - "LVFR A330-300F"
+
+detection:
+  titleContains:
+    - "LVFR A330-300"
+    - "Airbus A330-300"
+
+capabilities:
+  flightControls: full
+  autopilot: full
+  electrical: full
+  hydraulics: full
+  radios: full
+  mcdu: full
+  failures: partial
+  air: partial
+  antiIce: full
+  engine: full
+  fuel: full
+  fireProtection: partial
+  instruments: full
+  warnings: partial
+  efb: none
+  cabinMisc: partial

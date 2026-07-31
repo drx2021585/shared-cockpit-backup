@@ -50,7 +50,7 @@ export function Profile({
 
   return (
     <div className="section" style={{ paddingTop: 32, paddingBottom: 64 }}>
-      <div className="section-head section-top" style={{ marginBottom: 10 }}>
+      <div className="section-head" style={{ marginBottom: 10 }}>
         <h2 className="h2-sm">My profile</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560 }}>

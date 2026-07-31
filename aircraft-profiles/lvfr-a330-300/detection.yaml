@@ -1,0 +1,9 @@
+# Detección del LVFR A330-300 basada en título ATC
+# El addon no versionan aircraft.cfg dentro de este repo, se usa match conservador por nombre comercial
+
+titleContains:
+  - "LVFR A330-300"
+  - "Airbus A330-300"
+  - "LVFR A330-300F"  # Variante carga
+
+fallbackToPartialMatch: false

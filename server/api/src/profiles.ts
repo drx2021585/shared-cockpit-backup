@@ -90,6 +90,7 @@ export interface ScannedProfile {
   developer: string;
   schemaVersion: number;
   version: string;
+  availability: "released" | "soon";
   coverage: number; // 0-100, calculado, no inventado
   capabilities: Record<string, string>;
   compatibility: { msfs2020: boolean; msfs2024: boolean };
@@ -193,6 +194,7 @@ export function scanAircraftProfiles(): ScannedProfile[] {
       developer: manifest.aircraft.developer,
       schemaVersion: manifest.schemaVersion,
       version: manifest.versions?.tested?.[manifest.versions.tested.length - 1] ?? "unknown",
+      availability: manifest.availability === "soon" ? "soon" : "released",
       coverage: computeCoverage(manifest.capabilities ?? {}, controls),
       capabilities: manifest.capabilities ?? {},
       compatibility: manifest.compatibility ?? { msfs2020: false, msfs2024: false },
