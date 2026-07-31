@@ -13,7 +13,8 @@ import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
-import { prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
+import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
+import { readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
 import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
@@ -59,6 +60,7 @@ export function App() {
     minVersion: null,
     latestVersion: null,
   });
+  const [relayConfig, setRelayConfig] = useState<RelayConfig>(() => readRelayConfig());
 
   useEffect(() => {
     prefetchAircraftProfiles();
@@ -85,7 +87,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [relayConfig]);
 
   useEffect(() => {
     const setup = window.weconnectSetup;
@@ -154,6 +156,13 @@ export function App() {
     setView("home");
   }
 
+  function handleRelayConfigChange(nextConfig: RelayConfig) {
+    writeRelayConfig(nextConfig);
+    invalidateAircraftProfilesCache();
+    prefetchAircraftProfiles();
+    setRelayConfig(readRelayConfig());
+  }
+
   function renderView() {
     switch (view) {
       case "home":
@@ -186,6 +195,8 @@ export function App() {
             onCheckForUpdates={() => setUpdateModalOpen(true)}
             communityPath={communityPath}
             onChangeFlightSimFolder={() => setShowFirstLaunchSetup(true)}
+            relayConfig={relayConfig}
+            onRelayConfigChange={handleRelayConfigChange}
           />
         );
     }

@@ -14,8 +14,8 @@
 // quedó desconectado y "Redeploy" seguía sirviendo un build viejo (nunca
 // recogía commits nuevos) — ver render.yaml en la raíz del repo. La base de
 // datos (Supabase) no cambió, solo dónde corre este proceso.
-const API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
 import { currentVersion } from "../data";
+import { getRelayApiBaseUrl } from "./relayConfig";
 
 export interface ServerHealth {
   status: "ok";
@@ -96,8 +96,8 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+async function request<T>(path: string, init?: RequestInit, baseUrl = getRelayApiBaseUrl()): Promise<T> {
+  const res = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -125,8 +125,8 @@ export function fetchAircraftProfiles() {
   return request<AircraftProfile[]>("/api/aircraft-profiles");
 }
 
-export function fetchServerHealth() {
-  return request<ServerHealth>("/api/health");
+export function fetchServerHealth(baseUrl?: string) {
+  return request<ServerHealth>("/api/health", undefined, baseUrl);
 }
 
 export async function createSession(input: {
@@ -170,7 +170,7 @@ export function fetchSession(joinCode: string) {
 // parámetro pilotName se mantiene en las firmas para no romper a los
 // llamadores, pero no viaja.
 export async function closeSession(joinCode: string, _pilotName?: string) {
-  const res = await fetch(`${API_BASE}/api/sessions/${joinCode}`, {
+  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
@@ -182,7 +182,7 @@ export async function closeSession(joinCode: string, _pilotName?: string) {
 }
 
 async function postSessionAction(joinCode: string, action: string) {
-  const res = await fetch(`${API_BASE}/api/sessions/${joinCode}/${action}`, {
+  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}/${action}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({}),
@@ -207,5 +207,5 @@ export function giveControls(joinCode: string, _pilotName?: string) {
 }
 
 export function apiBaseUrl() {
-  return API_BASE;
+  return getRelayApiBaseUrl();
 }

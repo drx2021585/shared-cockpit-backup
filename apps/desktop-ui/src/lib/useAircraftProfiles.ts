@@ -74,6 +74,14 @@ export function prefetchAircraftProfiles() {
   });
 }
 
+export function invalidateAircraftProfilesCache() {
+  cachedProfiles = null;
+  inFlightProfilesRequest = null;
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(AIRCRAFT_PROFILES_STORAGE_KEY);
+  }
+}
+
 /**
  * Trae el catálogo real de aeronaves desde server/api, que a su vez lo lee
  * de aircraft-profiles (el bloque `capabilities` de manifest.yaml de cada

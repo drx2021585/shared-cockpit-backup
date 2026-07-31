@@ -1,5 +1,12 @@
 import { currentVersion, versionHistory } from "../data";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchServerHealth } from "../lib/apiClient";
+import {
+  getDefaultRelayApiBaseUrl,
+  normalizeRelayBaseUrl,
+  type RelayConfig,
+} from "../lib/relayConfig";
+import { usePublicIp } from "../lib/useNetworkInfo";
 
 interface ProfileProps {
   pilotName: string;
@@ -7,6 +14,8 @@ interface ProfileProps {
   onCheckForUpdates: () => void;
   communityPath?: string | null;
   onChangeFlightSimFolder?: () => void;
+  relayConfig: RelayConfig;
+  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
 export function Profile({
@@ -15,9 +24,20 @@ export function Profile({
   onCheckForUpdates,
   communityPath,
   onChangeFlightSimFolder,
+  relayConfig,
+  onRelayConfigChange,
 }: ProfileProps) {
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
+  const [relayDraft, setRelayDraft] = useState(relayConfig.customBaseUrl);
+  const [relayMessage, setRelayMessage] = useState<string | null>(null);
+  const [relayError, setRelayError] = useState<string | null>(null);
+  const [testingRelay, setTestingRelay] = useState(false);
+  const { ipv4 } = usePublicIp();
+
+  useEffect(() => {
+    setRelayDraft(relayConfig.customBaseUrl);
+  }, [relayConfig.customBaseUrl]);
 
   function toggleVersion(version: string) {
     setExpandedVersions((current) => ({
@@ -48,6 +68,44 @@ export function Profile({
     });
   }
 
+  async function handleSaveRelay(mode: RelayConfig["mode"]) {
+    setRelayError(null);
+    setRelayMessage(null);
+    const nextBaseUrl = mode === "self-hosted" ? normalizeRelayBaseUrl(relayDraft) : "";
+    if (mode === "self-hosted" && !nextBaseUrl) {
+      setRelayError("Enter the IP or URL of the relay host, for example http://192.168.1.20:8787");
+      return;
+    }
+    onRelayConfigChange({ mode, customBaseUrl: nextBaseUrl });
+    setRelayDraft(nextBaseUrl);
+    setRelayMessage(
+      mode === "managed"
+        ? "Using the We Connect hosted relay again."
+        : `Self-hosted relay saved: ${nextBaseUrl}`
+    );
+  }
+
+  async function handleTestRelay() {
+    const normalized = normalizeRelayBaseUrl(relayDraft);
+    if (!normalized) {
+      setRelayError("Enter the IP or URL of the relay host first.");
+      return;
+    }
+    setTestingRelay(true);
+    setRelayError(null);
+    setRelayMessage(null);
+    try {
+      const health = await fetchServerHealth(normalized);
+      setRelayMessage(
+        `Relay reachable. API v${health.apiVersion} · min app ${health.minClientVersion} · latest ${health.latestClientVersion}`
+      );
+    } catch {
+      setRelayError("Could not reach that relay. Check the IP, port, firewall and that server/api is running.");
+    } finally {
+      setTestingRelay(false);
+    }
+  }
+
   return (
     <div className="section" style={{ paddingTop: 32, paddingBottom: 64 }}>
       <div className="section-head" style={{ marginBottom: 10 }}>
@@ -73,6 +131,62 @@ export function Profile({
             This name is used right away when you create or join a session — no separate save
             step needed.
           </p>
+        </div>
+        <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
+          <div className="mono-label" style={{ marginBottom: 10 }}>
+            Session relay
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 12 }}>
+            Default hosted relay: {getDefaultRelayApiBaseUrl()}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 12 }}>
+            Suggested host URL on this PC:{" "}
+            <span style={{ color: ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? "var(--text-70)" : "var(--text-35)" }}>
+              {ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:8787` : "detecting local IPv4"}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+              <input
+                type="radio"
+                name="relay-mode"
+                checked={relayConfig.mode === "managed"}
+                onChange={() => handleSaveRelay("managed")}
+              />
+              Use the We Connect hosted relay
+            </label>
+            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+              <input
+                type="radio"
+                name="relay-mode"
+                checked={relayConfig.mode === "self-hosted"}
+                onChange={() => onRelayConfigChange({ mode: "self-hosted", customBaseUrl: normalizeRelayBaseUrl(relayDraft) })}
+              />
+              Use my own relay host
+            </label>
+            <div className="field">
+              <input
+                type="text"
+                placeholder="http://192.168.1.20:8787"
+                value={relayDraft}
+                onChange={(e) => setRelayDraft(e.target.value)}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button className="link-action" onClick={() => handleSaveRelay("self-hosted")}>
+                Save self-hosted relay
+              </button>
+              <button className="link-action" onClick={handleTestRelay} disabled={testingRelay}>
+                {testingRelay ? "Testing relay..." : "Test relay"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--text-35)", margin: 0 }}>
+              For LAN/self-hosted use, run `server/api` on one PC and enter that machine's IP and port here.
+              Example: `http://192.168.1.20:8787`.
+            </p>
+            {relayMessage && <div style={{ color: "var(--accent)", fontSize: 12 }}>{relayMessage}</div>}
+            {relayError && <div style={{ color: "#e24c4b", fontSize: 12 }}>{relayError}</div>}
+          </div>
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
           <div className="mono-label" style={{ marginBottom: 10 }}>

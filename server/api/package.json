@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --experimental-strip-types src/server.ts",
+    "dev:lan": "node --env-file=.env --experimental-strip-types src/server.ts",
     "start": "node --experimental-strip-types src/server.ts",
+    "start:lan": "node --env-file=.env --experimental-strip-types src/server.ts",
     "test": "node --experimental-strip-types --experimental-test-module-mocks --test test/*.test.ts"
   },
   "dependencies": {
