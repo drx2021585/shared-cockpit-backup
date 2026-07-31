@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.22",
+    version: "0.1.23",
     title: "Current build",
+    date: "2026-07-31",
+    commits: [
+      "Desktop releases now build the embedded local bridge inside GitHub Actions instead of depending on a missing publish folder, so the installer once again ships a working simulator bridge to every player.",
+      "The release pipeline now bundles the required bridge runtime DLLs explicitly and refuses to publish if the bridge package is incomplete.",
+      "This hotfix closes the packaging gap that left 0.1.22 visible as a tag but not deliverable as a real in-app update to players.",
+    ],
+  },
+  {
+    version: "0.1.22",
+    title: "Published release",
     date: "2026-07-31",
     commits: [
       "Fixed a packaging failure that could ship the desktop app without its embedded local bridge. When that happened, the cockpit stayed stuck on \"Local bridge: Disconnected\" and never received any simulator data.",

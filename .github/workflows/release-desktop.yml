@@ -33,12 +33,20 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop-ui/package-lock.json
 
-      - name: Verify embedded bridge publish exists
+      - name: Build embedded bridge publish
         run: |
-          $publishDir = Resolve-Path ..\simulator-bridge\src\SimulatorBridge\publish -ErrorAction SilentlyContinue
-          if (-not $publishDir) {
-            throw "apps/simulator-bridge/src/SimulatorBridge/publish is missing. Generate the bridge publish before releasing."
-          }
+          $publishDir = Join-Path (Resolve-Path ..\simulator-bridge\src\SimulatorBridge) "publish"
+          Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+          dotnet publish ..\simulator-bridge\src\SimulatorBridge\SimulatorBridge.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o $publishDir
+
+          Copy-Item ..\simulator-bridge\release-resources\SimConnect.dll $publishDir -Force
+          Copy-Item ..\simulator-bridge\release-resources\FSUIPC_WAPID.dll $publishDir -Force
+          Copy-Item ..\simulator-bridge\release-resources\fsuipcClient.dll $publishDir -Force
+
           $bridgeExe = Join-Path $publishDir "SharedCockpit.Bridge.exe"
           if (-not (Test-Path $bridgeExe)) {
             throw "Embedded bridge executable missing: $bridgeExe"
