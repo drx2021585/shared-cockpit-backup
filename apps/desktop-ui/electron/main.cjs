@@ -6,6 +6,7 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { spawn, execFile } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
+const { createDirectRelay } = require("./directRelay.cjs");
 
 // La app apunta al backend compartido en Railway por defecto (ver
 // src/lib/apiClient.ts) — ya no levanta un server/api local embebido. Un
@@ -16,6 +17,7 @@ const { autoUpdater } = require("electron-updater");
 let mainWindow = null;
 let lastUpdaterEvent = null;
 let startupUpdateCheckInFlight = false;
+let directRelayManager = null;
 
 // autoDownload=false: el usuario confirma la descarga desde el modal
 // (UpdateModal.tsx) — mismo flujo que ya existía, ahora con datos reales en
@@ -132,6 +134,41 @@ function getLocalNetworkAddresses() {
 }
 
 ipcMain.handle("network:get-local-addresses", () => getLocalNetworkAddresses());
+
+function getBundledAircraftProfilesDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "aircraft-profiles");
+  }
+  return path.join(__dirname, "..", "..", "..", "aircraft-profiles");
+}
+
+function getAppPackageVersion() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8")).version ?? app.getVersion();
+  } catch {
+    return app.getVersion();
+  }
+}
+
+function ensureDirectRelayManager() {
+  if (directRelayManager) return directRelayManager;
+  directRelayManager = createDirectRelay({
+    appVersion: getAppPackageVersion(),
+    profilesDir: getBundledAircraftProfilesDir(),
+    port: 8787,
+  });
+  return directRelayManager;
+}
+
+ipcMain.handle("direct-relay:ensure-host", async () => {
+  const relay = ensureDirectRelayManager();
+  try {
+    const result = await relay.ensureRunning();
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, error: err?.message ?? String(err) };
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Asistente de primer inicio: pide la carpeta Community de MSFS e instala ahí
@@ -722,6 +759,11 @@ function stopBridge() {
 }
 
 app.on("before-quit", stopBridge);
+app.on("before-quit", () => {
+  if (directRelayManager) {
+    void directRelayManager.stop();
+  }
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

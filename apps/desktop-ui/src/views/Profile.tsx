@@ -90,11 +90,19 @@ export function Profile({
     );
   }
 
-  function handleUseSuggestedRelay() {
+  async function handleUseSuggestedRelay() {
     if (!suggestedRelayUrl) {
       setRelayError("Local IPv4 is still being detected on this PC.");
       setRelayMessage(null);
       return;
+    }
+    if (window.weconnectDirectRelay) {
+      const started = await window.weconnectDirectRelay.ensureHost();
+      if (!started.ok) {
+        setRelayError(started.error ?? "Could not start the direct host on this PC.");
+        setRelayMessage(null);
+        return;
+      }
     }
     setRelayDraft(suggestedRelayUrl);
     handleSaveRelay("self-hosted", suggestedRelayUrl);
@@ -226,10 +234,6 @@ export function Profile({
               </div>
             </div>
 
-            <p className="relay-help-copy">
-              For LAN/self-hosted use, run `server/api` on one PC and point both pilots to that machine's IP and port.
-              Example: `http://192.168.1.20:8787`.
-            </p>
             {relayMessage && <div className="relay-feedback ok">{relayMessage}</div>}
             {relayError && <div className="relay-feedback error">{relayError}</div>}
           </div>

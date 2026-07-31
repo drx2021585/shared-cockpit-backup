@@ -27,6 +27,9 @@ interface Window {
     openInstallFolder: () => Promise<string>;
     restartApp: () => Promise<void>;
   };
+  weconnectDirectRelay?: {
+    ensureHost: () => Promise<{ ok: boolean; baseUrl?: string; error?: string }>;
+  };
   weconnectNetwork?: {
     getLocalAddresses: () => Promise<{ ipv4: string | null; ipv6: string | null }>;
   };

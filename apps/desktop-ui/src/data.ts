@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.36",
+    version: "0.1.37",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "The Session relay area is now organized around the current active route, with a clearer split between the hosted relay and a self-hosted direct/LAN relay.",
-      "A new Use this PC as host action fills and activates the suggested local relay address automatically, instead of making the user copy it by hand.",
-      "The embedded simulator bridge now ships with the same version as the desktop app again, which unblocks desktop releases from publishing the updater files that players need.",
+      "Host direct session now starts the local direct relay automatically from the desktop app instead of asking the user to run server/api by hand.",
+      "Use this PC as host now also guarantees the direct relay is running before switching the app to the self-hosted route.",
+      "The old manual setup copy for self-hosted relay was removed from the profile screen to match the new automatic direct-host flow.",
     ],
   },
   {

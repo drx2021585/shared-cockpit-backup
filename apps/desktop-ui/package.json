@@ -1,7 +1,7 @@
 {
   "name": "we-connect-desktop-ui",
   "private": true,
-  "version": "0.1.36",
+  "version": "0.1.37",
   "description": "We Connect - cliente de cabina compartida, web-first y empacado con Electron.",
   "type": "module",
   "main": "electron/main.cjs",
@@ -15,8 +15,11 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
+    "express": "^4.19.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0",
+    "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

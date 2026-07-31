@@ -107,6 +107,14 @@ export function Party({
     setSubmitting(true);
     setError(null);
     try {
+      const directRelay = window.weconnectDirectRelay;
+      if (directRelay) {
+        const started = await directRelay.ensureHost();
+        if (!started.ok) {
+          setError(started.error ?? "Could not start the direct host on this PC.");
+          return;
+        }
+      }
       await fetchServerHealth(directBaseUrl);
       onRelayConfigChange({ mode: "self-hosted", customBaseUrl: directBaseUrl });
       await createParty();
@@ -114,7 +122,7 @@ export function Party({
       if (err instanceof ApiError) {
         setError(`Direct host could not start the session: ${err.code}`);
       } else {
-        setError("Direct host is not running on this PC. Start server/api with `npm run dev:direct` and try again.");
+        setError("Could not start the direct host on this PC.");
       }
     } finally {
       setSubmitting(false);
