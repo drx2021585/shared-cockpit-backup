@@ -356,10 +356,13 @@ public class ProfileRepositoryRealDataTests
         Assert.Contains("(>L:VC_Gear_trigger_VAL,number)", autobrake.Write.Name);
         Assert.True(autobrake.Synchronization.ConfirmAfterWrite);
 
-        // Control de código único: se dispara solo si el estado difiere del pedido.
+        // Control de código único: se dispara solo cuando el valor pedido cae en
+        // la banda opuesta del estado actual; no compara por igualdad exacta,
+        // porque la L-Var del selector puede estar animada entre detentes.
         var crossfeed = profile.FindControl("fuel.fuel_crossfeed_sw");
         Assert.NotNull(crossfeed);
-        Assert.Contains("$value !=", crossfeed!.Write!.Name);
+        Assert.Contains("5 <", crossfeed!.Write!.Name);
+        Assert.Contains("5 >=", crossfeed.Write.Name);
         Assert.Contains("(>L:VC_Fuel_trigger_VAL,number)", crossfeed.Write.Name);
     }
 

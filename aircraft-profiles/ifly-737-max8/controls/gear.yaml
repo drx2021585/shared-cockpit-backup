@@ -91,7 +91,7 @@
 - id: gear.parking_brake_sw
   # PARKING BRAKE Lever -- nodo VC_Parking_Brake_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 7 sube, 8 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 8 sube, 7 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -102,7 +102,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Parking_Brake_SW_VAL,number) $value < if{ 7 (>L:VC_Gear_trigger_VAL,number) } (L:VC_Parking_Brake_SW_VAL,number) $value > if{ 8 (>L:VC_Gear_trigger_VAL,number) }"
+    name: "(L:VC_Parking_Brake_SW_VAL,number) $value < if{ 8 (>L:VC_Gear_trigger_VAL,number) } (L:VC_Parking_Brake_SW_VAL,number) $value > if{ 7 (>L:VC_Gear_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

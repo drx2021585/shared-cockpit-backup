@@ -362,7 +362,7 @@
 - id: misc.emergency_light_sw
   # Emergency (EMER) EXIT LIGHTS Switch -- nodo VC_Emergency_Light_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 13 sube, 12 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 12 sube, 13 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -373,7 +373,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Emergency_Light_SW_VAL,number) $value < if{ 13 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Emergency_Light_SW_VAL,number) $value > if{ 12 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Emergency_Light_SW_VAL,number) $value < if{ 12 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Emergency_Light_SW_VAL,number) $value > if{ 13 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -382,7 +382,7 @@
 - id: misc.no_smoking_sw
   # NO SMOKING Switch -- nodo VC_No_Smoking_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 15 sube, 14 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 15 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -393,7 +393,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_No_Smoking_SW_VAL,number) $value < if{ 15 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_No_Smoking_SW_VAL,number) $value > if{ 14 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_No_Smoking_SW_VAL,number) $value < if{ 14 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_No_Smoking_SW_VAL,number) $value > if{ 15 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -402,7 +402,7 @@
 - id: misc.fasten_belts_sw
   # FASTEN BELTS Switch -- nodo VC_Fasten_Belts_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 17 sube, 16 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 16 sube, 17 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -413,7 +413,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Fasten_Belts_SW_VAL,number) $value < if{ 17 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Fasten_Belts_SW_VAL,number) $value > if{ 16 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Fasten_Belts_SW_VAL,number) $value < if{ 16 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Fasten_Belts_SW_VAL,number) $value > if{ 17 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -422,7 +422,7 @@
 - id: misc.landing_light_1_sw
   # LANDING Light Switch -- nodo VC_Landing_Light_1_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 18 sube, 19 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 19 sube, 18 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -433,7 +433,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Landing_Light_1_SW_VAL,number) $value < if{ 18 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_1_SW_VAL,number) $value > if{ 19 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Landing_Light_1_SW_VAL,number) $value < if{ 19 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_1_SW_VAL,number) $value > if{ 18 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -442,7 +442,7 @@
 - id: misc.landing_light_2_sw
   # LANDING Light Switch -- nodo VC_Landing_Light_2_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 20 sube, 21 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 21 sube, 20 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -453,7 +453,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Landing_Light_2_SW_VAL,number) $value < if{ 20 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_2_SW_VAL,number) $value > if{ 21 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Landing_Light_2_SW_VAL,number) $value < if{ 21 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_2_SW_VAL,number) $value > if{ 20 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -462,7 +462,7 @@
 - id: misc.runway_turnoff_light_l_sw
   # RUNWAY TURNOFF Light Switch -- nodo VC_Runway_Turnoff_Light_L_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 22 sube, 23 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 23 sube, 22 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -473,7 +473,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value < if{ 22 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value > if{ 23 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value < if{ 23 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value > if{ 22 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -482,7 +482,7 @@
 - id: misc.runway_turnoff_light_r_sw
   # RUNWAY TURNOFF Light Switch -- nodo VC_Runway_Turnoff_Light_R_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 24 sube, 25 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 25 sube, 24 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -493,7 +493,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value < if{ 24 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value > if{ 25 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value < if{ 25 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value > if{ 24 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -502,7 +502,7 @@
 - id: misc.taxi_light_sw
   # TAXI Light Switch -- nodo VC_Taxi_Light_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 26 sube, 27 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 27 sube, 26 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -513,7 +513,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Taxi_Light_SW_VAL,number) $value < if{ 26 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Taxi_Light_SW_VAL,number) $value > if{ 27 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Taxi_Light_SW_VAL,number) $value < if{ 27 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Taxi_Light_SW_VAL,number) $value > if{ 26 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -522,7 +522,7 @@
 - id: misc.logo_light_sw
   # LOGO Light Switch -- nodo VC_Logo_Light_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 28 sube, 29 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 29 sube, 28 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -533,7 +533,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Logo_Light_SW_VAL,number) $value < if{ 28 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Logo_Light_SW_VAL,number) $value > if{ 29 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Logo_Light_SW_VAL,number) $value < if{ 29 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Logo_Light_SW_VAL,number) $value > if{ 28 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -542,7 +542,7 @@
 - id: misc.position_light_sw
   # POSITION Light Switch -- nodo VC_Position_Light_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 30 sube, 31 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 31 sube, 30 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -553,7 +553,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Position_Light_SW_VAL,number) $value < if{ 30 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Position_Light_SW_VAL,number) $value > if{ 31 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Position_Light_SW_VAL,number) $value < if{ 31 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Position_Light_SW_VAL,number) $value > if{ 30 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -562,7 +562,7 @@
 - id: misc.beacon_light_sw
   # ANTI-COLLISION Light Switch -- nodo VC_Beacon_Light_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 32 sube, 33 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 33 sube, 32 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -573,7 +573,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Beacon_Light_SW_VAL,number) $value < if{ 32 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Beacon_Light_SW_VAL,number) $value > if{ 33 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Beacon_Light_SW_VAL,number) $value < if{ 33 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Beacon_Light_SW_VAL,number) $value > if{ 32 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -582,7 +582,7 @@
 - id: misc.wing_light_sw
   # WING Illumination Switch -- nodo VC_Wing_Light_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 34 sube, 35 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 35 sube, 34 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -593,7 +593,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Wing_Light_SW_VAL,number) $value < if{ 34 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wing_Light_SW_VAL,number) $value > if{ 35 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Wing_Light_SW_VAL,number) $value < if{ 35 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wing_Light_SW_VAL,number) $value > if{ 34 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -602,7 +602,7 @@
 - id: misc.wheel_well_light_sw
   # WHEEL WELL Light Switch -- nodo VC_Wheel_Well_Light_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 36 sube, 37 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 37 sube, 36 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -613,7 +613,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Wheel_Well_Light_SW_VAL,number) $value < if{ 36 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wheel_Well_Light_SW_VAL,number) $value > if{ 37 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    name: "(L:VC_Wheel_Well_Light_SW_VAL,number) $value < if{ 37 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wheel_Well_Light_SW_VAL,number) $value > if{ 36 (>L:VC_Miscellaneous_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

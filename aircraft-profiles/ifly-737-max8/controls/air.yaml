@@ -211,7 +211,7 @@
 - id: air.recircfan_l_sw
   # Recirculation (RECIRC) FAN Switches -- nodo VC_RecircFan_L_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 18 sube, 19 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 19 sube, 18 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -222,7 +222,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_RecircFan_L_SW_VAL,number) $value < if{ 18 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_L_SW_VAL,number) $value > if{ 19 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_RecircFan_L_SW_VAL,number) $value < if{ 19 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_L_SW_VAL,number) $value > if{ 18 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -231,7 +231,7 @@
 - id: air.recircfan_r_sw
   # Recirculation (RECIRC) FAN Switches -- nodo VC_RecircFan_R_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 20 sube, 21 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 21 sube, 20 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -242,7 +242,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_RecircFan_R_SW_VAL,number) $value < if{ 20 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_R_SW_VAL,number) $value > if{ 21 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_RecircFan_R_SW_VAL,number) $value < if{ 21 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_RecircFan_R_SW_VAL,number) $value > if{ 20 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -270,7 +270,7 @@
 - id: air.pack_1_sw
   # Air Conditioning PACK Switch -- nodo VC_Pack_1_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 24 sube, 25 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 25 sube, 24 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -281,7 +281,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Pack_1_SW_VAL,number) $value < if{ 24 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_1_SW_VAL,number) $value > if{ 25 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_Pack_1_SW_VAL,number) $value < if{ 25 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_1_SW_VAL,number) $value > if{ 24 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -290,7 +290,7 @@
 - id: air.pack_2_sw
   # Air Conditioning PACK Switch -- nodo VC_Pack_2_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 26 sube, 27 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 27 sube, 26 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -301,7 +301,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Pack_2_SW_VAL,number) $value < if{ 26 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_2_SW_VAL,number) $value > if{ 27 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_Pack_2_SW_VAL,number) $value < if{ 27 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_2_SW_VAL,number) $value > if{ 26 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -310,7 +310,7 @@
 - id: air.isolation_valve_sw
   # ISOLATION VALVE Switch -- nodo VC_Isolation_Valve_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 28 sube, 29 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 29 sube, 28 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -321,7 +321,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Isolation_Valve_SW_VAL,number) $value < if{ 28 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Isolation_Valve_SW_VAL,number) $value > if{ 29 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_Isolation_Valve_SW_VAL,number) $value < if{ 29 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Isolation_Valve_SW_VAL,number) $value > if{ 28 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -349,7 +349,7 @@
 - id: air.engine_1_bleed_air_sw
   # Engine BLEED Air Switches -- nodo VC_Engine_1_Bleed_Air_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 32 sube, 33 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 33 sube, 32 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -360,7 +360,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value < if{ 32 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value > if{ 33 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value < if{ 33 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_1_Bleed_Air_SW_VAL,number) $value > if{ 32 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -369,7 +369,7 @@
 - id: air.engine_2_bleed_air_sw
   # Engine BLEED Air Switches -- nodo VC_Engine_2_Bleed_Air_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 34 sube, 35 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 35 sube, 34 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -380,7 +380,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value < if{ 34 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value > if{ 35 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value < if{ 35 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Engine_2_Bleed_Air_SW_VAL,number) $value > if{ 34 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -389,7 +389,7 @@
 - id: air.apu_bleed_air_sw
   # APU BLEED Air Switch -- nodo VC_APU_Bleed_Air_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 36 sube, 37 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 37 sube, 36 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -400,7 +400,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_APU_Bleed_Air_SW_VAL,number) $value < if{ 36 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_APU_Bleed_Air_SW_VAL,number) $value > if{ 37 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    name: "(L:VC_APU_Bleed_Air_SW_VAL,number) $value < if{ 37 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_APU_Bleed_Air_SW_VAL,number) $value > if{ 36 (>L:VC_Air_Systems_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

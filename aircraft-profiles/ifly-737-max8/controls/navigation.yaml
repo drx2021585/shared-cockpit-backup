@@ -3817,7 +3817,7 @@
 - id: navigation.transponder_atc_sw
   # Transponder (XPNDR) Selector -- nodo VC_Transponder_ATC_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 384 sube, 383 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 383 sube, 384 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -3828,7 +3828,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Transponder_ATC_SW_VAL,number) $value < if{ 384 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_Transponder_ATC_SW_VAL,number) $value > if{ 383 (>L:VC_Navigation_trigger_VAL,number) }"
+    name: "(L:VC_Transponder_ATC_SW_VAL,number) $value < if{ 383 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_Transponder_ATC_SW_VAL,number) $value > if{ 384 (>L:VC_Navigation_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

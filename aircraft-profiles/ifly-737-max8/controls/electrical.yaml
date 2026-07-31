@@ -91,7 +91,7 @@
 - id: electrical.battery_sw
   # Battery (BAT) Switch -- nodo VC_Battery_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 7 sube, 8 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 8 sube, 7 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -102,7 +102,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Battery_SW_VAL,number) $value < if{ 7 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_Battery_SW_VAL,number) $value > if{ 8 (>L:VC_Electrical_trigger_VAL,number) }"
+    name: "(L:VC_Battery_SW_VAL,number) $value < if{ 8 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_Battery_SW_VAL,number) $value > if{ 7 (>L:VC_Electrical_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -211,7 +211,7 @@
 - id: electrical.bus_transfer_sw
   # BUS TRANSFER Switch -- nodo VC_Bus_Transfer_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 19 sube, 20 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 20 sube, 19 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -222,7 +222,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Bus_Transfer_SW_VAL,number) $value < if{ 19 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_Bus_Transfer_SW_VAL,number) $value > if{ 20 (>L:VC_Electrical_trigger_VAL,number) }"
+    name: "(L:VC_Bus_Transfer_SW_VAL,number) $value < if{ 20 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_Bus_Transfer_SW_VAL,number) $value > if{ 19 (>L:VC_Electrical_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -271,7 +271,7 @@
 - id: electrical.apu_generator_1_sw
   # APU Generator (GEN) Switches -- nodo VC_APU_Generator_1_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 25 sube, 26 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 26 sube, 25 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -282,7 +282,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_APU_Generator_1_SW_VAL,number) $value < if{ 25 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_APU_Generator_1_SW_VAL,number) $value > if{ 26 (>L:VC_Electrical_trigger_VAL,number) }"
+    name: "(L:VC_APU_Generator_1_SW_VAL,number) $value < if{ 26 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_APU_Generator_1_SW_VAL,number) $value > if{ 25 (>L:VC_Electrical_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -291,7 +291,7 @@
 - id: electrical.apu_generator_2_sw
   # APU Generator (GEN) Switches -- nodo VC_APU_Generator_2_SW del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 27 sube, 28 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 28 sube, 27 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -302,7 +302,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_APU_Generator_2_SW_VAL,number) $value < if{ 27 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_APU_Generator_2_SW_VAL,number) $value > if{ 28 (>L:VC_Electrical_trigger_VAL,number) }"
+    name: "(L:VC_APU_Generator_2_SW_VAL,number) $value < if{ 28 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_APU_Generator_2_SW_VAL,number) $value > if{ 27 (>L:VC_Electrical_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -311,7 +311,7 @@
 - id: electrical.ife_pass_seat_sw
   # IFE/PASS SEAT Switch -- nodo VC_IFE_PASS_SEAT_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 29 sube, 30 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 30 sube, 29 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -322,7 +322,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_IFE_PASS_SEAT_SW_VAL,number) $value < if{ 29 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_IFE_PASS_SEAT_SW_VAL,number) $value > if{ 30 (>L:VC_Electrical_trigger_VAL,number) }"
+    name: "(L:VC_IFE_PASS_SEAT_SW_VAL,number) $value < if{ 30 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_IFE_PASS_SEAT_SW_VAL,number) $value > if{ 29 (>L:VC_Electrical_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

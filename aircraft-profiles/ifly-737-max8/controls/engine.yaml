@@ -52,7 +52,7 @@
 - id: engine.engine_1_start_sw
   # ENGINE START Switches -- nodo VC_Engine_1_Start_SW del modelo iFly.
   # Selector/perilla de 30 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 4 sube, 3 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 3 sube, 4 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -63,7 +63,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_1_Start_SW_VAL,number) $value < if{ 4 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_SW_VAL,number) $value > if{ 3 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    name: "(L:VC_Engine_1_Start_SW_VAL,number) $value < if{ 3 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_SW_VAL,number) $value > if{ 4 (>L:VC_Engine_APU_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -72,7 +72,7 @@
 - id: engine.engine_2_start_sw
   # ENGINE START Switches -- nodo VC_Engine_2_Start_SW del modelo iFly.
   # Selector/perilla de 30 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 6 sube, 5 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 5 sube, 6 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -83,7 +83,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_2_Start_SW_VAL,number) $value < if{ 6 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_SW_VAL,number) $value > if{ 5 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    name: "(L:VC_Engine_2_Start_SW_VAL,number) $value < if{ 5 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_SW_VAL,number) $value > if{ 6 (>L:VC_Engine_APU_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -170,7 +170,7 @@
 - id: engine.engine_1_start_lever
   # Engine Start Levers -- nodo VC_Engine_1_Start_Lever del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 12 sube, 11 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 11 sube, 12 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -181,7 +181,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_1_Start_Lever_VAL,number) $value < if{ 12 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_Lever_VAL,number) $value > if{ 11 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    name: "(L:VC_Engine_1_Start_Lever_VAL,number) $value < if{ 11 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_1_Start_Lever_VAL,number) $value > if{ 12 (>L:VC_Engine_APU_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -190,7 +190,7 @@
 - id: engine.engine_2_start_lever
   # Engine Start Levers -- nodo VC_Engine_2_Start_Lever del modelo iFly.
   # Selector/perilla de 20 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 14 sube, 13 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 13 sube, 14 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -201,7 +201,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Engine_2_Start_Lever_VAL,number) $value < if{ 14 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_Lever_VAL,number) $value > if{ 13 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    name: "(L:VC_Engine_2_Start_Lever_VAL,number) $value < if{ 13 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_Engine_2_Start_Lever_VAL,number) $value > if{ 14 (>L:VC_Engine_APU_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

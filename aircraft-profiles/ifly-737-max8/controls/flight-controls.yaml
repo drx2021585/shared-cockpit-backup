@@ -152,7 +152,7 @@
 - id: flight_controls.yaw_damper_sw
   # YAW DAMPER Switch -- nodo VC_Yaw_Damper_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 13 sube, 14 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 13 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -163,7 +163,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Yaw_Damper_SW_VAL,number) $value < if{ 13 (>L:VC_Flight_Control_trigger_VAL,number) } (L:VC_Yaw_Damper_SW_VAL,number) $value > if{ 14 (>L:VC_Flight_Control_trigger_VAL,number) }"
+    name: "(L:VC_Yaw_Damper_SW_VAL,number) $value < if{ 14 (>L:VC_Flight_Control_trigger_VAL,number) } (L:VC_Yaw_Damper_SW_VAL,number) $value > if{ 13 (>L:VC_Flight_Control_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true

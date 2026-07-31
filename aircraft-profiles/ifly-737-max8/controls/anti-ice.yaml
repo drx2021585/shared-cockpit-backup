@@ -92,7 +92,7 @@
 - id: anti_ice.window_heat_switch_1_sw
   # WINDOW HEAT Switches -- nodo VC_Window_Heat_Switch_1_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 7 sube, 8 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 8 sube, 7 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -103,7 +103,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Window_Heat_1_SW_VAL,number) $value < if{ 7 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_1_SW_VAL,number) $value > if{ 8 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Window_Heat_1_SW_VAL,number) $value < if{ 8 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_1_SW_VAL,number) $value > if{ 7 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -112,7 +112,7 @@
 - id: anti_ice.window_heat_switch_2_sw
   # WINDOW HEAT Switches -- nodo VC_Window_Heat_Switch_2_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 9 sube, 10 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 10 sube, 9 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -123,7 +123,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Window_Heat_2_SW_VAL,number) $value < if{ 9 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_2_SW_VAL,number) $value > if{ 10 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Window_Heat_2_SW_VAL,number) $value < if{ 10 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_2_SW_VAL,number) $value > if{ 9 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -132,7 +132,7 @@
 - id: anti_ice.window_heat_switch_3_sw
   # WINDOW HEAT Switches -- nodo VC_Window_Heat_Switch_3_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 11 sube, 12 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 12 sube, 11 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -143,7 +143,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Window_Heat_3_SW_VAL,number) $value < if{ 11 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_3_SW_VAL,number) $value > if{ 12 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Window_Heat_3_SW_VAL,number) $value < if{ 12 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_3_SW_VAL,number) $value > if{ 11 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -152,7 +152,7 @@
 - id: anti_ice.window_heat_switch_4_sw
   # WINDOW HEAT Switches -- nodo VC_Window_Heat_Switch_4_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 13 sube, 14 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 14 sube, 13 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -163,7 +163,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Window_Heat_4_SW_VAL,number) $value < if{ 13 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_4_SW_VAL,number) $value > if{ 14 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Window_Heat_4_SW_VAL,number) $value < if{ 14 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Window_Heat_4_SW_VAL,number) $value > if{ 13 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -172,7 +172,7 @@
 - id: anti_ice.probe_heat_1_sw
   # PROBE HEAT Switches -- nodo VC_Probe_Heat_1_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 15 sube, 16 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 16 sube, 15 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -183,7 +183,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Probe_Heat_1_SW_VAL,number) $value < if{ 15 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Probe_Heat_1_SW_VAL,number) $value > if{ 16 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Probe_Heat_1_SW_VAL,number) $value < if{ 16 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Probe_Heat_1_SW_VAL,number) $value > if{ 15 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -192,7 +192,7 @@
 - id: anti_ice.probe_heat_2_sw
   # PROBE HEAT Switches -- nodo VC_Probe_Heat_2_SW del modelo iFly.
   # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 17 sube, 18 baja); si ya
+  # paso hacia el valor pedido por escritura (codigo 18 sube, 17 baja); si ya
   # esta en el destino no dispara nada. NO es un TOGGLE ciego.
   dataType: number
   authority: shared
@@ -203,7 +203,7 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_Probe_Heat_2_SW_VAL,number) $value < if{ 17 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Probe_Heat_2_SW_VAL,number) $value > if{ 18 (>L:VC_Anti_Ice_trigger_VAL,number) }"
+    name: "(L:VC_Probe_Heat_2_SW_VAL,number) $value < if{ 18 (>L:VC_Anti_Ice_trigger_VAL,number) } (L:VC_Probe_Heat_2_SW_VAL,number) $value > if{ 17 (>L:VC_Anti_Ice_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
