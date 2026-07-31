@@ -872,6 +872,17 @@ export function Cockpit({
             </div>
             {bridge.diagnostics && (
               <div className="net-row">
+                <div className="net-label">Controls reporting / subscribed</div>
+                <div
+                  className="net-value"
+                  title="FSUIPC only pushes L-Vars that change, so switches nobody has touched stay silent by design. A control you did move and that still never reports is the one worth investigating."
+                >
+                  {bridge.diagnostics.controlsReporting} / {bridge.diagnostics.controlsSubscribed}
+                </div>
+              </div>
+            )}
+            {bridge.diagnostics && (
+              <div className="net-row">
                 <div className="net-label">Switches applied / failed</div>
                 <div className="net-value">
                   {bridge.diagnostics.writesConfirmed} / {bridge.diagnostics.writesFailed}

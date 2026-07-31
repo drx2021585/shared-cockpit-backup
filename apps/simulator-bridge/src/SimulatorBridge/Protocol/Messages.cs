@@ -250,6 +250,7 @@ public static class BridgeDiagnostics
         string? matchedProfileId,
         string? detectedTitle,
         int controlsSubscribed,
+        int controlsReporting,
         int writesAttempted,
         int writesSkippedAlreadyAtValue,
         int writesConfirmed,
@@ -265,6 +266,15 @@ public static class BridgeDiagnostics
             ["matchedProfileId"] = matchedProfileId,
             ["detectedTitle"] = detectedTitle,
             ["controlsSubscribed"] = controlsSubscribed,
+            // Cuántas de esas suscripciones han entregado AL MENOS UNA lectura.
+            // Suscribirse no garantiza recibir: si la L-Var no existe en la
+            // variante cargada (o el sistema no la ha creado todavía), FSUIPC
+            // acepta la suscripción y no publica nada nunca. Sin este contador,
+            // "controlsSubscribed: 1063" se lee como "1063 controles vivos"
+            // cuando podrían estar casi todos mudos -- y un control mudo no
+            // sincroniza en NINGUNA dirección: ni se envía lo que hace este
+            // piloto, ni se puede confirmar lo que escribe el otro.
+            ["controlsReporting"] = controlsReporting,
             ["writesAttempted"] = writesAttempted,
             ["writesSkippedAlreadyAtValue"] = writesSkippedAlreadyAtValue,
             ["writesConfirmed"] = writesConfirmed,

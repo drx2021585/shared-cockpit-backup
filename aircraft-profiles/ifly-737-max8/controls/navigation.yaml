@@ -457,10 +457,18 @@
 
 - id: navigation.cdu1_lsk_1l_sw
   # Line Select Keys -- nodo VC_CDU1_LSK_1L_SW del modelo iFly.
-  # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 481 sube, 43 baja); si ya
-  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
-  dataType: number
+  # Boton momentaneo: true = pulsar (codigo 43), false = soltar (codigo 44).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  #
+  # CORREGIDO A MANO (no regenerar sin arreglar antes el generador): el XML de
+  # esta tecla declara LeftSingle/LeftRelease Y ADEMAS un RightSingle (481, que
+  # es el atajo de "borrar campo"). Ese tercer codigo hizo que
+  # tools/generate_ifly_profile.py la clasificara como perilla de 10 pasos y le
+  # generara una receta direccional con 481 como "subir" y 43 como "bajar" --
+  # dos codigos que no son opuestos entre si. Sus hermanas (2L, 4L...) solo
+  # tienen dos codigos y salieron bien; solo las 4 teclas con RightSingle
+  # cayeron en el fallo. Ver auditoria perfil<->XML del 2026-07-31.
+  dataType: boolean
   authority: shared
   read:
     type: clientDataArea
@@ -469,11 +477,11 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_CDU1_LSK_1L_SW_VAL,number) $value < if{ 481 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_CDU1_LSK_1L_SW_VAL,number) $value > if{ 43 (>L:VC_Navigation_trigger_VAL,number) }"
+    name: "$value 0 > if{ 43 (>L:VC_Navigation_trigger_VAL,number) } els{ 44 (>L:VC_Navigation_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
-    debounceMs: 150
+    debounceMs: 50
 
 - id: navigation.cdu1_lsk_2l_sw
   # Line Select Keys -- nodo VC_CDU1_LSK_2L_SW del modelo iFly.
@@ -496,10 +504,11 @@
 
 - id: navigation.cdu1_lsk_3l_sw
   # Line Select Keys -- nodo VC_CDU1_LSK_3L_SW del modelo iFly.
-  # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 483 sube, 47 baja); si ya
-  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
-  dataType: number
+  # Boton momentaneo: true = pulsar (codigo 47), false = soltar (codigo 48).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  # CORREGIDO A MANO -- misma causa que cdu1_lsk_1l_sw (RightSingle 483 confundio
+  # al generador). Ver la nota extendida alli.
+  dataType: boolean
   authority: shared
   read:
     type: clientDataArea
@@ -508,11 +517,11 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_CDU1_LSK_3L_SW_VAL,number) $value < if{ 483 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_CDU1_LSK_3L_SW_VAL,number) $value > if{ 47 (>L:VC_Navigation_trigger_VAL,number) }"
+    name: "$value 0 > if{ 47 (>L:VC_Navigation_trigger_VAL,number) } els{ 48 (>L:VC_Navigation_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
-    debounceMs: 150
+    debounceMs: 50
 
 - id: navigation.cdu1_lsk_4l_sw
   # Line Select Keys -- nodo VC_CDU1_LSK_4L_SW del modelo iFly.
@@ -1836,10 +1845,11 @@
 
 - id: navigation.cdu2_lsk_1l_sw
   # Line Select Keys -- nodo VC_CDU2_LSK_1L_SW del modelo iFly.
-  # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 501 sube, 182 baja); si ya
-  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
-  dataType: number
+  # Boton momentaneo: true = pulsar (codigo 182), false = soltar (codigo 183).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  # CORREGIDO A MANO -- misma causa que cdu1_lsk_1l_sw (RightSingle 501 confundio
+  # al generador). Ver la nota extendida alli.
+  dataType: boolean
   authority: shared
   read:
     type: clientDataArea
@@ -1848,11 +1858,11 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_CDU2_LSK_1L_SW_VAL,number) $value < if{ 501 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_CDU2_LSK_1L_SW_VAL,number) $value > if{ 182 (>L:VC_Navigation_trigger_VAL,number) }"
+    name: "$value 0 > if{ 182 (>L:VC_Navigation_trigger_VAL,number) } els{ 183 (>L:VC_Navigation_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
-    debounceMs: 150
+    debounceMs: 50
 
 - id: navigation.cdu2_lsk_2l_sw
   # Line Select Keys -- nodo VC_CDU2_LSK_2L_SW del modelo iFly.
@@ -1875,10 +1885,11 @@
 
 - id: navigation.cdu2_lsk_3l_sw
   # Line Select Keys -- nodo VC_CDU2_LSK_3L_SW del modelo iFly.
-  # Selector/perilla de 10 pasos. Escritura direccional: un solo
-  # paso hacia el valor pedido por escritura (codigo 503 sube, 186 baja); si ya
-  # esta en el destino no dispara nada. NO es un TOGGLE ciego.
-  dataType: number
+  # Boton momentaneo: true = pulsar (codigo 186), false = soltar (codigo 187).
+  # Set explicito en ambos sentidos, no un TOGGLE.
+  # CORREGIDO A MANO -- misma causa que cdu1_lsk_1l_sw (RightSingle 503 confundio
+  # al generador). Ver la nota extendida alli.
+  dataType: boolean
   authority: shared
   read:
     type: clientDataArea
@@ -1887,11 +1898,11 @@
     nativeType: float
   write:
     type: calculatorCode
-    name: "(L:VC_CDU2_LSK_3L_SW_VAL,number) $value < if{ 503 (>L:VC_Navigation_trigger_VAL,number) } (L:VC_CDU2_LSK_3L_SW_VAL,number) $value > if{ 186 (>L:VC_Navigation_trigger_VAL,number) }"
+    name: "$value 0 > if{ 186 (>L:VC_Navigation_trigger_VAL,number) } els{ 187 (>L:VC_Navigation_trigger_VAL,number) }"
   synchronization:
     mode: event
     confirmAfterWrite: true
-    debounceMs: 150
+    debounceMs: 50
 
 - id: navigation.cdu2_lsk_4l_sw
   # Line Select Keys -- nodo VC_CDU2_LSK_4L_SW del modelo iFly.

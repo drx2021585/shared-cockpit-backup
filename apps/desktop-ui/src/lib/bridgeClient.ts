@@ -76,6 +76,13 @@ export interface BridgeDiagnostics {
   matchedProfileId: string | null;
   detectedTitle: string | null;
   controlsSubscribed: number;
+  /**
+   * Cuántas de esas suscripciones han entregado al menos una lectura. Un control
+   * suscrito pero mudo no sincroniza en ninguna dirección, así que la brecha
+   * entre este número y controlsSubscribed es la señal más directa de que el
+   * problema está en la lectura del perfil y no en la escritura.
+   */
+  controlsReporting: number;
   writesAttempted: number;
   writesSkippedAlreadyAtValue: number;
   writesConfirmed: number;

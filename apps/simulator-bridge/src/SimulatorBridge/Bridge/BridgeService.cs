@@ -993,9 +993,21 @@ public sealed class BridgeService : IAsyncDisposable
                 // CIEGO para la deteccion de divergencia de ObserveConfirmedValue,
                 // que necesita ver la distancia crecer -- por eso hay que
                 // nombrarlo aquí o queda indistinguible de un timeout normal.
+                // Se anota el último valor conocido (o que nunca hubo ninguno).
+                // Con FSUIPC en modo push solo llegan las L-Vars que CAMBIAN, así
+                // que "nunca reportó" no prueba que la L-Var no exista -- puede
+                // ser un switch que nadie ha tocado desde que arrancó el bridge.
+                // Justamente por eso el dato hay que mostrarlo en vez de deducir:
+                // sin él, "NO SE MOVIÓ" se lee como un fallo de escritura ya
+                // diagnosticado cuando en realidad el bridge no tiene ni una
+                // lectura con la que afirmarlo.
+                var everRead = _lastObservedByControl.TryGetValue(pending.Control.Id, out var lastKnownValue);
+                var lectura = everRead
+                    ? $"último valor leído '{lastKnownValue}'"
+                    : "esta L-Var NUNCA ha reportado un valor en toda la sesión";
                 var detalle = pending.ObservedAnyReading
                     ? $"no convergió al valor pedido tras {pending.Attempts} intento(s)"
-                    : $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s) " +
+                    : $"NO SE MOVIÓ en absoluto tras {pending.Attempts} intento(s) [{lectura}] " +
                       (_polarity.IsInverted(ActiveProfileId, pending.Control.Id)
                           ? "NI con la polaridad invertida: la causa no es la polaridad (¿sistema sin " +
                             "alimentación, L-Var inexistente en esta variante, o valor que no es una " +
@@ -2365,6 +2377,7 @@ public sealed class BridgeService : IAsyncDisposable
             matchedProfileId: _matchedProfile?.ProfileId,
             detectedTitle: _lastTitle,
             controlsSubscribed: _matchedProfile?.Controls.Count ?? 0,
+            controlsReporting: _lastObservedByControl.Count,
             writesAttempted: _writesAttempted,
             writesSkippedAlreadyAtValue: _writesSkippedAlreadyAtValue,
             writesConfirmed: _writesConfirmed,

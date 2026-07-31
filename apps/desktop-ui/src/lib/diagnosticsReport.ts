@@ -76,6 +76,21 @@ function buildFindings(input: DiagnosticsReportInput, d: BridgeDiagnostics | nul
   }
 
   if (d) {
+    // Va primero a propósito: un control del que el bridge nunca ha leído nada
+    // no se puede confirmar aunque el switch sí se haya movido, así que este
+    // dato acota lo que significan los contadores de escritura de abajo.
+    // OJO con la lectura: FSUIPC empuja solo las L-Vars que CAMBIAN, así que un
+    // switch que nadie tocó cuenta como silencioso sin que nada esté roto. El
+    // número es contexto, no un veredicto -- por eso se enuncia sin culpar al
+    // perfil. Lo que sí es señal de perfil malo es un control que MOVISTE y aun
+    // así no aparece.
+    if (d.controlsSubscribed > 0) {
+      findings.push(
+        `${d.controlsReporting} of ${d.controlsSubscribed} subscribed controls have reported at least one value. ` +
+          `FSUIPC only pushes L-Vars that change, so switches nobody touched are silent by design — but a control ` +
+          `you did move and that still never reports has a wrong read.field, or its L-Var does not exist in this variant.`,
+      );
+    }
     if (d.writesAttempted > 0 && d.writesConfirmed === 0) {
       findings.push(
         `${d.writesAttempted} writes were attempted and NONE was confirmed. Writes are reaching the simulator but nothing moves.`,
