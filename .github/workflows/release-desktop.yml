@@ -21,12 +21,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/desktop-ui/package-lock.json
+
+      - name: Verify embedded bridge publish exists
+        run: |
+          $publishDir = Resolve-Path ..\simulator-bridge\src\SimulatorBridge\publish -ErrorAction SilentlyContinue
+          if (-not $publishDir) {
+            throw "apps/simulator-bridge/src/SimulatorBridge/publish is missing. Generate the bridge publish before releasing."
+          }
+          $bridgeExe = Join-Path $publishDir "SharedCockpit.Bridge.exe"
+          if (-not (Test-Path $bridgeExe)) {
+            throw "Embedded bridge executable missing: $bridgeExe"
+          }
+          $simConnectDll = Join-Path $publishDir "SimConnect.dll"
+          if (-not (Test-Path $simConnectDll)) {
+            throw "Embedded SimConnect.dll missing: $simConnectDll"
+          }
 
       - name: Install desktop-ui dependencies
         run: npm ci

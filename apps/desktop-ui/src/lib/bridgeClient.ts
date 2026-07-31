@@ -288,9 +288,9 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
   let attempt = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let connectStartedAt = 0;
-  // Token efímero emitido por electron/main.cjs al lanzar el bridge (null en
-  // build web puro o si el bridge corre lanzado a mano) — ver preload.cjs.
-  let bridgeToken: string | null = null;
+  const bridgeAuth = (window as unknown as {
+    weconnectBridgeAuth?: { getToken: () => Promise<string | null> };
+  }).weconnectBridgeAuth;
 
   function send(msg: ControlEvent | ControlAxis | FlightPose) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -320,10 +320,23 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     }, jitter);
   }
 
-  function connect() {
+  async function resolveBridgeToken() {
+    try {
+      return await Promise.resolve(bridgeAuth?.getToken() ?? null);
+    } catch {
+      return null;
+    }
+  }
+
+  async function connect() {
     if (unmounted) return;
     connectStartedAt = Date.now();
     setState((s) => ({ ...s, connectionState: "connecting", reconnecting: attempt > 0 }));
+
+    const bridgeToken = await resolveBridgeToken();
+    if (unmounted) {
+      return;
+    }
 
     let socket: WebSocket;
     try {
@@ -371,18 +384,7 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     };
   }
 
-  // Se resuelve el token del bridge (IPC a Electron) antes del primer
-  // connect. En build web puro no existe weconnectBridgeAuth y se conecta
-  // sin token, igual que antes.
-  const bridgeAuth = (window as unknown as {
-    weconnectBridgeAuth?: { getToken: () => Promise<string | null> };
-  }).weconnectBridgeAuth;
-  Promise.resolve(bridgeAuth?.getToken() ?? null)
-    .catch(() => null)
-    .then((token) => {
-      bridgeToken = token;
-      if (!unmounted) connect();
-    });
+  connect();
 
   return () => {
     unmounted = true;

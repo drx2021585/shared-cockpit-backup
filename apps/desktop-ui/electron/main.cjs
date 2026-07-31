@@ -477,6 +477,8 @@ ipcMain.handle("setup:reset", () => writeSetupConfig({ firstLaunchCompleted: fal
 const BRIDGE_PORT = 7620; // debe coincidir con Program.cs
 let bridgeProcess = null;
 let bridgeLogStream = null;
+let bridgeRestartTimer = null;
+let appQuitting = false;
 
 // Secreto efímero compartido entre esta app y el bridge local: se genera al
 // lanzar el bridge, viaja como variable de entorno al proceso hijo y como
@@ -487,7 +489,12 @@ let bridgeLogStream = null;
 // acepta sin token — compatibilidad con el flujo manual de desarrollo.
 let bridgeToken = null;
 
-ipcMain.handle("bridge:get-token", () => bridgeToken);
+ipcMain.handle("bridge:get-token", async () => {
+  if (!appQuitting && !bridgeProcess && !(await isBridgePortOpen())) {
+    await launchBridgeIfNeeded();
+  }
+  return bridgeToken;
+});
 
 function getBridgeExecutablePath() {
   if (app.isPackaged) {
@@ -527,6 +534,7 @@ async function launchBridgeIfNeeded() {
     // Ya hay un bridge respondiendo en ese puerto (corrido a mano, o de un
     // segundo intento de arranque) -- no lanzar un segundo proceso, fallaría
     // al intentar bindear el mismo puerto.
+    bridgeToken = null;
     return;
   }
 
@@ -559,18 +567,46 @@ async function launchBridgeIfNeeded() {
   bridgeProcess.on("exit", (code, signal) => {
     console.warn(`[bridge] proceso terminado (code=${code}, signal=${signal}).`);
     bridgeProcess = null;
+    bridgeToken = null;
+    scheduleBridgeRestart();
   });
   bridgeProcess.on("error", (err) => {
     console.warn(`[bridge] no se pudo lanzar: ${err?.message ?? err}`);
     bridgeProcess = null;
+    bridgeToken = null;
+    scheduleBridgeRestart();
   });
 }
 
+function clearBridgeRestartTimer() {
+  if (bridgeRestartTimer) {
+    clearTimeout(bridgeRestartTimer);
+    bridgeRestartTimer = null;
+  }
+}
+
+function scheduleBridgeRestart() {
+  if (appQuitting || bridgeProcess) {
+    return;
+  }
+
+  clearBridgeRestartTimer();
+  bridgeRestartTimer = setTimeout(() => {
+    bridgeRestartTimer = null;
+    if (!appQuitting) {
+      launchBridgeIfNeeded();
+    }
+  }, 1000);
+}
+
 function stopBridge() {
+  appQuitting = true;
+  clearBridgeRestartTimer();
   if (bridgeProcess && !bridgeProcess.killed) {
     bridgeProcess.kill();
   }
   bridgeProcess = null;
+  bridgeToken = null;
   bridgeLogStream?.end();
   bridgeLogStream = null;
 }

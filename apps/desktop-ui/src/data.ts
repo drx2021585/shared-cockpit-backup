@@ -182,8 +182,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.21",
+    version: "0.1.22",
     title: "Current build",
+    date: "2026-07-31",
+    commits: [
+      "Fixed a packaging failure that could ship the desktop app without its embedded local bridge. When that happened, the cockpit stayed stuck on \"Local bridge: Disconnected\" and never received any simulator data.",
+      "The desktop app now relaunches the local bridge if it dies unexpectedly, instead of leaving the flight screen permanently disconnected from the simulator.",
+      "Bridge reconnects now request a fresh auth token each time, so a restarted bridge can be reached again without forcing the whole app into a broken stale-token state.",
+      "The desktop release pipeline now refuses to publish if the embedded bridge executable or SimConnect.dll are missing, preventing another broken installer from reaching players.",
+    ],
+  },
+  {
+    version: "0.1.21",
+    title: "Published release",
     date: "2026-07-31",
     commits: [
       "Flight-position synchronization is now much more precise: instead of snapping to the other pilot's aircraft coordinates, We Connect corrects using local meter-based error, short extrapolation and separate limits for horizontal movement, altitude and attitude.",
