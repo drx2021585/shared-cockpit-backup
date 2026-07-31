@@ -37,14 +37,21 @@ systems:
     # ACTUALIZACIÓN 2026-07-26: EVT_EVENT_IDS_FULL.txt confirmó por escrito
     # EVT_OH_EEC_L_SWITCH/EVT_OH_EEC_R_SWITCH ("EEC" coincide literalmente
     # con ENG_EECSwitch[2]) -- se convirtieron eec_switch_1/2 de readOnly a
-    # escribibles. ENG_StartValve/StartSelector/IgnitionSelector y todos los
-    # campos APU_* siguen readOnly: no se encontró un candidato con semántica
-    # suficientemente clara (EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/
-    # R_ENGINE_START podrían ser los switches reales pese al prefijo
-    # "LIGHTS", pero es solo una hipótesis por posición en el header, no
-    # confirmada -- ver EVENT_IDS_PENDIENTES.md). Sigue sin confirmación EN
-    # VIVO -- nivel se mantiene "partial" (2/16 escribibles).
-    missing: [pmdg_fmc_engine_logic, apu_egt_needle_blocked_by_schema_float, eng_start_selector_candidate_unconfirmed]
+    # escribibles.
+    # ACTUALIZACIÓN 2026-07-31: cruzando con la definición real de
+    # YourControls (apps/desktop-ui/recurso/definitions/"PMDG Simulations -
+    # Boeing 737NG Series.yaml") se confirmaron dos mappings direccionales
+    # adicionales vía ROTOR_BRAKE para los ENGINE START switches:
+    # L:switch_119_73X (izquierdo, params 11902/11901) y L:switch_121_73X
+    # (derecho, params 12102/12101). Con eso, engine.start_selector_1/2
+    # pasaron a escribibles vía calculatorCode, un paso por escritura hacia
+    # el valor pedido 0=GRD, 1=OFF, 2=CONT, 3=FLT. ENG_StartValve,
+    # ENG_IgnitionSelector y todos los campos APU_* siguen readOnly: los
+    # candidatos EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/
+    # R_ENGINE_START siguen siendo ambiguos por nombre/semántica para este
+    # proyecto. Sigue sin confirmación EN VIVO -- nivel se mantiene
+    # "partial" (4/16 escribibles).
+    missing: [pmdg_fmc_engine_logic, apu_egt_needle_blocked_by_schema_float, ignition_and_apu_candidate_unconfirmed]
   electrical:
     level: partial
     controls: [battery, apu_master, apu_generator, external_power]

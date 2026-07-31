@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.40",
+    version: "0.1.41",
     title: "Current build",
+    date: "2026-07-31",
+    commits: [
+      "The relay compatibility endpoint now reports the real current release instead of being stuck on API/client version 0.1.32, so Test relay and required-update checks stop advertising an outdated build.",
+      "The hosted and self-hosted relay stack was version-aligned with the desktop app and bridge at 0.1.41, removing the mismatch where the app shipped newer features but the relay still claimed an older minimum and latest version.",
+      "The PMDG 737 engine start selectors are now writable from the shared cockpit profile using the proven YourControls directional mappings, improving bidirectional overhead sync beyond simple read-only observation.",
+    ],
+  },
+  {
+    version: "0.1.40",
+    title: "Published release",
     date: "2026-07-31",
     commits: [
       "When port 8787 already contains an older direct relay, the desktop app now detects that stale host, stops it automatically and replaces it with the current embedded direct host.",

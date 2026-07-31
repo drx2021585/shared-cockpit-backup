@@ -16,14 +16,25 @@
 # del header) confirma por escrito EVT_OH_EEC_L_SWITCH/EVT_OH_EEC_R_SWITCH
 # ("EEC" coincide literalmente con ENG_EECSwitch[2]). Esos 2 controles
 # (eec_switch_1/2) se convirtieron de readOnly a escribibles
-# (write.type: clientDataEvent contra PMDG_NG3_Control). NO se encontró
-# ningún #define confirmado con semántica clara para ENG_StartValve,
-# ENG_StartSelector, ENG_IgnitionSelector ni los campos APU_* -- hay un
-# candidato NO confirmado (EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/
-# R_ENGINE_START, agrupados bajo el prefijo "LIGHTS" pese a que por
-# posición/orden en el header podrían ser los switches reales de arranque;
-# demasiado ambiguo para declarar sin evidencia más fuerte, ver
-# EVENT_IDS_PENDIENTES.md). El resto permanece readOnly: true.
+# (write.type: clientDataEvent contra PMDG_NG3_Control). Los Event IDs del
+# SDK que por nombre podrían corresponder al arranque
+# (EVT_OH_LIGHTS_APU_START/L_ENGINE_START/IGN_SEL/R_ENGINE_START) siguen SIN
+# evidencia suficiente: el prefijo "LIGHTS" y la falta de semántica de set
+# explícita los deja ambiguos para este proyecto, así que no se usan aquí.
+#
+# ACTUALIZACIÓN 2026-07-31 — se cruzó este perfil con la definición real de
+# YourControls en apps/desktop-ui/recurso/definitions/"PMDG Simulations -
+# Boeing 737NG Series.yaml". Ahí los dos ENGINE START switches sí tienen una
+# vía de escritura probada y explícitamente direccional, aunque no venga del
+# SDK PMDG: L:switch_119_73X / L:switch_121_73X con ROTOR_BRAKE up/down
+# (11902/11901 y 12102/12101). Se convirtieron engine.start_selector_1/2 de
+# solo lectura a write.type: calculatorCode, usando el estado oficial leído
+# desde ENG_StartSelector[2] (PMDG_NG3_Data, comentario del header:
+# 0=GRD, 1=OFF, 2=CONT, 3=FLT) y disparando un solo paso por escritura hacia
+# el valor pedido. No es un TOGGLE ciego: el RPN compara el estado actual
+# contra $value antes de emitir el pulso. Sigue pendiente validación EN VIVO
+# contra MSFS+PMDG real para confirmar la polaridad exacta de cada selector.
+# ENG_IgnitionSelector y los campos APU_* siguen readOnly: true.
 #
 # ENG_EECSwitch[2]/ENG_annunREVERSER[2]/ENG_annunENGINE_CONTROL[2]/
 # ENG_annunALTN[2]/ENG_StartValve[2]/ENG_StartSelector[2]: convención de
@@ -198,7 +209,6 @@
 - id: engine.start_selector_1
   dataType: number
   authority: shared
-  readOnly: true
   sdkTier: clientDataArea
   read:
     type: clientDataArea
@@ -206,14 +216,18 @@
     field: "ENG_StartSelector"
     arrayIndex: 0
     nativeType: uchar
+  write:
+    type: calculatorCode
+    name: "(L:switch_119_73X,number) $value 10 * < if{ 11902 (>K:ROTOR_BRAKE) } (L:switch_119_73X,number) $value 10 * > if{ 11901 (>K:ROTOR_BRAKE) }"
   synchronization:
-    mode: polled
-    confirmAfterWrite: false
+    mode: event
+    debounceMs: 150
+    confirmAfterWrite: true
+    timeoutMs: 1000
 
 - id: engine.start_selector_2
   dataType: number
   authority: shared
-  readOnly: true
   sdkTier: clientDataArea
   read:
     type: clientDataArea
@@ -221,9 +235,14 @@
     field: "ENG_StartSelector"
     arrayIndex: 1
     nativeType: uchar
+  write:
+    type: calculatorCode
+    name: "(L:switch_121_73X,number) $value 10 * < if{ 12102 (>K:ROTOR_BRAKE) } (L:switch_121_73X,number) $value 10 * > if{ 12101 (>K:ROTOR_BRAKE) }"
   synchronization:
-    mode: polled
-    confirmAfterWrite: false
+    mode: event
+    debounceMs: 150
+    confirmAfterWrite: true
+    timeoutMs: 1000
 
 - id: engine.ignition_selector
   dataType: number
