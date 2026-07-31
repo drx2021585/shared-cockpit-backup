@@ -179,11 +179,17 @@ export function App() {
             createdSession={createdSession}
             onSessionCreated={handleSessionCreated}
             onSessionReady={handleSessionReady}
+            relayConfig={relayConfig}
           />
         );
       case "join":
         return (
-          <Join pilotName={pilotName} onPilotNameChange={setPilotName} onSessionReady={handleSessionReady} />
+          <Join
+            pilotName={pilotName}
+            onPilotNameChange={setPilotName}
+            onSessionReady={handleSessionReady}
+            onRelayConfigChange={handleRelayConfigChange}
+          />
         );
       case "cockpit":
         return null;

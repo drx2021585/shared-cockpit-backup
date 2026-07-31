@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { joinSession, ApiError, type Session } from "../lib/apiClient";
+import { parseDirectInviteCode } from "../lib/directInviteCode";
+import { type RelayConfig } from "../lib/relayConfig";
 
 interface JoinProps {
   pilotName: string;
   onPilotNameChange: (name: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
+  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
-export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
+export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConfigChange }: JoinProps) {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
@@ -26,7 +29,15 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
     setSubmitting(true);
     setError(null);
     try {
-      const session = await joinSession(code.trim().toUpperCase(), {
+      const directInvite = parseDirectInviteCode(code.trim());
+      const resolvedJoinCode = directInvite?.joinCode ?? code.trim().toUpperCase();
+      if (directInvite) {
+        onRelayConfigChange({
+          mode: "self-hosted",
+          customBaseUrl: `http://${directInvite.host}:${directInvite.port}`,
+        });
+      }
+      const session = await joinSession(resolvedJoinCode, {
         pilotName: pilotName.trim(),
         seat,
         password: password || undefined,
@@ -54,7 +65,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
         <h2 className="h2-modal">Join a party</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
-        Enter the code your friend shared to join their cockpit.
+        Enter the code your friend shared to join their cockpit. Direct invite codes are accepted too.
       </p>
       <form
         autoComplete="off"
@@ -92,7 +103,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
           />
         </div>
         <div className="field">
-          <label>Session code</label>
+          <label>Session code or direct invite code</label>
           <input
             type="text"
             name="weconnect-session-code"
@@ -100,10 +111,10 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
             className="mono"
             style={{ fontSize: 20, letterSpacing: "0.1em" }}
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onChange={(e) => setCode(e.target.value)}
             autoComplete="off"
             autoCorrect="off"
-            autoCapitalize="characters"
+            autoCapitalize="off"
             spellCheck={false}
             data-form-type="other"
           />

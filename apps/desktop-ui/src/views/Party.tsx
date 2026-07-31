@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { createSession, ApiError, type Session } from "../lib/apiClient";
+import { buildDirectInviteCode } from "../lib/directInviteCode";
+import { type RelayConfig } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -9,6 +11,7 @@ interface PartyProps {
   createdSession: Session | null;
   onSessionCreated: (session: Session, pilotName: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
+  relayConfig: RelayConfig;
 }
 
 export function Party({
@@ -17,6 +20,7 @@ export function Party({
   createdSession,
   onSessionCreated,
   onSessionReady,
+  relayConfig,
 }: PartyProps) {
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
@@ -42,6 +46,19 @@ export function Party({
     (selectedProfileIsCompatible ? aircraftProfileId : compatibleProfiles[0]?.id) || "";
   const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
+  const relayPort = (() => {
+    if (relayConfig.mode !== "self-hosted") return 8787;
+    try {
+      const url = new URL(relayConfig.customBaseUrl);
+      return Number(url.port || (url.protocol === "https:" ? 443 : 80));
+    } catch {
+      return 8787;
+    }
+  })();
+  const directInviteCode =
+    createdSession && relayConfig.mode === "self-hosted" && ipv4 !== "Unavailable" && ipv4 !== "Detecting…"
+      ? buildDirectInviteCode({ host: ipv4, port: relayPort, joinCode: createdSession.joinCode })
+      : null;
 
   async function handleCreate() {
     if (!pilotName.trim()) {
@@ -199,6 +216,22 @@ export function Party({
                 : "Create the session to generate a real code"}
             </div>
           </div>
+
+          {directInviteCode && (
+            <>
+              <div className="divider-row" style={{ marginTop: 18, marginBottom: 10, border: "none" }}>
+                <div className="mono-label">Direct invite code</div>
+              </div>
+              <div className="code-box">
+                <div className="code-caption" style={{ marginBottom: 10 }}>
+                  Paste this on the other PC and We Connect will route itself to this host automatically.
+                </div>
+                <div className="code-value" style={{ fontSize: 12, letterSpacing: "0.04em", wordBreak: "break-all" }}>
+                  {directInviteCode}
+                </div>
+              </div>
+            </>
+          )}
 
           {createdSession && (
             <div style={{ marginBottom: 16 }}>
