@@ -12,6 +12,14 @@ We Connect apuntan a esa URL en vez del relay hospedado por We Connect.
 
 No es P2P puro: sigue habiendo un relay, pero ahora lo hospeda una de tus PCs.
 
+## Modos disponibles
+
+- `npm run dev:lan`
+  Usa el backend normal de `server/api` y requiere `DATABASE_URL`.
+- `npm run dev:direct`
+  Levanta un host directo EN MEMORIA, sin Postgres. Es el modo más cercano a
+  un host/guest tipo YourControls dentro de la arquitectura actual.
+
 ## Requisitos en la PC host
 
 1. Tener este repo y Node instalado.
@@ -28,11 +36,26 @@ npm install
 npm run dev:lan
 ```
 
+O, si quieres un host directo sin base de datos compartida:
+
+```powershell
+cd server/api
+npm install
+npm run dev:direct
+```
+
 Si todo va bien, el proceso muestra algo como:
 
 ```text
 Shared Cockpit API real corriendo en http://localhost:8787
 WebSocket de sesión en ws://localhost:8787/ws
+```
+
+En modo directo:
+
+```text
+Shared Cockpit direct host corriendo en http://0.0.0.0:8787
+WebSocket directo en ws://0.0.0.0:8787/ws
 ```
 
 ## Configuración en We Connect
@@ -56,6 +79,14 @@ http://192.168.1.20:8787
 
 5. Pulsar `Test relay`.
 6. Pulsar `Save self-hosted relay`.
+
+## Cuándo usar cada modo
+
+- `dev:lan`
+  Si quieres seguir usando el backend completo con Postgres.
+- `dev:direct`
+  Si quieres que una PC haga de host local y la otra entre directo por IP, sin
+  infraestructura externa.
 
 ## Cómo volver al relay hospedado
 
