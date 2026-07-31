@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.39",
+    version: "0.1.40",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "Any desktop request that targets the local direct relay now starts that relay automatically first, so Aircraft, health checks and session actions no longer depend on which screen the host opened before.",
-      "Self-hosted direct sessions now use localhost internally on the host PC while still advertising the LAN address to the other pilot through the direct invite code.",
-      "The remaining UI errors that told users to run server/api manually were removed, so the direct-host flow stays consistent with a fully automatic desktop host.",
+      "When port 8787 already contains an older direct relay, the desktop app now detects that stale host, stops it automatically and replaces it with the current embedded direct host.",
+      "Local direct relay requests now come up with the current app version and aircraft profiles even if an old manual direct-server process was left running on the PC.",
+      "This fixes the direct-host failure where the app kept saying 'Could not start the direct host on this PC' because a previous relay build was still occupying the port.",
     ],
   },
   {

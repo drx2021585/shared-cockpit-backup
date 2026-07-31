@@ -3,6 +3,7 @@
 const express = require("express");
 const { createServer } = require("node:http");
 const { randomBytes } = require("node:crypto");
+const { execFile } = require("node:child_process");
 const { existsSync, readFileSync, readdirSync } = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
@@ -229,6 +230,62 @@ function createDirectRelay(options) {
   function isClientVersionSupported(version) {
     if (!version) return false;
     return compareVersions(version, appVersion) >= 0;
+  }
+
+  function runPowerShell(command) {
+    return new Promise((resolve, reject) => {
+      execFile(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-Command", command],
+        { windowsHide: true },
+        (error, stdout) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(stdout);
+        }
+      );
+    });
+  }
+
+  async function getListeningProcessIds() {
+    const stdout = await runPowerShell(
+      `$ids = @(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique); $ids | ConvertTo-Json -Compress`
+    ).catch(() => "[]");
+    try {
+      const parsed = JSON.parse(String(stdout || "[]").trim() || "[]");
+      return Array.isArray(parsed) ? parsed.map((value) => Number(value)).filter(Number.isFinite) : [Number(parsed)].filter(Number.isFinite);
+    } catch {
+      return [];
+    }
+  }
+
+  async function killListeningProcesses() {
+    const ids = await getListeningProcessIds();
+    if (ids.length === 0) return;
+    await runPowerShell(`Stop-Process -Id ${ids.join(",")} -Force -ErrorAction SilentlyContinue`).catch(() => undefined);
+  }
+
+  async function waitForPortClosed(timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!(await isPortOpen())) return true;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    return false;
+  }
+
+  async function fetchExistingHealth() {
+    try {
+      const response = await fetch(`${baseUrl()}/api/health`, {
+        headers: { "X-WeConnect-Client-Version": appVersion },
+      });
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
   }
 
   function authenticateParticipant(joinCode, token) {
@@ -628,7 +685,23 @@ function createDirectRelay(options) {
       return { started: false, baseUrl: baseUrl() };
     }
     if (await isPortOpen()) {
-      return { started: false, baseUrl: baseUrl(), external: true };
+      const existingHealth = await fetchExistingHealth();
+      const sameVersionRelay =
+        existingHealth?.mode === "direct-host" &&
+        existingHealth.latestClientVersion === appVersion &&
+        existingHealth.minClientVersion === appVersion;
+      if (sameVersionRelay) {
+        return { started: false, baseUrl: baseUrl(), external: true };
+      }
+      if (existingHealth?.mode === "direct-host") {
+        await killListeningProcesses();
+        const released = await waitForPortClosed(5000);
+        if (!released) {
+          throw new Error("Direct host port is still busy on this PC.");
+        }
+      } else {
+        throw new Error("Direct host port is already in use on this PC.");
+      }
     }
 
     profiles = scanAircraftProfiles(profilesDir);
