@@ -489,10 +489,48 @@ let appQuitting = false;
 // acepta sin token — compatibilidad con el flujo manual de desarrollo.
 let bridgeToken = null;
 
-ipcMain.handle("bridge:get-token", async () => {
-  if (!appQuitting && !bridgeProcess && !(await isBridgePortOpen())) {
-    await launchBridgeIfNeeded();
+// El token se persiste porque el bridge sobrevive a la ventana que lo lanzó.
+// Cuando launchBridgeIfNeeded() encuentra el puerto ya ocupado se rendía y
+// dejaba bridgeToken = null; a partir de ahí el renderer reconectaba SIN token,
+// el bridge lo rechazaba ("token del bridge ausente o inválido"), el socket
+// moría en <400ms y la UI lo mostraba como "Not running" para siempre. Guardar
+// el token permite reengancharse al bridge que ya está corriendo en vez de
+// quedar bloqueado. Vive en userData, que ya es un directorio solo del usuario.
+function bridgeTokenFilePath() {
+  return path.join(app.getPath("userData"), "bridge-token");
+}
+
+function persistBridgeToken(token) {
+  try {
+    fs.writeFileSync(bridgeTokenFilePath(), token, { encoding: "utf8", mode: 0o600 });
+  } catch {
+    // No crítico: sin el archivo se pierde solo la capacidad de reengancharse a
+    // un bridge heredado; el flujo normal (lanzarlo nosotros) sigue igual.
   }
+}
+
+function readPersistedBridgeToken() {
+  try {
+    return fs.readFileSync(bridgeTokenFilePath(), "utf8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+ipcMain.handle("bridge:get-token", async () => {
+  if (appQuitting || bridgeProcess) {
+    return bridgeToken;
+  }
+  if (await isBridgePortOpen()) {
+    // Bridge heredado: sigue vivo de una ventana anterior de la app (o lanzado
+    // a mano). No se relanza -- fallaría al bindear -- pero SÍ hay que recuperar
+    // el token con el que arrancó, o cada reconexión sería rechazada.
+    if (!bridgeToken) {
+      bridgeToken = readPersistedBridgeToken();
+    }
+    return bridgeToken;
+  }
+  await launchBridgeIfNeeded();
   return bridgeToken;
 });
 
@@ -533,8 +571,10 @@ async function launchBridgeIfNeeded() {
   if (await isBridgePortOpen()) {
     // Ya hay un bridge respondiendo en ese puerto (corrido a mano, o de un
     // segundo intento de arranque) -- no lanzar un segundo proceso, fallaría
-    // al intentar bindear el mismo puerto.
-    bridgeToken = null;
+    // al intentar bindear el mismo puerto. Se recupera el token con el que se
+    // lanzó para poder reengancharse; si no hay archivo (bridge lanzado a mano
+    // en desarrollo) queda null, que es justo lo que ese bridge espera.
+    bridgeToken = readPersistedBridgeToken();
     return;
   }
 
@@ -549,6 +589,7 @@ async function launchBridgeIfNeeded() {
   if (profilesDir) env.SHAREDCOCKPIT_PROFILES_DIR = profilesDir;
   bridgeToken = crypto.randomBytes(32).toString("hex");
   env.SHAREDCOCKPIT_BRIDGE_TOKEN = bridgeToken;
+  persistBridgeToken(bridgeToken);
 
   try {
     bridgeLogStream = fs.createWriteStream(path.join(app.getPath("userData"), "bridge.log"), { flags: "a" });

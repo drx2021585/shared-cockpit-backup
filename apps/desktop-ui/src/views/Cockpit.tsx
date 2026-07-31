@@ -577,6 +577,19 @@ export function Cockpit({
     void runBridgeFix();
   }, [bridgeCompatibilityError, runBridgeFix]);
 
+  // Reconexión manual. Solo necesita disparar reconnectNow(): eso resetea el
+  // backoff y rearma la escalada automática, así que si el bridge nos está
+  // rechazando por token, los tres cierres instantáneos que hacen falta para
+  // detectarlo ocurren en menos de un segundo y el proceso se reemplaza solo.
+  const [bridgeReconnecting, setBridgeReconnecting] = useState(false);
+  const bridgeReconnectNow = bridge.reconnectNow;
+
+  const handleReconnectBridge = useCallback(() => {
+    setBridgeReconnecting(true);
+    bridgeReconnectNow();
+    window.setTimeout(() => setBridgeReconnecting(false), 1500);
+  }, [bridgeReconnectNow]);
+
   const bridgeFixMessage =
     bridgeFixState === "working"
       ? " Restarting the bundled bridge…"
@@ -756,7 +769,23 @@ export function Cockpit({
           </div>
 
           <div style={{ marginTop: 26 }}>
-            <div className="mono-label" style={{ marginBottom: 10 }}>Link health</div>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}
+            >
+              <div className="mono-label">Link health</div>
+              {/* Reconexión manual: la automática ya cubre el caso normal, pero
+                  tener el botón evita que el único recurso sea reiniciar la app
+                  cuando algo queda colgado a mitad de vuelo. */}
+              <button
+                className="btn"
+                onClick={handleReconnectBridge}
+                disabled={bridgeReconnecting}
+                style={{ marginLeft: "auto", padding: "5px 11px", fontSize: 11 }}
+                title="Force an immediate reconnection to the local bridge"
+              >
+                {bridgeReconnecting ? "Reconnecting…" : "Reconnect bridge"}
+              </button>
+            </div>
             {[
               {
                 label: "Session relay",

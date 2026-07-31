@@ -134,11 +134,26 @@ export interface SimulatorBridgeState {
    * si el WebSocket no está abierto todavía.
    */
   send: (msg: ControlEvent | ControlAxis | FlightPose) => void;
+  /**
+   * Fuerza un intento de reconexión YA: descarta el backoff acumulado, tira el
+   * socket viejo y reconecta pidiendo un token fresco. Lo usa el botón
+   * "Reconnect" de la cabina y también los despertares de ventana (focus/online).
+   */
+  reconnectNow: () => void;
 }
 
 const BRIDGE_WS_URL = "ws://localhost:7620";
-const RECONNECT_BASE_DELAY_MS = 500;
-const RECONNECT_MAX_DELAY_MS = 15000;
+// Reconexión agresiva a propósito: el bridge es un proceso local, así que
+// reintentar rápido no cuesta red. Con el backoff viejo (500ms base, tope 15s)
+// una caída al pasar control dejaba la cabina muerta más de un minuto aunque el
+// bridge ya estuviera de vuelta.
+const RECONNECT_BASE_DELAY_MS = 250;
+const RECONNECT_MAX_DELAY_MS = 3000;
+// Cierres inmediatos seguidos tras los cuales se asume que el bridge está
+// RECHAZANDO la conexión (token desincronizado, ver electron/main.cjs) en vez de
+// estar apagado. Reintentar con el mismo token no arregla eso nunca: hay que
+// reemplazar el proceso para que regenere uno.
+const FAST_CLOSES_BEFORE_REPLACE = 3;
 // Si el socket nunca llega a abrir y se cierra antes de este umbral, se
 // interpreta como "no hay nada escuchando en ese puerto" (bridge no
 // corriendo) en vez de una desconexión intermitente normal.
@@ -149,9 +164,14 @@ export function resolveBridgeMode(): BridgeMode {
   return raw === "mock" ? "mock" : "real";
 }
 
-function emptyState(mode: BridgeMode, send: (msg: ControlEvent | ControlAxis | FlightPose) => void = () => {}): SimulatorBridgeState {
+function emptyState(
+  mode: BridgeMode,
+  send: (msg: ControlEvent | ControlAxis | FlightPose) => void = () => {},
+  reconnectNow: () => void = () => {},
+): SimulatorBridgeState {
   return {
     mode,
+    reconnectNow,
     connectionState: "connecting",
     reconnecting: false,
     diagnostics: null,
@@ -313,6 +333,16 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
   let attempt = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let connectStartedAt = 0;
+  // Cierres inmediatos seguidos (el bridge acepta el TCP y corta al instante):
+  // firma de "conexión rechazada", no de "bridge apagado".
+  let fastCloses = 0;
+  // Se permite un solo reemplazo automático del proceso por racha; se rearma al
+  // volver a conectar, para no entrar en un bucle de matar/relanzar.
+  let replaceAttempted = false;
+  // Cada connect() se lleva una generación. Los handlers de un socket viejo que
+  // llega tarde (o de uno descartado por reconnectNow) se ignoran comparando
+  // contra la generación viva, así dos sockets nunca se pisan el estado.
+  let generation = 0;
   const bridgeAuth = (window as unknown as {
     weconnectBridgeAuth?: { getToken: () => Promise<string | null> };
   }).weconnectBridgeAuth;
@@ -324,7 +354,33 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     ws.send(JSON.stringify(msg));
   }
 
-  setState(() => emptyState("real", send));
+  /** Descarta el socket actual sin que su onclose dispare otra reconexión. */
+  function discardSocket() {
+    const stale = ws;
+    ws = null;
+    if (!stale) return;
+    stale.onopen = null;
+    stale.onmessage = null;
+    stale.onerror = null;
+    stale.onclose = null;
+    try {
+      stale.close();
+    } catch {
+      // Ya estaba cerrado o cerrándose: nada que hacer.
+    }
+  }
+
+  function reconnectNow() {
+    if (unmounted) return;
+    attempt = 0;
+    fastCloses = 0;
+    replaceAttempted = false;
+    clearReconnectTimer();
+    discardSocket();
+    void connect();
+  }
+
+  setState(() => emptyState("real", send, reconnectNow));
 
   function clearReconnectTimer() {
     if (reconnectTimer) {
@@ -337,11 +393,19 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     if (unmounted) return;
     const currentAttempt = attempt;
     attempt += 1;
-    const exp = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** currentAttempt, RECONNECT_MAX_DELAY_MS);
-    const jitter = exp * (0.5 + Math.random() * 0.5);
     clearReconnectTimer();
+    // El primer reintento es inmediato: cubre el caso común (el bridge se
+    // reinició y ya volvió a escuchar) sin que la cabina se quede en blanco.
+    if (currentAttempt === 0) {
+      reconnectTimer = setTimeout(() => {
+        if (!unmounted) void connect();
+      }, 0);
+      return;
+    }
+    const exp = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** (currentAttempt - 1), RECONNECT_MAX_DELAY_MS);
+    const jitter = exp * (0.5 + Math.random() * 0.5);
     reconnectTimer = setTimeout(() => {
-      if (!unmounted) connect();
+      if (!unmounted) void connect();
     }, jitter);
   }
 
@@ -355,11 +419,12 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
 
   async function connect() {
     if (unmounted) return;
+    const myGeneration = ++generation;
     connectStartedAt = Date.now();
     setState((s) => ({ ...s, connectionState: "connecting", reconnecting: attempt > 0 }));
 
     const bridgeToken = await resolveBridgeToken();
-    if (unmounted) {
+    if (unmounted || myGeneration !== generation) {
       return;
     }
 
@@ -379,11 +444,15 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     ws = socket;
 
     socket.onopen = () => {
+      if (unmounted || myGeneration !== generation) return;
       attempt = 0;
+      fastCloses = 0;
+      replaceAttempted = false;
       setState((s) => ({ ...s, connectionState: "connected", reconnecting: false }));
     };
 
     socket.onmessage = (event) => {
+      if (unmounted || myGeneration !== generation) return;
       try {
         const msg = JSON.parse(event.data) as SharedCockpitMessage;
         setState((s) => applyMessage(s, msg));
@@ -398,23 +467,49 @@ function runRealBridge(setState: (updater: (s: SimulatorBridgeState) => Simulato
     };
 
     socket.onclose = () => {
-      if (unmounted) return;
+      if (unmounted || myGeneration !== generation) return;
       const elapsed = Date.now() - connectStartedAt;
       const neverConnected = elapsed < NO_BRIDGE_CLOSE_THRESHOLD_MS;
+      fastCloses = neverConnected ? fastCloses + 1 : 0;
       setState((s) => ({
         ...s,
         connectionState: neverConnected ? "no-bridge-running" : "disconnected",
       }));
+
+      // Varios cierres instantáneos seguidos no son "el bridge está apagado":
+      // si estuviera apagado el TCP ni conectaría. Es el bridge rechazándonos
+      // por token, y reintentar con el mismo token no converge nunca. Se
+      // reemplaza el proceso una vez para que regenere token y lo persista.
+      if (fastCloses >= FAST_CLOSES_BEFORE_REPLACE && !replaceAttempted) {
+        replaceAttempted = true;
+        void replaceStaleBridge().then((result) => {
+          if (unmounted || !result?.ok) return;
+          fastCloses = 0;
+          attempt = 0;
+        });
+      }
+
       scheduleReconnect();
     };
   }
 
-  connect();
+  // Volver a la ventana o recuperar la red son señales de que vale la pena
+  // reintentar YA en vez de esperar a que venza el backoff.
+  function handleWakeup() {
+    if (unmounted || (ws && ws.readyState === WebSocket.OPEN)) return;
+    reconnectNow();
+  }
+  window.addEventListener("focus", handleWakeup);
+  window.addEventListener("online", handleWakeup);
+
+  void connect();
 
   return () => {
     unmounted = true;
+    window.removeEventListener("focus", handleWakeup);
+    window.removeEventListener("online", handleWakeup);
     clearReconnectTimer();
-    ws?.close();
+    discardSocket();
   };
 }
 
