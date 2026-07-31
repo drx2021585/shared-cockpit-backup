@@ -33,6 +33,7 @@ export interface SessionSocketState {
 
 const RECONNECT_BASE_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 15000;
+const AIRCRAFT_SNAPSHOT_HEARTBEAT_MS = 2500;
 
 /**
  * Conecta al WebSocket real del backend para un código de sesión y piloto
@@ -234,18 +235,30 @@ export function useSessionSocket(
   }, [joinCode, pilotName]);
 
   useEffect(() => {
-    const ws = wsRef.current;
-    if (!joinCode || !localProfileId || !ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({
-      type: "aircraft.snapshot",
-      sessionId: joinCode,
-      revision: 0,
-      profile: localProfileId,
-      simulatorVersion: localSimulatorVersion,
-      detectedTitle: null,
-      appVersion: currentVersion,
-      systems: {},
-    }));
+    if (!joinCode || !localProfileId || !state.connected) return;
+
+    function sendAircraftSnapshot() {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        type: "aircraft.snapshot",
+        sessionId: joinCode,
+        revision: 0,
+        profile: localProfileId,
+        simulatorVersion: localSimulatorVersion,
+        detectedTitle: null,
+        appVersion: currentVersion,
+        systems: {},
+      }));
+    }
+
+    // Heartbeat liviano de presencia/avión: sin esto, si el otro piloto no
+    // toca controles ni emite flight.pose por unos segundos, la UI local lo
+    // degrada a "No recent data" aunque la sesión siga viva. El snapshot es
+    // chico y su semántica ya existe, así que se reutiliza como latido.
+    sendAircraftSnapshot();
+    const timer = setInterval(sendAircraftSnapshot, AIRCRAFT_SNAPSHOT_HEARTBEAT_MS);
+    return () => clearInterval(timer);
   }, [
     joinCode,
     localProfileId,
