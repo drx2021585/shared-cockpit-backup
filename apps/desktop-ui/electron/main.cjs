@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
 const crypto = require("node:crypto");
-const { spawn } = require("node:child_process");
+const { spawn, execFile } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 
 // La app apunta al backend compartido en Railway por defecto (ver
@@ -577,6 +577,75 @@ async function launchBridgeIfNeeded() {
     scheduleBridgeRestart();
   });
 }
+
+// Nombre del proceso tal como lo ve Windows -- se mata POR NOMBRE, nunca por
+// "quién tiene el puerto 7620". El bridge sirve el WebSocket con HttpListener,
+// que es http.sys en modo kernel: el LISTENING de ese puerto siempre aparece a
+// nombre del PID 4 (System), así que buscar al dueño del puerto y matarlo
+// apuntaría al kernel, no al bridge.
+const BRIDGE_PROCESS_NAME = "SharedCockpit.Bridge.exe";
+let bridgeReplaceInFlight = false;
+
+function killBridgeProcesses() {
+  return new Promise((resolve) => {
+    execFile("taskkill", ["/F", "/IM", BRIDGE_PROCESS_NAME], { windowsHide: true }, (err) => {
+      // err también aparece cuando no había ningún proceso vivo ("not found"),
+      // que para nuestro propósito es exactamente el estado deseado.
+      resolve(!err);
+    });
+  });
+}
+
+/** Espera a que http.sys libere el puerto tras matar al bridge que lo tenía. */
+async function waitForBridgePortClosed(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await isBridgePortOpen())) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
+// launchBridgeIfNeeded() se rinde si el puerto ya está ocupado, para no pelear
+// con un bridge lanzado a mano. El efecto secundario es que un bridge VIEJO
+// squatteando el 7620 dejaba a la app pegada a él para siempre: la UI mostraba
+// "BRIDGE UPDATE REQUIRED" y el único arreglo era abrir el Task Manager. Este
+// handler es la salida en la app: mata cualquier bridge (nuestro o ajeno) y
+// levanta el empaquetado, que sí trae la API que esta versión exige.
+ipcMain.handle("bridge:replace-stale", async () => {
+  if (process.platform !== "win32") {
+    return { ok: false, reason: "unsupported-platform" };
+  }
+  if (bridgeReplaceInFlight) {
+    return { ok: false, reason: "already-in-progress" };
+  }
+  const exePath = getBridgeExecutablePath();
+  if (!fs.existsSync(exePath)) {
+    return { ok: false, reason: "bundled-bridge-missing" };
+  }
+
+  bridgeReplaceInFlight = true;
+  try {
+    clearBridgeRestartTimer();
+    if (bridgeProcess && !bridgeProcess.killed) {
+      bridgeProcess.kill();
+    }
+    bridgeProcess = null;
+    bridgeToken = null;
+
+    await killBridgeProcesses();
+    if (!(await waitForBridgePortClosed(5000))) {
+      return { ok: false, reason: "port-still-busy" };
+    }
+
+    await launchBridgeIfNeeded();
+    return bridgeProcess
+      ? { ok: true, reason: "restarted" }
+      : { ok: false, reason: "launch-failed" };
+  } finally {
+    bridgeReplaceInFlight = false;
+  }
+});
 
 function clearBridgeRestartTimer() {
   if (bridgeRestartTimer) {

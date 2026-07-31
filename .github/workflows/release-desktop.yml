@@ -56,6 +56,32 @@ jobs:
             throw "Embedded SimConnect.dll missing: $simConnectDll"
           }
 
+      # Hasta 0.1.23 el único chequeo era "el .exe existe", y eso dejó pasar un
+      # bridge de 0.1.15 (152 KB, framework-dependent) empacado dentro de una app
+      # 0.1.23: la UI exigía bridge API 2, el bridge viejo ni siquiera reportaba
+      # el campo, y el usuario quedaba con "BRIDGE UPDATE REQUIRED" sin salida.
+      # Estos dos asserts convierten ese fallo silencioso en un build roto.
+      - name: Verify embedded bridge is fresh and self-contained
+        run: |
+          $publishDir = Join-Path (Resolve-Path ..\simulator-bridge\src\SimulatorBridge) "publish"
+          $bridgeExe = Join-Path $publishDir "SharedCockpit.Bridge.exe"
+
+          $expected = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          # ProductVersion viene de InformationalVersion y trae "+<commit>" por SourceLink.
+          $reported = ((Get-Item $bridgeExe).VersionInfo.ProductVersion -split '\+')[0]
+          if ($reported -ne $expected) {
+            throw "Embedded bridge version mismatch: exe reports '$reported' but package.json is '$expected'. The publish step reused a stale binary."
+          }
+
+          # Un publish self-contained single-file pesa ~160 MB. Si sale en KB es un
+          # apphost framework-dependent y no arrancaría sin .NET 8 instalado.
+          $sizeMb = [math]::Round((Get-Item $bridgeExe).Length / 1MB, 1)
+          if ($sizeMb -lt 40) {
+            throw "Embedded bridge is only $sizeMb MB - expected a self-contained single-file publish (~160 MB)."
+          }
+
+          Write-Host "Embedded bridge OK: version $reported, $sizeMb MB."
+
       - name: Install desktop-ui dependencies
         run: npm ci
 

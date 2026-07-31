@@ -3,6 +3,7 @@ import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import {
   MIN_SUPPORTED_BRIDGE_API_VERSION,
+  replaceStaleBridge,
   useSimulatorBridge,
   type BridgeScreenSnapshot,
 } from "../lib/bridgeClient";
@@ -553,6 +554,38 @@ export function Cockpit({
     previousAircraftMatchedRef.current = aircraftMatched;
   }, [aircraftMatched, aircraftMatchConfirmOpen]);
 
+  // Un bridge viejo escuchando en ws://localhost:7620 hace que Electron nunca
+  // arranque el empaquetado (launchBridgeIfNeeded se rinde si el puerto ya
+  // responde, ver electron/main.cjs), así que la app se queda pegada a él y
+  // antes el único arreglo era abrir el Task Manager. Se intenta el reemplazo
+  // una sola vez por sesión de app; si el banner sigue después de eso, el bridge
+  // viejo ES el empaquetado y lo que hace falta es reinstalar la app.
+  const [bridgeFixState, setBridgeFixState] = useState<
+    "idle" | "working" | "restarted" | "failed" | "unavailable"
+  >("idle");
+  const bridgeFixAttemptedRef = useRef(false);
+
+  const runBridgeFix = useCallback(async () => {
+    setBridgeFixState("working");
+    const result = await replaceStaleBridge();
+    setBridgeFixState(result === null ? "unavailable" : result.ok ? "restarted" : "failed");
+  }, []);
+
+  useEffect(() => {
+    if (!bridgeCompatibilityError || bridgeFixAttemptedRef.current) return;
+    bridgeFixAttemptedRef.current = true;
+    void runBridgeFix();
+  }, [bridgeCompatibilityError, runBridgeFix]);
+
+  const bridgeFixMessage =
+    bridgeFixState === "working"
+      ? " Restarting the bundled bridge…"
+      : bridgeFixState === "restarted"
+        ? " The bundled bridge was restarted. If this banner stays, this build of the app is shipping an outdated bridge — reinstall the latest release."
+        : bridgeFixState === "failed"
+          ? " Couldn't restart it automatically. Close SharedCockpit.Bridge.exe from the Task Manager and reopen We Connect."
+          : " Close any old manual bridge and reopen We Connect so the bundled bridge starts.";
+
   return (
     <div className="section" style={{ paddingTop: 24, paddingBottom: 32 }}>
       <div className="section-head" style={{ marginBottom: 6, paddingTop: 16 }}>
@@ -609,8 +642,17 @@ export function Cockpit({
               ? "Your local bridge is too old to report its compatibility level."
               : `Your local bridge reports API ${bridge.bridgeApiVersion}.`}
             {bridge.bridgeBuildVersion ? ` Build ${bridge.bridgeBuildVersion}.` : ""}
-            {" Close any old manual bridge and reopen We Connect so the bundled bridge starts."}
+            {bridgeFixMessage}
           </span>
+          {bridgeFixState !== "working" && bridgeFixState !== "unavailable" && (
+            <button
+              className="btn"
+              onClick={() => void runBridgeFix()}
+              style={{ marginLeft: "auto", padding: "6px 12px", flexShrink: 0 }}
+            >
+              Restart bridge
+            </button>
+          )}
         </div>
       )}
 

@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld("weconnectWindow", {
  */
 contextBridge.exposeInMainWorld("weconnectBridgeAuth", {
   getToken: () => ipcRenderer.invoke("bridge:get-token"),
+  // Mata el bridge que esté corriendo (viejo, lanzado a mano, o el nuestro) y
+  // arranca el empaquetado. Lo usa la UI cuando detecta un bridge con API vieja.
+  replaceStale: () => ipcRenderer.invoke("bridge:replace-stale"),
 });
 
 contextBridge.exposeInMainWorld("weconnectSetup", {

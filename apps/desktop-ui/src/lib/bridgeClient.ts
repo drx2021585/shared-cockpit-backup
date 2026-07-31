@@ -39,6 +39,31 @@ export type BridgeConnectionState =
 
 export const MIN_SUPPORTED_BRIDGE_API_VERSION = 2;
 
+export interface BridgeReplaceResult {
+  ok: boolean;
+  reason: string;
+}
+
+/**
+ * Le pide a Electron que mate el bridge que esté escuchando en el 7620 y arranque
+ * el empaquetado con la app. Es la salida para el caso en que un bridge viejo
+ * quedó corriendo (lanzado a mano o de una versión anterior): la app se pega a él
+ * porque el puerto ya responde, y sin esto el único arreglo era el Task Manager.
+ *
+ * Devuelve null fuera de Electron (build web), donde no hay proceso que matar.
+ */
+export async function replaceStaleBridge(): Promise<BridgeReplaceResult | null> {
+  const auth = (window as unknown as {
+    weconnectBridgeAuth?: { replaceStale?: () => Promise<BridgeReplaceResult> };
+  }).weconnectBridgeAuth;
+  if (!auth?.replaceStale) return null;
+  try {
+    return await auth.replaceStale();
+  } catch {
+    return { ok: false, reason: "ipc-failed" };
+  }
+}
+
 export interface BridgeControlValue {
   controlId: string;
   value: boolean | number | string;
