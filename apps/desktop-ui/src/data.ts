@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.38",
+    version: "0.1.39",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "Host direct session now validates the direct relay against localhost on the host PC, instead of trying to round-trip through that same machine's LAN IP.",
-      "Use this PC as host now keeps the local app pointed at 127.0.0.1 while still generating a LAN invite code for the other computer.",
-      "This fixes the direct-host flow where the relay was already running locally but session creation still failed with 'Could not start the direct host on this PC.'",
+      "Any desktop request that targets the local direct relay now starts that relay automatically first, so Aircraft, health checks and session actions no longer depend on which screen the host opened before.",
+      "Self-hosted direct sessions now use localhost internally on the host PC while still advertising the LAN address to the other pilot through the direct invite code.",
+      "The remaining UI errors that told users to run server/api manually were removed, so the direct-host flow stays consistent with a fully automatic desktop host.",
     ],
   },
   {

@@ -96,8 +96,29 @@ function authHeaders(): Record<string, string> {
   };
 }
 
+function isLocalDirectRelayBaseUrl(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+async function ensureRelayBaseUrl(baseUrl: string): Promise<string> {
+  if (!isLocalDirectRelayBaseUrl(baseUrl)) return baseUrl;
+  const directRelay = window.weconnectDirectRelay;
+  if (!directRelay) return baseUrl;
+  const started = await directRelay.ensureHost();
+  if (!started.ok) {
+    throw new ApiError("direct-relay-unavailable", 503);
+  }
+  return started.baseUrl ?? baseUrl;
+}
+
 async function request<T>(path: string, init?: RequestInit, baseUrl = getRelayApiBaseUrl()): Promise<T> {
-  const res = await fetch(`${baseUrl}${path}`, {
+  const resolvedBaseUrl = await ensureRelayBaseUrl(baseUrl);
+  const res = await fetch(`${resolvedBaseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -170,7 +191,8 @@ export function fetchSession(joinCode: string) {
 // parámetro pilotName se mantiene en las firmas para no romper a los
 // llamadores, pero no viaja.
 export async function closeSession(joinCode: string, _pilotName?: string) {
-  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}`, {
+  const baseUrl = await ensureRelayBaseUrl(getRelayApiBaseUrl());
+  const res = await fetch(`${baseUrl}/api/sessions/${joinCode}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
@@ -182,7 +204,8 @@ export async function closeSession(joinCode: string, _pilotName?: string) {
 }
 
 async function postSessionAction(joinCode: string, action: string) {
-  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}/${action}`, {
+  const baseUrl = await ensureRelayBaseUrl(getRelayApiBaseUrl());
+  const res = await fetch(`${baseUrl}/api/sessions/${joinCode}/${action}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({}),

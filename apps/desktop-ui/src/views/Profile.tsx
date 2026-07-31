@@ -126,7 +126,7 @@ export function Profile({
         `Relay reachable. API v${health.apiVersion} · min app ${health.minClientVersion} · latest ${health.latestClientVersion}`
       );
     } catch {
-      setRelayError("Could not reach that relay. Check the IP, port, firewall and that server/api is running.");
+      setRelayError("Could not reach that relay. Check the IP, port and firewall on both PCs.");
     } finally {
       setTestingRelay(false);
     }

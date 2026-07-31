@@ -109,7 +109,7 @@ export function useAircraftProfiles(): AircraftProfilesState {
           setState({
             profiles: [],
             loading: false,
-            error: "No se pudo conectar con el servidor. ¿Está corriendo `npm run dev` en server/api?",
+            error: "No se pudo cargar el catálogo de aeronaves desde el relay actual.",
           });
         }
       });

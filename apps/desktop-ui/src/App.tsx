@@ -14,7 +14,7 @@ import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
 import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
-import { readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
+import { normalizeRelayBaseUrl, readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
 import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
@@ -41,6 +41,18 @@ function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+function isLocalDirectRelay(config: RelayConfig): boolean {
+  if (config.mode !== "self-hosted") return false;
+  const normalized = normalizeRelayBaseUrl(config.customBaseUrl);
+  if (!normalized) return false;
+  try {
+    const url = new URL(normalized);
+    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   const [view, setView] = useState<ViewId>("home");
   const [pilotName, setPilotName] = useState(() => {
@@ -63,13 +75,35 @@ export function App() {
   const [relayConfig, setRelayConfig] = useState<RelayConfig>(() => readRelayConfig());
 
   useEffect(() => {
-    prefetchAircraftProfiles();
-  }, []);
+    let cancelled = false;
+    const directRelay = window.weconnectDirectRelay;
+
+    async function warmUpCurrentRelay() {
+      if (isLocalDirectRelay(relayConfig) && directRelay) {
+        const started = await directRelay.ensureHost();
+        if (!started.ok || cancelled) return;
+      }
+      if (!cancelled) {
+        prefetchAircraftProfiles();
+      }
+    }
+
+    void warmUpCurrentRelay();
+    return () => {
+      cancelled = true;
+    };
+  }, [relayConfig]);
 
   useEffect(() => {
     let cancelled = false;
-    fetchServerHealth()
-      .then((health) => {
+    const directRelay = window.weconnectDirectRelay;
+
+    async function loadHealth() {
+      if (isLocalDirectRelay(relayConfig) && directRelay) {
+        const started = await directRelay.ensureHost();
+        if (!started.ok || cancelled) return;
+      }
+      const health = await fetchServerHealth();
         if (cancelled) return;
         const updateRequired = compareVersions(currentVersion, health.minClientVersion) < 0;
         setServerCompatibility({
@@ -80,8 +114,9 @@ export function App() {
         if (updateRequired) {
           setUpdateModalOpen(false);
         }
-      })
-      .catch(() => {
+    }
+
+    loadHealth().catch(() => {
         if (cancelled) return;
       });
     return () => {
