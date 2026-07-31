@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.23",
+    version: "0.1.34",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "Desktop releases now build the embedded local bridge inside GitHub Actions instead of depending on a missing publish folder, so the installer once again ships a working simulator bridge to every player.",
-      "The release pipeline now bundles the required bridge runtime DLLs explicitly and refuses to publish if the bridge package is incomplete.",
-      "This hotfix closes the packaging gap that left 0.1.22 visible as a tag but not deliverable as a real in-app update to players.",
+      "Create session now includes a direct-host action that switches the app to self-hosted relay mode automatically instead of sending the user to Profile first.",
+      "The new Host direct session flow verifies that the local direct relay is reachable on this PC before creating the room, so users get a precise setup error instead of a generic failed session.",
+      "When a direct session is hosted successfully, the screen is immediately ready to generate and share the direct invite code for the other pilot.",
     ],
   },
   {

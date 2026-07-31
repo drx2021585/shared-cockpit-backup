@@ -180,6 +180,7 @@ export function App() {
             onSessionCreated={handleSessionCreated}
             onSessionReady={handleSessionReady}
             relayConfig={relayConfig}
+            onRelayConfigChange={handleRelayConfigChange}
           />
         );
       case "join":

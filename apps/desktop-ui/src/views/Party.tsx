@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { usePublicIp } from "../lib/useNetworkInfo";
-import { createSession, ApiError, type Session } from "../lib/apiClient";
+import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
 import { buildDirectInviteCode } from "../lib/directInviteCode";
 import { type RelayConfig } from "../lib/relayConfig";
 
@@ -12,6 +12,7 @@ interface PartyProps {
   onSessionCreated: (session: Session, pilotName: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
   relayConfig: RelayConfig;
+  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
 export function Party({
@@ -21,6 +22,7 @@ export function Party({
   onSessionCreated,
   onSessionReady,
   relayConfig,
+  onRelayConfigChange,
 }: PartyProps) {
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
@@ -60,17 +62,15 @@ export function Party({
       ? buildDirectInviteCode({ host: ipv4, port: relayPort, joinCode: createdSession.joinCode })
       : null;
 
-  async function handleCreate() {
+  async function createParty() {
     if (!pilotName.trim()) {
       setError("Enter your pilot name first.");
-      return;
+      return false;
     }
     if (!effectiveProfileId) {
       setError("No aircraft profile available to fly.");
-      return;
+      return false;
     }
-    setSubmitting(true);
-    setError(null);
     try {
       const session = await createSession({
         sessionName,
@@ -81,8 +81,41 @@ export function Party({
         sim,
       });
       onSessionCreated(session, pilotName.trim());
+      return true;
     } catch (err) {
       setError(err instanceof ApiError ? `Could not create session: ${err.code}` : "Could not reach the server.");
+      return false;
+    }
+  }
+
+  async function handleCreate() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createParty();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleCreateDirect() {
+    if (ipv4 === "Unavailable" || ipv4 === "Detecting…") {
+      setError("Local IPv4 is not available on this PC yet.");
+      return;
+    }
+    const directBaseUrl = `http://${ipv4}:8787`;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await fetchServerHealth(directBaseUrl);
+      onRelayConfigChange({ mode: "self-hosted", customBaseUrl: directBaseUrl });
+      await createParty();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(`Direct host could not start the session: ${err.code}`);
+      } else {
+        setError("Direct host is not running on this PC. Start server/api with `npm run dev:direct` and try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -192,11 +225,20 @@ export function Party({
 
           {error && <div style={{ color: "#e24c4b", fontSize: 13 }}>{error}</div>}
 
-          <div style={{ paddingTop: 6 }}>
+          <div style={{ paddingTop: 6, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <button className="btn" onClick={handleCreate} disabled={submitting || createdSession !== null}>
               {submitting ? "Creating…" : "Create session"}
             </button>
+            <button className="link-action" onClick={handleCreateDirect} disabled={submitting || createdSession !== null}>
+              {submitting ? "Starting direct host…" : "Host direct session"}
+            </button>
           </div>
+          <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 2 }}>
+            Direct mode uses this PC as the relay host and prepares a direct invite code for the other pilot.
+          </p>
+          <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: -8 }}>
+            Expected local host: {ipv4 === "Unavailable" || ipv4 === "Detecting…" ? "unavailable" : `http://${ipv4}:8787`}
+          </p>
         </div>
 
         <div>
