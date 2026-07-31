@@ -10,8 +10,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>SharedCockpit.Bridge</RootNamespace>
     <AssemblyName>SharedCockpit.Bridge</AssemblyName>
-    <Version>0.1.31</Version>
-    <InformationalVersion>0.1.31</InformationalVersion>
+    <Version>0.1.32</Version>
+    <InformationalVersion>0.1.32</InformationalVersion>
     <!-- Sprint 1: proceso de consola simple con logging a stdout. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- P/Invoke a SimConnect.dll (nativa) solo funciona en Windows x64. -->

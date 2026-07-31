@@ -9,9 +9,9 @@ test("compareVersions orders dotted versions correctly", () => {
 });
 
 test("isClientVersionSupported enforces the minimum version", () => {
-  assert.equal(isClientVersionSupported("0.1.30"), false);
-  assert.equal(isClientVersionSupported("0.1.31"), true);
+  assert.equal(isClientVersionSupported("0.1.31"), false);
   assert.equal(isClientVersionSupported("0.1.32"), true);
+  assert.equal(isClientVersionSupported("0.1.33"), true);
   assert.equal(isClientVersionSupported("0.1.23"), false);
   assert.equal(isClientVersionSupported("0.1.19"), false);
   assert.equal(isClientVersionSupported(null), false);
