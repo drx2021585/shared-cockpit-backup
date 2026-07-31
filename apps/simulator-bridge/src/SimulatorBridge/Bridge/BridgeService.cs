@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using SharedCockpit.Bridge.Logging;
 using SharedCockpit.Bridge.Profiles;
 using SharedCockpit.Bridge.Protocol;
@@ -379,6 +380,11 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("simconnect", () => _sim.Pump());
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
+            // Antes que las confirmaciones: si hay escrituras esperando su turno en
+            // un trigger, conviene despacharlas ya para que la ventana de
+            // confirmación de ese control corra con la escritura hecha, no con la
+            // escritura todavía en cola.
+            PumpSafely("trigger-queue", DrainDeferredTriggerWrites);
             PumpSafely("write-confirmations", ProcessPendingWriteConfirmations);
             PumpSafely("flight-pose-correction", ProcessRemoteFlightPoseCorrection);
             PumpSafely("diagnostics", EmitDiagnosticsIfDue);
@@ -887,6 +893,30 @@ public sealed class BridgeService : IAsyncDisposable
         // es una corrección medida encima (ver PolarityCalibration).
         var template = ResolveWriteTemplate(control, write.Name);
         var code = ResolveCalculatorCodeTemplate(template, control.DataType, value);
+
+        // Reparto de turnos en el trigger (ver ExtractTriggerLVar): si otro control
+        // del MISMO sistema acaba de escribir, este código se encola en vez de
+        // ejecutarse. Escribirlo ahora lo perdería sin dejar rastro.
+        //
+        // Los PULSOS quedan fuera del reparto. Su par pulsar/soltar es atómico y
+        // ordenado, y la cola indexa por control quedándose con el valor más nuevo:
+        // si el "pulsar" esperara turno, el "soltar" que llega detrás lo
+        // reemplazaría y el botón no se pulsaría nunca. Además un pulso lo origina
+        // una persona apretando algo, de uno en uno -- no produce la ráfaga
+        // simultánea que sí genera sincronizar un panel entero de posicionales, que
+        // es lo que este reparto viene a arreglar.
+        var trigger = MomentaryPulse.IsPulseControl(control) ? null : ExtractTriggerLVar(code);
+        if (trigger is not null && !TryReserveTriggerSlot(trigger))
+        {
+            _deferredTriggerWrites[control.Id] = new DeferredTriggerWrite(control, trigger, code);
+            return true; // aceptada: sale en cuanto el trigger quede libre
+        }
+
+        return ExecuteCalculatorCode(control, code);
+    }
+
+    private bool ExecuteCalculatorCode(ControlDefinition control, string code)
+    {
         var ok = _calculatorCodeClient!.ExecuteCalculatorCode(code);
         if (!ok)
         {
@@ -945,6 +975,92 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         return Math.Abs(desired - observedNumber);
+    }
+
+    /// <summary>
+    /// La cabina del iFly no tiene un evento por control: un clic escribe un CODIGO
+    /// ENTERO en la L-Var de trigger DEL SISTEMA, y el WASM del addon la lee una vez
+    /// por frame. Esa L-Var es, por tanto, un buzon de UNA sola casilla compartido
+    /// por todo el sistema -- y esta MUY compartido: 220 controles escriben en
+    /// VC_Miscellaneous_trigger_VAL, 80 en VC_Anti_Ice_trigger_VAL, 39 en
+    /// VC_Fuel_trigger_VAL.
+    ///
+    /// Hasta la 0.1.27 las escrituras salian una detras de otra en el mismo tick del
+    /// pump, asi que varios controles del mismo sistema se pisaban DENTRO del mismo
+    /// frame y solo sobrevivia el ultimo. Se veia como "de las bombas de fuel solo
+    /// sincroniza AFT": no es que las demas estuvieran mal declaradas, es que su
+    /// codigo lo sobrescribia el siguiente antes de que el addon lo leyera. Y era
+    /// determinista -- siempre ganaba el mismo, el ultimo en el orden de iteracion.
+    ///
+    /// Este espaciado garantiza que entre dos escrituras al MISMO trigger pase al
+    /// menos un frame. Los triggers distintos no se estorban: cada uno lleva su
+    /// propio turno.
+    /// </summary>
+    private const int TriggerWriteSpacingMs = 50;
+
+    private readonly Dictionary<string, long> _lastTriggerWriteAtMs = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Escrituras que esperan turno en su trigger, indexadas POR CONTROL: si al
+    /// mismo control le llega un valor mas nuevo mientras espera, reemplaza al
+    /// anterior en vez de encolarse detras. Mandar dos posiciones seguidas del mismo
+    /// switch no tiene sentido -- solo cuenta la ultima.
+    /// </summary>
+    private readonly Dictionary<string, DeferredTriggerWrite> _deferredTriggerWrites = new(StringComparer.Ordinal);
+
+    private readonly record struct DeferredTriggerWrite(ControlDefinition Control, string Trigger, string Code);
+
+    /// <summary>
+    /// Saca el nombre de la L-Var de trigger a la que apunta un calculator code ya
+    /// resuelto, es decir el destino de su ultimo <c>(&gt;L:...)</c>. Devuelve null
+    /// si el codigo no escribe ninguna L-Var (otros mecanismos de escritura no
+    /// comparten buzon y no necesitan turno).
+    /// </summary>
+    public static string? ExtractTriggerLVar(string calculatorCode)
+    {
+        var matches = Regex.Matches(calculatorCode, @"\(>\s*L:([A-Za-z0-9_]+)\s*,", RegexOptions.None, TimeSpan.FromSeconds(1));
+        return matches.Count == 0 ? null : matches[^1].Groups[1].Value;
+    }
+
+    /// <summary>
+    /// Concede el turno del trigger si ya paso el espaciado minimo desde la ultima
+    /// escritura. Si lo concede, lo anota -- o sea que llamarlo tiene efecto.
+    /// </summary>
+    private bool TryReserveTriggerSlot(string trigger)
+    {
+        var nowMs = NowMs();
+        if (_lastTriggerWriteAtMs.TryGetValue(trigger, out var lastMs)
+            && nowMs - lastMs < TriggerWriteSpacingMs)
+        {
+            return false;
+        }
+
+        _lastTriggerWriteAtMs[trigger] = nowMs;
+        return true;
+    }
+
+    /// <summary>
+    /// Despacha las escrituras que estaban esperando turno. Como mucho UNA por
+    /// trigger en cada pasada: dos del mismo trigger en el mismo tick volverian a
+    /// pisarse, que es justo lo que se esta arreglando.
+    /// </summary>
+    private void DrainDeferredTriggerWrites()
+    {
+        if (_deferredTriggerWrites.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var (controlId, deferred) in _deferredTriggerWrites.ToArray())
+        {
+            if (!TryReserveTriggerSlot(deferred.Trigger))
+            {
+                continue; // su trigger sigue ocupado; se reintenta en el proximo pump
+            }
+
+            _deferredTriggerWrites.Remove(controlId);
+            ExecuteCalculatorCode(deferred.Control, deferred.Code);
+        }
     }
 
     private void ProcessPendingWriteConfirmations()

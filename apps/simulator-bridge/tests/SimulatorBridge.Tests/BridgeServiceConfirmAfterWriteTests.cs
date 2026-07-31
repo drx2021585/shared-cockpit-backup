@@ -10,6 +10,13 @@ namespace SimulatorBridge.Tests;
 
 public class BridgeServiceConfirmAfterWriteTests
 {
+    /// <summary>
+    /// Algo mas que el espaciado entre escrituras al mismo trigger
+    /// (BridgeService.TriggerWriteSpacingMs = 50 ms), para que el drenado que
+    /// simula el pump encuentre el turno ya libre.
+    /// </summary>
+    private const int TriggerSpacingSettleMs = 60;
+
     [Fact]
     public void ConfirmAfterWrite_RetriesUntilObservedValueConverges()
     {
@@ -269,8 +276,15 @@ public class BridgeServiceConfirmAfterWriteTests
         InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 4d);
         InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 2d);
 
-        // En vez de rendirse, reescribió YA con la dirección intercambiada: el
-        // código 2, que antes se disparaba al ir hacia arriba, ahora va hacia abajo.
+        // En vez de rendirse, reescribe con la dirección intercambiada: el código 2,
+        // que antes se disparaba al ir hacia arriba, ahora va hacia abajo.
+        // Esa reescritura va al MISMO trigger que la original, así que desde el
+        // reparto de turnos (ver BridgeService.TryReserveTriggerSlot) espera a que
+        // pase un frame en vez de salir en el acto -- si saliera ya, el addon leería
+        // una sola de las dos y la corrección se perdería. Se drena como hace el pump.
+        Thread.Sleep(TriggerSpacingSettleMs);
+        InvokePrivate(service, "DrainDeferredTriggerWrites");
+
         Assert.Equal(2, calculator.ExecutedCodes.Count);
         Assert.Contains("5 > if{ 2 ", calculator.ExecutedCodes[1]);
         Assert.Contains("5 < if{ 3 ", calculator.ExecutedCodes[1]);
@@ -482,6 +496,13 @@ public class BridgeServiceConfirmAfterWriteTests
         InvokePrivate(service, "OnNumericValueReceived", "gear.autobrake_sw", 5d);   // d=15 > 10
 
         Assert.True(calibration.IsInverted("ifly-737-max8", "gear.autobrake_sw"));
+
+        // La reescritura corregida comparte trigger con la original y espera turno
+        // (ver el comentario extendido en
+        // ConfirmAfterWrite_InvertsPolarityAndRetries_WhenValueMovesAwayFromTarget).
+        Thread.Sleep(TriggerSpacingSettleMs);
+        InvokePrivate(service, "DrainDeferredTriggerWrites");
+
         Assert.Equal(2, calculator.ExecutedCodes.Count);
     }
 
