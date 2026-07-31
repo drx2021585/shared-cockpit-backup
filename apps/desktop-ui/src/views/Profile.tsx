@@ -34,6 +34,10 @@ export function Profile({
   const [relayError, setRelayError] = useState<string | null>(null);
   const [testingRelay, setTestingRelay] = useState(false);
   const { ipv4 } = usePublicIp();
+  const suggestedRelayUrl =
+    ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:8787` : null;
+  const activeRelayUrl =
+    relayConfig.mode === "managed" ? getDefaultRelayApiBaseUrl() : normalizeRelayBaseUrl(relayConfig.customBaseUrl);
 
   useEffect(() => {
     setRelayDraft(relayConfig.customBaseUrl);
@@ -68,10 +72,11 @@ export function Profile({
     });
   }
 
-  async function handleSaveRelay(mode: RelayConfig["mode"]) {
+  function handleSaveRelay(mode: RelayConfig["mode"], customBaseUrl?: string) {
     setRelayError(null);
     setRelayMessage(null);
-    const nextBaseUrl = mode === "self-hosted" ? normalizeRelayBaseUrl(relayDraft) : "";
+    const nextBaseUrl =
+      mode === "self-hosted" ? normalizeRelayBaseUrl(customBaseUrl ?? relayDraft) : "";
     if (mode === "self-hosted" && !nextBaseUrl) {
       setRelayError("Enter the IP or URL of the relay host, for example http://192.168.1.20:8787");
       return;
@@ -85,8 +90,18 @@ export function Profile({
     );
   }
 
+  function handleUseSuggestedRelay() {
+    if (!suggestedRelayUrl) {
+      setRelayError("Local IPv4 is still being detected on this PC.");
+      setRelayMessage(null);
+      return;
+    }
+    setRelayDraft(suggestedRelayUrl);
+    handleSaveRelay("self-hosted", suggestedRelayUrl);
+  }
+
   async function handleTestRelay() {
-    const normalized = normalizeRelayBaseUrl(relayDraft);
+    const normalized = normalizeRelayBaseUrl(relayConfig.mode === "self-hosted" ? relayConfig.customBaseUrl || relayDraft : relayDraft);
     if (!normalized) {
       setRelayError("Enter the IP or URL of the relay host first.");
       return;
@@ -136,56 +151,87 @@ export function Profile({
           <div className="mono-label" style={{ marginBottom: 10 }}>
             Session relay
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 12 }}>
-            Default hosted relay: {getDefaultRelayApiBaseUrl()}
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 12 }}>
-            Suggested host URL on this PC:{" "}
-            <span style={{ color: ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? "var(--text-70)" : "var(--text-35)" }}>
-              {ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:8787` : "detecting local IPv4"}
-            </span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="relay-mode"
-                checked={relayConfig.mode === "managed"}
-                onChange={() => handleSaveRelay("managed")}
-              />
-              Use the We Connect hosted relay
-            </label>
-            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="relay-mode"
-                checked={relayConfig.mode === "self-hosted"}
-                onChange={() => onRelayConfigChange({ mode: "self-hosted", customBaseUrl: normalizeRelayBaseUrl(relayDraft) })}
-              />
-              Use my own relay host
-            </label>
-            <div className="field">
-              <input
-                type="text"
-                placeholder="http://192.168.1.20:8787"
-                value={relayDraft}
-                onChange={(e) => setRelayDraft(e.target.value)}
-              />
+          <div className="relay-shell">
+            <div className="relay-summary-card">
+              <div className="relay-summary-top">
+                <div>
+                  <div className="relay-summary-label">Current route</div>
+                  <div className="relay-summary-value">
+                    {relayConfig.mode === "managed" ? "We Connect hosted relay" : "Self-hosted relay"}
+                  </div>
+                </div>
+                <div className={`relay-mode-pill ${relayConfig.mode === "managed" ? "managed" : "self-hosted"}`}>
+                  {relayConfig.mode === "managed" ? "Managed" : "Direct / LAN"}
+                </div>
+              </div>
+              <div className="relay-summary-url">{activeRelayUrl || getDefaultRelayApiBaseUrl()}</div>
+              <div className="relay-summary-meta">
+                {relayConfig.mode === "managed"
+                  ? "Best for internet sessions without extra setup."
+                  : "This app will use the host below for session creation, join and live WebSocket traffic."}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button className="link-action" onClick={() => handleSaveRelay("self-hosted")}>
-                Save self-hosted relay
-              </button>
-              <button className="link-action" onClick={handleTestRelay} disabled={testingRelay}>
-                {testingRelay ? "Testing relay..." : "Test relay"}
-              </button>
+
+            <div className="relay-grid">
+              <div className={`relay-option-card ${relayConfig.mode === "managed" ? "active" : ""}`}>
+                <div className="relay-option-head">
+                  <div>
+                    <div className="relay-option-title">We Connect hosted relay</div>
+                    <div className="relay-option-subtitle">No LAN setup. Uses the public shared relay.</div>
+                  </div>
+                  {relayConfig.mode === "managed" && <div className="relay-option-badge">Active</div>}
+                </div>
+                <div className="relay-option-url">{getDefaultRelayApiBaseUrl()}</div>
+                <div className="relay-option-actions">
+                  <button className="btn" onClick={() => handleSaveRelay("managed")}>
+                    Use hosted relay
+                  </button>
+                </div>
+              </div>
+
+              <div className={`relay-option-card ${relayConfig.mode === "self-hosted" ? "active" : ""}`}>
+                <div className="relay-option-head">
+                  <div>
+                    <div className="relay-option-title">My own relay host</div>
+                    <div className="relay-option-subtitle">For LAN or self-hosted sessions from one PC.</div>
+                  </div>
+                  {relayConfig.mode === "self-hosted" && <div className="relay-option-badge">Active</div>}
+                </div>
+                <div className="relay-suggested-box">
+                  <div className="relay-suggested-label">Suggested on this PC</div>
+                  <div className="relay-suggested-value">
+                    {suggestedRelayUrl ?? "Detecting local IPv4..."}
+                  </div>
+                  <button className="link-action" onClick={handleUseSuggestedRelay}>
+                    Use this PC as host
+                  </button>
+                </div>
+                <div className="field">
+                  <label>Custom relay host</label>
+                  <input
+                    type="text"
+                    placeholder="http://192.168.1.20:8787"
+                    value={relayDraft}
+                    onChange={(e) => setRelayDraft(e.target.value)}
+                  />
+                </div>
+                <div className="relay-option-actions">
+                  <button className="btn" onClick={() => handleSaveRelay("self-hosted")}>
+                    Save self-hosted relay
+                  </button>
+                  <button className="link-action" onClick={handleTestRelay} disabled={testingRelay}>
+                    {testingRelay ? "Testing relay..." : "Test relay"}
+                  </button>
+                </div>
+              </div>
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-35)", margin: 0 }}>
-              For LAN/self-hosted use, run `server/api` on one PC and enter that machine's IP and port here.
+
+            <p className="relay-help-copy">
+              For LAN/self-hosted use, run `server/api` on one PC and point both pilots to that machine's IP and port.
               Example: `http://192.168.1.20:8787`.
             </p>
-            {relayMessage && <div style={{ color: "var(--accent)", fontSize: 12 }}>{relayMessage}</div>}
-            {relayError && <div style={{ color: "#e24c4b", fontSize: 12 }}>{relayError}</div>}
+            {relayMessage && <div className="relay-feedback ok">{relayMessage}</div>}
+            {relayError && <div className="relay-feedback error">{relayError}</div>}
           </div>
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>

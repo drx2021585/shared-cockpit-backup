@@ -182,13 +182,13 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.34",
+    version: "0.1.36",
     title: "Current build",
     date: "2026-07-31",
     commits: [
-      "Create session now includes a direct-host action that switches the app to self-hosted relay mode automatically instead of sending the user to Profile first.",
-      "The new Host direct session flow verifies that the local direct relay is reachable on this PC before creating the room, so users get a precise setup error instead of a generic failed session.",
-      "When a direct session is hosted successfully, the screen is immediately ready to generate and share the direct invite code for the other pilot.",
+      "The Session relay area is now organized around the current active route, with a clearer split between the hosted relay and a self-hosted direct/LAN relay.",
+      "A new Use this PC as host action fills and activates the suggested local relay address automatically, instead of making the user copy it by hand.",
+      "The embedded simulator bridge now ships with the same version as the desktop app again, which unblocks desktop releases from publishing the updater files that players need.",
     ],
   },
   {
