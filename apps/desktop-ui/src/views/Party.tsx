@@ -38,6 +38,14 @@ export function Party({
   const [ipBlurred, setIpBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Lo que informo el proceso principal al levantar el host: IP local, IP
+  // publica y si el router abrio el puerto solo.
+  const [directHost, setDirectHost] = useState<{
+    lanIp?: string | null;
+    publicIp?: string | null;
+    portMapped?: boolean;
+    portMapError?: string | null;
+  } | null>(null);
 
   const compatibleProfiles = profiles.filter(
     (profile) => profile.availability !== "soon" && profile.compatibility[sim]
@@ -58,9 +66,16 @@ export function Party({
       return 8787;
     }
   })();
+  const hostingDirect = createdSession !== null && relayConfig.mode === "self-hosted";
   const directInviteCode =
-    createdSession && relayConfig.mode === "self-hosted" && ipv4 !== "Unavailable" && ipv4 !== "Detecting…"
-      ? buildDirectInviteCode({ host: ipv4, port: relayPort, joinCode: createdSession.joinCode })
+    hostingDirect && ipv4 !== "Unavailable" && ipv4 !== "Detecting…"
+      ? buildDirectInviteCode({ host: directHost?.lanIp ?? ipv4, port: relayPort, joinCode: createdSession!.joinCode })
+      : null;
+  // Codigo para un amigo fuera de tu red: misma sesion, misma PC, pero con la
+  // IP publica. El trafico sigue yendo PC a PC.
+  const internetInviteCode =
+    hostingDirect && directHost?.publicIp
+      ? buildDirectInviteCode({ host: directHost.publicIp, port: relayPort, joinCode: createdSession!.joinCode })
       : null;
 
   async function createParty(baseUrl?: string) {
@@ -119,6 +134,12 @@ export function Party({
         return;
       }
       const readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
+      setDirectHost({
+        lanIp: started.lanIp,
+        publicIp: started.publicIp,
+        portMapped: started.portMapped,
+        portMapError: started.portMapError,
+      });
       await fetchServerHealth(readyBaseUrl);
       onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
       await createParty(readyBaseUrl);
@@ -275,14 +296,32 @@ export function Party({
           {directInviteCode && (
             <>
               <div className="divider-row" style={{ marginTop: 18, marginBottom: 10, border: "none" }}>
-                <div className="mono-label">Direct invite code</div>
+                <div className="mono-label">Direct invite code — same network</div>
               </div>
               <div className="code-box">
                 <div className="code-caption" style={{ marginBottom: 10 }}>
-                  Paste this on the other PC and We Connect will route itself to this host automatically.
+                  For a friend on your own network. Paste it on the other PC and We Connect routes itself here.
                 </div>
                 <div className="code-value" style={{ fontSize: 12, letterSpacing: "0.04em", wordBreak: "break-all" }}>
                   {directInviteCode}
+                </div>
+              </div>
+            </>
+          )}
+
+          {internetInviteCode && (
+            <>
+              <div className="divider-row" style={{ marginTop: 18, marginBottom: 10, border: "none" }}>
+                <div className="mono-label">Direct invite code — over the internet</div>
+              </div>
+              <div className="code-box">
+                <div className="code-caption" style={{ marginBottom: 10 }}>
+                  {directHost?.portMapped
+                    ? `Your router opened port ${relayPort} automatically. Send this to a friend outside your network — the flight data goes straight between the two PCs.`
+                    : `Your router did not open the port by itself. This code works only after you forward TCP port ${relayPort} to ${directHost?.lanIp ?? "this PC"} in your router settings. If your internet is 5G home, mobile or satellite, forwarding is usually not possible at all (your provider shares one address between many homes) — use the normal session code instead, or put both PCs on the same virtual network with something like Tailscale and use the same-network code above.`}
+                </div>
+                <div className="code-value" style={{ fontSize: 12, letterSpacing: "0.04em", wordBreak: "break-all" }}>
+                  {internetInviteCode}
                 </div>
               </div>
             </>

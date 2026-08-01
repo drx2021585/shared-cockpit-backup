@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.49",
+    version: "0.1.50",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Direct hosting now tries to open your port on the router by itself (UPnP), the same way YourControls does. When it works, you get a second invite code that a friend outside your network can use — the flight data still travels straight between the two PCs, never through a server.",
+      "When the router refuses to open the port, the app now says exactly what to forward and where, and warns you when your internet type (5G home, mobile, satellite) makes forwarding impossible no matter what you configure.",
+      "The address offered to your friend is now the one on the network card that actually reaches the internet. On PCs with Hyper-V, VirtualBox or a VPN installed, We Connect could hand out a virtual address nobody could connect to.",
+    ],
+  },
+  {
+    version: "0.1.49",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Your friend can join your direct session again even if their We Connect is a slightly different version than yours. Before, hosting demanded that the guest run exactly your version or newer, so any update on your side locked them out of every route: session code, LAN and direct address.",

@@ -29,7 +29,19 @@ interface Window {
     restartApp: () => Promise<void>;
   };
   weconnectDirectRelay?: {
-    ensureHost: () => Promise<{ ok: boolean; baseUrl?: string; error?: string }>;
+    ensureHost: () => Promise<{
+      ok: boolean;
+      baseUrl?: string;
+      error?: string;
+      /** IP de esta PC en la LAN: sirve al invitado de la misma red. */
+      lanIp?: string | null;
+      /** IP publica: la que necesita un invitado que no esta en tu red. */
+      publicIp?: string | null;
+      /** ¿El router abrio el puerto solo (UPnP)? */
+      portMapped?: boolean;
+      /** Por que no se pudo abrir, para poder explicarlo. */
+      portMapError?: string | null;
+    }>;
   };
   weconnectNetwork?: {
     getLocalAddresses: () => Promise<{ ipv4: string | null; ipv6: string | null }>;
