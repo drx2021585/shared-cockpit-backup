@@ -221,6 +221,7 @@ function createDirectRelay(options) {
 
   let server = null;
   let wss = null;
+  let starting = null;
   let profiles = [];
   const sessions = new Map();
   const connections = new Map();
@@ -773,7 +774,16 @@ function createDirectRelay(options) {
     });
   }
 
-  async function ensureRunning() {
+  // El renderer llama ensureHost() desde varios lados a la vez (dos useEffect
+  // de App.tsx, apiClient en cada request, Party/Profile). Sin este candado
+  // todos entraban con server === null y hacian listen(8787) en paralelo:
+  // EADDRINUSE y proceso principal caido.
+  function ensureRunning() {
+    starting = starting ?? startRelay().finally(() => { starting = null; });
+    return starting;
+  }
+
+  async function startRelay() {
     if (server) {
       return { started: false, baseUrl: baseUrl() };
     }
@@ -814,41 +824,42 @@ function createDirectRelay(options) {
     server = createServer(relayApp);
     wss = attachWebSocket(server);
 
-    await new Promise((resolve, reject) => {
-      const attemptListen = () => {
-        const onError = async (err) => {
-          server.removeListener("error", onError);
-          const reason = err && typeof err.message === "string" ? err.message : String(err);
-          if (err?.code === "EADDRINUSE") {
-            const killResult = await killManageableListeningProcesses();
-            if (killResult.killed) {
-              const released = await waitForPortClosed(5000);
-              if (released) {
-                attemptListen();
-                return;
-              }
-            }
-            reject(
-              new Error(
-                `Direct host failed to bind port ${port}: ${formatOwners(killResult?.owners ?? []) || reason}`
-              )
-            );
-            return;
-          }
-          reject(new Error(`Direct host failed to bind port ${port}: ${reason}`));
-        };
-
-        server.once("error", onError);
-        server.listen(port, "0.0.0.0", () => {
-          server.removeListener("error", onError);
-          resolve();
-        });
-      };
-
-      attemptListen();
-    });
+    try {
+      await listen();
+    } catch (err) {
+      const reason = err && typeof err.message === "string" ? err.message : String(err);
+      if (err?.code !== "EADDRINUSE") {
+        await stop();
+        throw new Error(`Direct host failed to bind port ${port}: ${reason}`);
+      }
+      const killResult = await killManageableListeningProcesses();
+      if (!killResult.killed || !(await waitForPortClosed(5000))) {
+        await stop();
+        throw new Error(
+          `Direct host failed to bind port ${port}: ${formatOwners(killResult.owners) || reason}`
+        );
+      }
+      await listen().catch(async (retryError) => {
+        await stop();
+        throw new Error(`Direct host failed to bind port ${port}: ${retryError?.message ?? retryError}`);
+      });
+    }
 
     return { started: true, baseUrl: baseUrl() };
+  }
+
+  function listen() {
+    return new Promise((resolve, reject) => {
+      const onError = (err) => {
+        server.removeListener("error", onError);
+        reject(err);
+      };
+      server.once("error", onError);
+      server.listen(port, "0.0.0.0", () => {
+        server.removeListener("error", onError);
+        resolve();
+      });
+    });
   }
 
   async function stop() {

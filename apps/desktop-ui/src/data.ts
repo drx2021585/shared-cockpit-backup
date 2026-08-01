@@ -182,8 +182,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.46",
+    version: "0.1.47",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Fixed a crash that closed We Connect with 'A JavaScript error occurred in the main process' when starting a direct host. The app was trying to open the same port several times at once instead of waiting for the first attempt.",
+      "A direct host that fails to start now reports the reason instead of taking the whole app down, and the next attempt starts from a clean state rather than reporting success with nothing listening.",
+    ],
+  },
+  {
+    version: "0.1.46",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Internal cleanup of the direct-host fix from 0.1.45 — same behaviour, less code. No action needed if you already updated.",
