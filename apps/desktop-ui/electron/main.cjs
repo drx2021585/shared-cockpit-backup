@@ -165,12 +165,28 @@ function getAppPackageVersion() {
   }
 }
 
-function ensureDirectRelayManager() {
+const DEFAULT_DIRECT_PORT = 25071;
+let directRelayPort = DEFAULT_DIRECT_PORT;
+
+async function ensureDirectRelayManager(requestedPort) {
+  const port = Number.isInteger(requestedPort) && requestedPort >= 1024 && requestedPort <= 65535
+    ? requestedPort
+    : directRelayPort;
+
+  // Cambiar el puerto en Ajustes tiene que mover el host de verdad, no quedar
+  // guardado para el proximo arranque de la app.
+  if (directRelayManager && port !== directRelayPort) {
+    await directRelayManager.stop();
+    directRelayManager = null;
+    portExposure = null;
+  }
+  directRelayPort = port;
+
   if (directRelayManager) return directRelayManager;
   directRelayManager = createDirectRelay({
     appVersion: getAppPackageVersion(),
     profilesDir: getBundledAircraftProfilesDir(),
-    port: 8787,
+    port,
     currentPid: process.pid,
     currentExecPath: process.execPath,
   });
@@ -202,8 +218,8 @@ async function exposePort(port) {
   return portExposure;
 }
 
-ipcMain.handle("direct-relay:ensure-host", async () => {
-  const relay = ensureDirectRelayManager();
+ipcMain.handle("direct-relay:ensure-host", async (_event, requestedPort) => {
+  const relay = await ensureDirectRelayManager(Number(requestedPort));
   try {
     const result = await relay.ensureRunning();
     const port = Number(new URL(result.baseUrl).port);

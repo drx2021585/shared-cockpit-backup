@@ -4,6 +4,9 @@ import { fetchServerHealth } from "../lib/apiClient";
 import {
   getDefaultRelayApiBaseUrl,
   normalizeRelayBaseUrl,
+  readDirectHostPort,
+  writeDirectHostPort,
+  DEFAULT_DIRECT_HOST_PORT,
   type RelayConfig,
 } from "../lib/relayConfig";
 import { usePublicIp } from "../lib/useNetworkInfo";
@@ -27,21 +30,22 @@ export function Profile({
   relayConfig,
   onRelayConfigChange,
 }: ProfileProps) {
-  const localDirectRelayBaseUrl = "http://127.0.0.1:8787";
+  const localDirectRelayBaseUrl = `http://127.0.0.1:${readDirectHostPort()}`;
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
   const [relayDraft, setRelayDraft] = useState(relayConfig.customBaseUrl);
   const [relayMessage, setRelayMessage] = useState<string | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
   const [testingRelay, setTestingRelay] = useState(false);
+  const [portDraft, setPortDraft] = useState(String(readDirectHostPort()));
   const { ipv4 } = usePublicIp();
-  // El puerto sale del relay activo, no de una constante: el direct host cae a
-  // 8788+ si 8787 esta ocupado (ver electron/directRelay.cjs).
+  // El puerto sale del relay activo, no de una constante: es configurable y
+  // ademas el direct host cae al siguiente si el elegido esta ocupado.
   const activeRelayPort = (() => {
     try {
-      return new URL(normalizeRelayBaseUrl(relayConfig.customBaseUrl)).port || "8787";
+      return new URL(normalizeRelayBaseUrl(relayConfig.customBaseUrl)).port || String(readDirectHostPort());
     } catch {
-      return "8787";
+      return String(readDirectHostPort());
     }
   })();
   const suggestedRelayUrl =
@@ -102,6 +106,18 @@ export function Profile({
     );
   }
 
+  function handleSavePort() {
+    const port = Number(portDraft);
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+      setRelayError("The port must be a number between 1024 and 65535.");
+      setPortDraft(String(readDirectHostPort()));
+      return;
+    }
+    writeDirectHostPort(port);
+    setRelayError(null);
+    setRelayMessage(`Direct host port set to ${port}. Your friend has to use the same one.`);
+  }
+
   async function handleUseSuggestedRelay() {
     if (!suggestedRelayUrl) {
       setRelayError("Local IPv4 is still being detected on this PC.");
@@ -110,7 +126,7 @@ export function Profile({
     }
     let nextBaseUrl = localDirectRelayBaseUrl;
     if (window.weconnectDirectRelay) {
-      const started = await window.weconnectDirectRelay.ensureHost();
+      const started = await window.weconnectDirectRelay.ensureHost(readDirectHostPort());
       if (!started.ok) {
         setRelayError(started.error ?? "Could not start the direct host on this PC.");
         setRelayMessage(null);
@@ -229,10 +245,26 @@ export function Profile({
                   </button>
                 </div>
                 <div className="field">
+                  <label>Direct host port</label>
+                  <input
+                    type="number"
+                    min={1024}
+                    max={65535}
+                    placeholder={String(DEFAULT_DIRECT_HOST_PORT)}
+                    value={portDraft}
+                    onChange={(e) => setPortDraft(e.target.value)}
+                    onBlur={handleSavePort}
+                  />
+                  <p style={{ fontSize: 12, color: "var(--text-35)", marginTop: 8 }}>
+                    Both pilots must use the same port. Default is {DEFAULT_DIRECT_HOST_PORT}, the same one
+                    YourControls uses, so a router rule you already have keeps working.
+                  </p>
+                </div>
+                <div className="field">
                   <label>Custom relay host</label>
                   <input
                     type="text"
-                    placeholder="http://192.168.1.20:8787"
+                    placeholder={`http://192.168.1.20:${DEFAULT_DIRECT_HOST_PORT}`}
                     value={relayDraft}
                     onChange={(e) => setRelayDraft(e.target.value)}
                   />

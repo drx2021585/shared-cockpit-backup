@@ -182,8 +182,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.50",
+    version: "0.1.51",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "You can now choose which port the direct host uses, in Settings. It defaults to 25071 — the same port YourControls uses — so a router rule you already have keeps working. Both pilots have to set the same number.",
+      "Changing the port moves the running host immediately instead of waiting for the next app start.",
+    ],
+  },
+  {
+    version: "0.1.50",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Direct hosting now tries to open your port on the router by itself (UPnP), the same way YourControls does. When it works, you get a second invite code that a friend outside your network can use — the flight data still travels straight between the two PCs, never through a server.",

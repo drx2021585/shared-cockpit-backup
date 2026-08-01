@@ -3,7 +3,7 @@ import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
 import { buildDirectInviteCode } from "../lib/directInviteCode";
-import { type RelayConfig } from "../lib/relayConfig";
+import { readDirectHostPort, type RelayConfig } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -24,7 +24,7 @@ export function Party({
   relayConfig,
   onRelayConfigChange,
 }: PartyProps) {
-  const localDirectRelayBaseUrl = "http://127.0.0.1:8787";
+  const localDirectRelayBaseUrl = `http://127.0.0.1:${readDirectHostPort()}`;
   const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
 
@@ -58,12 +58,12 @@ export function Party({
   const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
   const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
   const relayPort = (() => {
-    if (relayConfig.mode !== "self-hosted") return 8787;
+    if (relayConfig.mode !== "self-hosted") return readDirectHostPort();
     try {
       const url = new URL(relayConfig.customBaseUrl);
       return Number(url.port || (url.protocol === "https:" ? 443 : 80));
     } catch {
-      return 8787;
+      return readDirectHostPort();
     }
   })();
   const hostingDirect = createdSession !== null && relayConfig.mode === "self-hosted";
@@ -128,7 +128,7 @@ export function Party({
         setError("Direct hosting is only available in the We Connect desktop app.");
         return;
       }
-      const started = await directRelay.ensureHost();
+      const started = await directRelay.ensureHost(readDirectHostPort());
       if (!started.ok) {
         setError(started.error ?? "Could not start the direct host on this PC.");
         return;

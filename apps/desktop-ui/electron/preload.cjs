@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld("weconnectNetwork", {
 });
 
 contextBridge.exposeInMainWorld("weconnectDirectRelay", {
-  ensureHost: () => ipcRenderer.invoke("direct-relay:ensure-host"),
+  ensureHost: (port) => ipcRenderer.invoke("direct-relay:ensure-host", port),
 });
 
 /**

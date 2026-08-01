@@ -9,6 +9,23 @@ export interface RelayConfig {
   customBaseUrl: string;
 }
 
+// Puerto del direct host. Por defecto el mismo que YourControls (25071); los
+// dos jugadores tienen que usar el mismo numero, y viaja dentro del codigo de
+// invitacion directo para que el invitado no tenga que escribirlo.
+const DIRECT_PORT_STORAGE_KEY = "weconnect.directHostPort";
+export const DEFAULT_DIRECT_HOST_PORT = 25071;
+
+export function readDirectHostPort(): number {
+  if (typeof window === "undefined") return DEFAULT_DIRECT_HOST_PORT;
+  const stored = Number(window.localStorage.getItem(DIRECT_PORT_STORAGE_KEY));
+  return Number.isInteger(stored) && stored >= 1024 && stored <= 65535 ? stored : DEFAULT_DIRECT_HOST_PORT;
+}
+
+export function writeDirectHostPort(port: number) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DIRECT_PORT_STORAGE_KEY, String(port));
+}
+
 export function normalizeRelayBaseUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "";

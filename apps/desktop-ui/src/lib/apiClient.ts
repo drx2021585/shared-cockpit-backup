@@ -15,7 +15,7 @@
 // recogía commits nuevos) — ver render.yaml en la raíz del repo. La base de
 // datos (Supabase) no cambió, solo dónde corre este proceso.
 import { currentVersion } from "../data";
-import { getRelayApiBaseUrl } from "./relayConfig";
+import { getRelayApiBaseUrl, readDirectHostPort } from "./relayConfig";
 
 export interface ServerHealth {
   status: "ok";
@@ -109,7 +109,7 @@ async function ensureRelayBaseUrl(baseUrl: string): Promise<string> {
   if (!isLocalDirectRelayBaseUrl(baseUrl)) return baseUrl;
   const directRelay = window.weconnectDirectRelay;
   if (!directRelay) return baseUrl;
-  const started = await directRelay.ensureHost();
+  const started = await directRelay.ensureHost(readDirectHostPort());
   if (!started.ok) {
     throw new ApiError(started.error ?? "direct-relay-unavailable", 503);
   }

@@ -14,7 +14,7 @@ import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
 import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
-import { normalizeRelayBaseUrl, readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
+import { normalizeRelayBaseUrl, readDirectHostPort, readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
 import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
@@ -80,7 +80,7 @@ export function App() {
 
     async function warmUpCurrentRelay() {
       if (isLocalDirectRelay(relayConfig) && directRelay) {
-        const started = await directRelay.ensureHost();
+        const started = await directRelay.ensureHost(readDirectHostPort());
         if (!started.ok || cancelled) return;
       }
       if (!cancelled) {
@@ -101,7 +101,7 @@ export function App() {
 
     async function loadHealth() {
       if (localDirect && directRelay) {
-        const started = await directRelay.ensureHost();
+        const started = await directRelay.ensureHost(readDirectHostPort());
         if (!started.ok || cancelled) return;
       }
       const health = await fetchServerHealth();

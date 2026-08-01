@@ -93,3 +93,16 @@ test("el invitado no necesita la misma version que el anfitrion, solo pasar el p
     await relay.stop();
   }
 });
+
+test("sin puerto explicito el host usa 25071, el mismo que YourControls", async () => {
+  const relay = directRelay.createDirectRelay({
+    appVersion: "9.9.9",
+    profilesDir: new URL("../../aircraft-profiles", import.meta.url).pathname.slice(1),
+  });
+  try {
+    const { baseUrl } = await relay.ensureRunning();
+    assert.equal(baseUrl, "http://127.0.0.1:25071", "los dos jugadores tienen que coincidir en este numero");
+  } finally {
+    await relay.stop();
+  }
+});

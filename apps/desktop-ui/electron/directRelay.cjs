@@ -11,7 +11,10 @@ const { WebSocketServer, WebSocket } = require("ws");
 const { parse: parseYaml } = require("yaml");
 
 const SESSION_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const DEFAULT_PORT = 8787;
+// Mismo puerto por defecto que usa YourControls, para que quien ya tenga
+// abierto o reenviado ese puerto no tenga que tocar el router otra vez. Es
+// configurable desde Ajustes: los dos jugadores tienen que usar el mismo.
+const DEFAULT_PORT = 25071;
 const SERVER_API_VERSION = 1;
 const FLIGHT_MESSAGE_TYPES = new Set([
   "control.event",

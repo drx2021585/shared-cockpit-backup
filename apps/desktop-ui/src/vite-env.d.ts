@@ -29,7 +29,7 @@ interface Window {
     restartApp: () => Promise<void>;
   };
   weconnectDirectRelay?: {
-    ensureHost: () => Promise<{
+    ensureHost: (port?: number) => Promise<{
       ok: boolean;
       baseUrl?: string;
       error?: string;
