@@ -75,6 +75,13 @@ ipcMain.handle("updater:check", () => {
 ipcMain.handle("updater:download", () => autoUpdater.downloadUpdate());
 ipcMain.handle("updater:install", () => autoUpdater.quitAndInstall());
 ipcMain.handle("app:open-install-folder", () => shell.openPath(path.dirname(app.getPath("exe"))));
+ipcMain.handle("app:open-external", (_event, url) => {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) {
+    return false;
+  }
+  void shell.openExternal(url);
+  return true;
+});
 
 // Reinicio real de la app (no solo cerrar el modal) -- usado por
 // FirstLaunchSetup.tsx tras "Launch We Connect", para que la app arranque de

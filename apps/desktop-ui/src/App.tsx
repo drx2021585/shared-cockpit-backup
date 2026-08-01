@@ -97,9 +97,10 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     const directRelay = window.weconnectDirectRelay;
+    const localDirect = isLocalDirectRelay(relayConfig);
 
     async function loadHealth() {
-      if (isLocalDirectRelay(relayConfig) && directRelay) {
+      if (localDirect && directRelay) {
         const started = await directRelay.ensureHost();
         if (!started.ok || cancelled) return;
       }
@@ -118,6 +119,13 @@ export function App() {
 
     loadHealth().catch(() => {
         if (cancelled) return;
+        if (localDirect) {
+          setServerCompatibility({
+            updateRequired: false,
+            minVersion: null,
+            latestVersion: null,
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -275,7 +283,7 @@ export function App() {
       )}
       <UpdateModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)} />
       <RequiredUpdateModal
-        open={serverCompatibility.updateRequired}
+        open={serverCompatibility.updateRequired && !isLocalDirectRelay(relayConfig)}
         minVersion={serverCompatibility.minVersion ?? currentVersion}
         latestVersion={serverCompatibility.latestVersion ?? serverCompatibility.minVersion ?? currentVersion}
         onOpenUpdater={handleOpenUpdateModal}

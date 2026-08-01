@@ -25,6 +25,7 @@ interface WeConnectFsuipcStatus {
 interface Window {
   weconnectDesktop?: {
     openInstallFolder: () => Promise<string>;
+    openExternal: (url: string) => Promise<boolean>;
     restartApp: () => Promise<void>;
   };
   weconnectDirectRelay?: {

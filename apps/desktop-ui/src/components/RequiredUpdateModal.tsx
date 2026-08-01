@@ -1,5 +1,7 @@
 import { currentVersion } from "../data";
 
+const LATEST_RELEASE_PAGE_URL = "https://github.com/drx2021585/shared-cockpit-backup/releases/latest";
+
 interface RequiredUpdateModalProps {
   open: boolean;
   minVersion: string;
@@ -16,7 +18,7 @@ export function RequiredUpdateModal({
   if (!open) return null;
 
   const desktop = (window as unknown as {
-    weconnectDesktop?: { restartApp: () => Promise<void> };
+    weconnectDesktop?: { restartApp: () => Promise<void>; openExternal?: (url: string) => Promise<boolean> };
   }).weconnectDesktop;
 
   return (
@@ -50,6 +52,18 @@ export function RequiredUpdateModal({
         <div className="update-actions">
           <button className="btn" onClick={onOpenUpdater}>
             Check for updates
+          </button>
+          <button
+            className="update-btn-secondary"
+            onClick={() => {
+              if (desktop?.openExternal) {
+                void desktop.openExternal(LATEST_RELEASE_PAGE_URL);
+                return;
+              }
+              window.open(LATEST_RELEASE_PAGE_URL, "_blank", "noopener,noreferrer");
+            }}
+          >
+            Download latest release
           </button>
           {desktop && (
             <button className="update-btn-secondary" onClick={() => void desktop.restartApp()}>

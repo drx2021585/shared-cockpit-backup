@@ -63,7 +63,7 @@ export function Party({
       ? buildDirectInviteCode({ host: ipv4, port: relayPort, joinCode: createdSession.joinCode })
       : null;
 
-  async function createParty() {
+  async function createParty(baseUrl?: string) {
     if (!pilotName.trim()) {
       setError("Enter your pilot name first.");
       return false;
@@ -80,7 +80,7 @@ export function Party({
         hostPilotName: pilotName.trim(),
         hostSeat: seat,
         sim,
-      });
+      }, baseUrl);
       onSessionCreated(session, pilotName.trim());
       return true;
     } catch (err) {
@@ -119,7 +119,7 @@ export function Party({
       }
       await fetchServerHealth(readyBaseUrl);
       onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
-      await createParty();
+      await createParty(readyBaseUrl);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(`Direct host could not start the session: ${err.code}`);

@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.43",
+    version: "0.1.44",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Direct sessions no longer depend on the live relay contract to create a local host: the app now talks to the explicit local direct-host URL when you choose Host direct session.",
+      "The mandatory live-server update modal no longer blocks a local direct-host flow, and local health failures stop leaving a stale live-server lock on screen.",
+      "When auto-update lags behind the live minimum, the blocker now offers a direct download path to the latest GitHub release instead of trapping the user behind Check for updates alone.",
+    ],
+  },
+  {
+    version: "0.1.43",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Direct-host startup now tries to reclaim port 8787 automatically from stale We Connect processes before giving up, instead of failing immediately with a generic error.",

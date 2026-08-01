@@ -161,11 +161,11 @@ export async function createSession(input: {
   // lo tome.
   hostSeat: "captain" | "first_officer" | "observer";
   sim: "msfs2020" | "msfs2024";
-}) {
+}, baseUrl?: string) {
   const session = await request<Session>("/api/sessions", {
     method: "POST",
     body: JSON.stringify(input),
-  });
+  }, baseUrl);
   participantToken = session.participantToken ?? null;
   return session;
 }

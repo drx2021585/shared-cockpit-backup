@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("weconnectUpdater", {
 
 contextBridge.exposeInMainWorld("weconnectDesktop", {
   openInstallFolder: () => ipcRenderer.invoke("app:open-install-folder"),
+  openExternal: (url) => ipcRenderer.invoke("app:open-external", url),
   restartApp: () => ipcRenderer.invoke("app:restart"),
 });
 
