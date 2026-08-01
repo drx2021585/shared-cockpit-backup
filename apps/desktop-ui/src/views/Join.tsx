@@ -44,13 +44,22 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConf
       });
       onSessionReady(session, pilotName);
     } catch (err) {
+      const directInvite = parseDirectInviteCode(code.trim());
       if (err instanceof ApiError) {
         const messages: Record<string, string> = {
-          "session-not-found": "No session found with that code.",
+          "session-not-found": directInvite
+            ? "That direct code reached your friend's PC, but the session is no longer open there."
+            : "No session found with that code. If your friend is hosting directly, you need their direct invite code, not the short session code.",
           "invalid-password": "That password isn't correct.",
           "session-full": "This session already has two pilots.",
+          "client-update-required": "Your We Connect is older than your friend's. Update it (Settings → Check for updates) and join again.",
         };
         setError(messages[err.code] ?? `Could not join: ${err.code}`);
+      } else if (directInvite) {
+        setError(
+          `Could not reach your friend's PC at ${directInvite.host}:${directInvite.port}. ` +
+            "That address only works if you are both on the same network, and their firewall has to let We Connect accept connections."
+        );
       } else {
         setError("Could not reach the server.");
       }

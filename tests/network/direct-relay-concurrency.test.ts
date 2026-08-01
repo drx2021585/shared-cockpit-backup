@@ -13,7 +13,7 @@ const PORT = 8891;
 
 function makeRelay(port: number) {
   return directRelay.createDirectRelay({
-    appVersion: "0.0.1",
+    appVersion: "9.9.9",
     profilesDir: new URL("../../aircraft-profiles", import.meta.url).pathname.slice(1),
     port,
   });
@@ -71,5 +71,25 @@ test("si el puerto preferido esta ocupado por otro programa, usa el siguiente", 
     // close() solo espera a que mueran los keep-alive de fetch; sin esto cuelga.
     squatter.closeAllConnections();
     await new Promise<void>((resolve) => squatter.close(() => resolve()));
+  }
+});
+
+test("el invitado no necesita la misma version que el anfitrion, solo pasar el piso", async () => {
+  // appVersion del anfitrion muy por delante: antes esto rechazaba a cualquier
+  // invitado que no corriera exactamente esa version o mas.
+  const relay = makeRelay(PORT);
+  try {
+    const { baseUrl } = await relay.ensureRunning();
+    const floor = (await (await fetch(`${baseUrl}/api/health`)).json()).minClientVersion;
+
+    const ask = (clientVersion: string) =>
+      fetch(`${baseUrl}/api/aircraft-profiles`, {
+        headers: { "X-WeConnect-Client-Version": clientVersion },
+      }).then((res) => res.status);
+
+    assert.equal(await ask(floor), 200, "un invitado justo en el piso entra");
+    assert.equal(await ask("0.1.47"), 426, "por debajo del piso se pide actualizar");
+  } finally {
+    await relay.stop();
   }
 });

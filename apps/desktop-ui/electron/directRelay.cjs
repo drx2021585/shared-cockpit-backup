@@ -41,13 +41,19 @@ function compareVersions(left, right) {
   return 0;
 }
 
-function buildHealthPayload(version) {
+// Piso de protocolo del direct host. NO es la version del anfitrion: si lo
+// fuera, cada release dejaria fuera al invitado que va un parche atras, aunque
+// hablen exactamente el mismo protocolo. Solo se sube cuando cambia de verdad
+// el formato de los mensajes.
+const DIRECT_MIN_CLIENT_VERSION = "0.1.48";
+
+function buildHealthPayload(latestVersion) {
   return {
     status: "ok",
     uptimeSeconds: process.uptime(),
     apiVersion: SERVER_API_VERSION,
-    minClientVersion: version,
-    latestClientVersion: version,
+    minClientVersion: DIRECT_MIN_CLIENT_VERSION,
+    latestClientVersion: latestVersion,
   };
 }
 
@@ -235,7 +241,7 @@ function createDirectRelay(options) {
 
   function isClientVersionSupported(version) {
     if (!version) return false;
-    return compareVersions(version, appVersion) >= 0;
+    return compareVersions(version, DIRECT_MIN_CLIENT_VERSION) >= 0;
   }
 
   function runPowerShell(command) {
@@ -793,9 +799,7 @@ function createDirectRelay(options) {
     if (await isPortOpen()) {
       const existingHealth = await fetchExistingHealth();
       const sameVersionRelay =
-        existingHealth?.mode === "direct-host" &&
-        existingHealth.latestClientVersion === appVersion &&
-        existingHealth.minClientVersion === appVersion;
+        existingHealth?.mode === "direct-host" && existingHealth.latestClientVersion === appVersion;
       if (sameVersionRelay) {
         return { started: false, baseUrl: baseUrl(), external: true };
       }

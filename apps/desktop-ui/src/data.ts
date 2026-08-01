@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.48",
+    version: "0.1.49",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Your friend can join your direct session again even if their We Connect is a slightly different version than yours. Before, hosting demanded that the guest run exactly your version or newer, so any update on your side locked them out of every route: session code, LAN and direct address.",
+      "Join errors now say what actually went wrong — an out-of-date app, a session that closed, or a host PC that cannot be reached at that address — instead of a generic 'could not join'.",
+      "Updates stop being mandatory for every patch. Only releases that really change how the two apps talk to each other force an update now.",
+    ],
+  },
+  {
+    version: "0.1.48",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "The direct host no longer needs port 8787 to be free: if another program is holding it, We Connect moves to the next free port instead of crashing. The port travels inside the direct invite code, so your friend still joins with the same code.",
