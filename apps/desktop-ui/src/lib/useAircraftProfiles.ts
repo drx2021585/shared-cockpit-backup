@@ -104,12 +104,15 @@ export function useAircraftProfiles(): AircraftProfilesState {
       .then((profiles) => {
         if (!cancelled) setState({ profiles, loading: false, error: null });
       })
-      .catch((err) => {
+      .catch(() => {
         if (!cancelled) {
+          const fallbackProfiles = mergeLocalAircraftProfiles([]);
           setState({
-            profiles: [],
+            profiles: fallbackProfiles,
             loading: false,
-            error: "No se pudo cargar el catálogo de aeronaves desde el relay actual.",
+            error: fallbackProfiles.length > 0
+              ? null
+              : "No se pudo cargar el catálogo de aeronaves desde el relay actual.",
           });
         }
       });

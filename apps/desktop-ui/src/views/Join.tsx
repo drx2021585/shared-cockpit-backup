@@ -63,9 +63,29 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
       setError("Enter the session code.");
       return;
     }
+    if (relayMode === "custom" && !relayUrl.trim()) {
+      setError("Enter the relay URL for My own relay.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
+      let nextUrl = relayUrl.trim();
+      if (relayMode === "custom" && nextUrl) {
+        try {
+          const parsed = new URL(nextUrl);
+          parsed.port = String(directPort);
+          nextUrl = parsed.toString().replace(/\/+$/, "");
+          setRelayUrl(nextUrl);
+        } catch {
+          // Si la URL escrita no parsea todavía, se deja tal cual y el join fallará con error claro.
+        }
+      }
+      setRelayConfig({
+        mode: relayMode,
+        customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+        directPort,
+      });
       const session = await joinSession(code.trim().toUpperCase(), {
         pilotName: pilotName.trim(),
         seat,

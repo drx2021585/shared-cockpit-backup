@@ -22,6 +22,7 @@ export function Profile({
   communityPath,
   onChangeFlightSimFolder,
 }: ProfileProps) {
+  const visibleVersionHistory = versionHistory.slice(0, 3);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
   const [relayMode, setRelayMode] = useState<RelayMode>(() => getRelayConfig().mode);
@@ -284,7 +285,7 @@ export function Profile({
             Version history
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {versionHistory.map((entry) => {
+            {visibleVersionHistory.map((entry) => {
               const isExpanded = expandedVersions[entry.version] ?? false;
               return (
                 <div key={entry.version} className="profile-history-card">

@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.58",
+    version: "0.1.59",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "The aircraft catalog now keeps working even when the current relay is down: Aircraft, Create a party and the rest of the app fall back to the bundled local aircraft profiles instead of going empty behind a relay error.",
+      "Join a party now applies the selected connection mode directly when you join, so Hosted relay or My own relay with its Relay URL and direct-host port are used immediately instead of depending on a separate save step first.",
+      "The local fallback catalog was refreshed to match the current bundled profiles instead of stale placeholders.",
+    ],
+  },
+  {
+    version: "0.1.58",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Choosing Observer in Create a party or Join a party now asks for explicit confirmation before taking a seat that cannot touch the flight controls or influence the active crew.",
