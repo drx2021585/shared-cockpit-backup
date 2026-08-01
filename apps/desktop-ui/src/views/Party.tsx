@@ -124,7 +124,7 @@ export function Party({
       if (err instanceof ApiError) {
         setError(`Direct host could not start the session: ${err.code}`);
       } else {
-        setError("Could not start the direct host on this PC.");
+        setError(err instanceof Error ? err.message : "Could not start the direct host on this PC.");
       }
     } finally {
       setSubmitting(false);

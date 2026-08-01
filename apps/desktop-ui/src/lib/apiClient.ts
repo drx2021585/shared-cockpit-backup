@@ -111,7 +111,7 @@ async function ensureRelayBaseUrl(baseUrl: string): Promise<string> {
   if (!directRelay) return baseUrl;
   const started = await directRelay.ensureHost();
   if (!started.ok) {
-    throw new ApiError("direct-relay-unavailable", 503);
+    throw new ApiError(started.error ?? "direct-relay-unavailable", 503);
   }
   return started.baseUrl ?? baseUrl;
 }

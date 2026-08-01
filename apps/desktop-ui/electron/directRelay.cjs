@@ -216,6 +216,8 @@ function createDirectRelay(options) {
   const port = options.port ?? DEFAULT_PORT;
   const appVersion = options.appVersion;
   const profilesDir = options.profilesDir;
+  const currentPid = Number(options.currentPid ?? process.pid);
+  const currentExecPath = String(options.currentExecPath ?? process.execPath).toLowerCase();
 
   let server = null;
   let wss = null;
@@ -259,6 +261,78 @@ function createDirectRelay(options) {
     } catch {
       return [];
     }
+  }
+
+  async function getListeningProcessDetails() {
+    const stdout = await runPowerShell(
+      [
+        `$connections = @(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique);`,
+        `$rows = @();`,
+        `foreach ($id in $connections) {`,
+        `  try {`,
+        `    $process = Get-Process -Id $id -ErrorAction Stop;`,
+        `    $rows += [pscustomobject]@{ pid = $process.Id; processName = $process.ProcessName; path = $process.Path };`,
+        `  } catch {`,
+        `    $rows += [pscustomobject]@{ pid = $id; processName = $null; path = $null };`,
+        `  }`,
+        `}`,
+        `$rows | ConvertTo-Json -Compress`,
+      ].join(" ")
+    ).catch(() => "[]");
+    try {
+      const parsed = JSON.parse(String(stdout || "[]").trim() || "[]");
+      const rows = Array.isArray(parsed) ? parsed : [parsed];
+      return rows
+        .map((entry) => ({
+          pid: Number(entry?.pid),
+          processName: typeof entry?.processName === "string" ? entry.processName : "",
+          path: typeof entry?.path === "string" ? entry.path : "",
+        }))
+        .filter((entry) => Number.isFinite(entry.pid));
+    } catch {
+      return [];
+    }
+  }
+
+  function looksLikeWeConnectOwner(owner) {
+    const processName = String(owner.processName || "").toLowerCase();
+    const processPath = String(owner.path || "").toLowerCase();
+    const currentExecBase = path.basename(currentExecPath);
+    const ownerExecBase = path.basename(processPath);
+    if (owner.pid === currentPid) return false;
+    if (processPath && ownerExecBase && ownerExecBase === currentExecBase) return true;
+    if (processPath && currentExecPath && processPath === currentExecPath) return true;
+    return (
+      processName === "electron" ||
+      processName === "we connect" ||
+      processName === "weconnect" ||
+      processName === "sharedcockpit.bridge" ||
+      processPath.includes("we connect") ||
+      processPath.includes("shared-cockpit") ||
+      processPath.includes("sharedcockpit")
+    );
+  }
+
+  function formatOwners(owners) {
+    if (!owners.length) return `unknown process on port ${port}`;
+    return owners
+      .map((owner) => {
+        const name = owner.processName || "unknown";
+        return owner.path ? `${name} (PID ${owner.pid}, ${owner.path})` : `${name} (PID ${owner.pid})`;
+      })
+      .join("; ");
+  }
+
+  async function killManageableListeningProcesses() {
+    const owners = await getListeningProcessDetails();
+    const manageable = owners.filter(looksLikeWeConnectOwner);
+    if (manageable.length === 0) {
+      return { killed: false, owners };
+    }
+    await runPowerShell(
+      `Stop-Process -Id ${manageable.map((owner) => owner.pid).join(",")} -Force -ErrorAction SilentlyContinue`
+    ).catch(() => undefined);
+    return { killed: true, owners, manageable };
   }
 
   async function killListeningProcesses() {
@@ -700,7 +774,19 @@ function createDirectRelay(options) {
           throw new Error("Direct host port is still busy on this PC.");
         }
       } else {
-        throw new Error("Direct host port is already in use on this PC.");
+        const killResult = await killManageableListeningProcesses();
+        if (killResult.killed) {
+          const released = await waitForPortClosed(5000);
+          if (!released) {
+            throw new Error(
+              `Direct host port ${port} is still busy after closing an old We Connect process.`
+            );
+          }
+        } else {
+          throw new Error(
+            `Direct host port ${port} is already in use on this PC by ${formatOwners(killResult.owners)}.`
+          );
+        }
       }
     }
 
@@ -710,11 +796,37 @@ function createDirectRelay(options) {
     wss = attachWebSocket(server);
 
     await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(port, "0.0.0.0", () => {
-        server.removeListener("error", reject);
-        resolve();
-      });
+      const attemptListen = () => {
+        const onError = async (err) => {
+          server.removeListener("error", onError);
+          const reason = err && typeof err.message === "string" ? err.message : String(err);
+          if (err?.code === "EADDRINUSE") {
+            const killResult = await killManageableListeningProcesses();
+            if (killResult.killed) {
+              const released = await waitForPortClosed(5000);
+              if (released) {
+                attemptListen();
+                return;
+              }
+            }
+            reject(
+              new Error(
+                `Direct host failed to bind port ${port}: ${formatOwners(killResult?.owners ?? []) || reason}`
+              )
+            );
+            return;
+          }
+          reject(new Error(`Direct host failed to bind port ${port}: ${reason}`));
+        };
+
+        server.once("error", onError);
+        server.listen(port, "0.0.0.0", () => {
+          server.removeListener("error", onError);
+          resolve();
+        });
+      };
+
+      attemptListen();
     });
 
     return { started: true, baseUrl: baseUrl() };

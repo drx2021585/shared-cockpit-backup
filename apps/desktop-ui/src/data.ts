@@ -182,9 +182,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.42",
+    version: "0.1.43",
     title: "Current build",
-    date: "2026-07-31",
+    date: "2026-08-01",
+    commits: [
+      "Direct-host startup now tries to reclaim port 8787 automatically from stale We Connect processes before giving up, instead of failing immediately with a generic error.",
+      "When another process still owns the direct-host port, the app now reports exactly which PID and executable path are blocking it, so the failure stops being opaque.",
+      "Direct-relay startup errors now propagate through the desktop UI instead of collapsing into a generic 'Could not start the direct host on this PC.' message.",
+    ],
+  },
+  {
+    version: "0.1.42",
+    title: "Published release",
+    date: "2026-08-01",
     commits: [
       "New peers now receive the relay's cached cockpit state as soon as they join a live session, instead of waiting for the host to touch each switch again.",
       "The relay now remembers the latest aircraft snapshot, controls, screens, flight pose and authority transfer per session in both hosted and direct-host modes.",

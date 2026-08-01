@@ -99,6 +99,7 @@ export function Profile({
       setRelayMessage(null);
       return;
     }
+    let nextBaseUrl = localDirectRelayBaseUrl;
     if (window.weconnectDirectRelay) {
       const started = await window.weconnectDirectRelay.ensureHost();
       if (!started.ok) {
@@ -106,9 +107,10 @@ export function Profile({
         setRelayMessage(null);
         return;
       }
+      nextBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
     }
-    setRelayDraft(localDirectRelayBaseUrl);
-    handleSaveRelay("self-hosted", localDirectRelayBaseUrl);
+    setRelayDraft(nextBaseUrl);
+    handleSaveRelay("self-hosted", nextBaseUrl);
   }
 
   async function handleTestRelay() {

@@ -1,6 +1,6 @@
 export const SERVER_API_VERSION = 1;
-export const MIN_CLIENT_VERSION = "0.1.42";
-export const LATEST_CLIENT_VERSION = "0.1.42";
+export const MIN_CLIENT_VERSION = "0.1.43";
+export const LATEST_CLIENT_VERSION = "0.1.43";
 
 function parseVersion(version: string): number[] | null {
   const normalized = version.trim().replace(/^v/i, "");

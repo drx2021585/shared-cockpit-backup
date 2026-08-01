@@ -156,6 +156,8 @@ function ensureDirectRelayManager() {
     appVersion: getAppPackageVersion(),
     profilesDir: getBundledAircraftProfilesDir(),
     port: 8787,
+    currentPid: process.pid,
+    currentExecPath: process.execPath,
   });
   return directRelayManager;
 }
