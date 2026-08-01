@@ -94,15 +94,15 @@ export function Profile({
     const nextBaseUrl =
       mode === "self-hosted" ? normalizeRelayBaseUrl(customBaseUrl ?? relayDraft) : "";
     if (mode === "self-hosted" && !nextBaseUrl) {
-      setRelayError("Enter the IP or URL of the relay host, for example http://192.168.1.20:8787");
+      setRelayError(`Enter the IP or address of the host PC, for example http://192.168.1.20:${readDirectHostPort()}`);
       return;
     }
     onRelayConfigChange({ mode, customBaseUrl: nextBaseUrl });
     setRelayDraft(nextBaseUrl);
     setRelayMessage(
       mode === "managed"
-        ? "Using the We Connect hosted relay again."
-        : `Self-hosted relay saved: ${nextBaseUrl}`
+        ? "Using Cloud Host again."
+        : `Direct host saved: ${nextBaseUrl}`
     );
   }
 
@@ -141,7 +141,7 @@ export function Profile({
   async function handleTestRelay() {
     const normalized = normalizeRelayBaseUrl(relayConfig.mode === "self-hosted" ? relayConfig.customBaseUrl || relayDraft : relayDraft);
     if (!normalized) {
-      setRelayError("Enter the IP or URL of the relay host first.");
+      setRelayError("Enter the IP or address of the host PC first.");
       return;
     }
     setTestingRelay(true);
@@ -150,10 +150,10 @@ export function Profile({
     try {
       const health = await fetchServerHealth(normalized);
       setRelayMessage(
-        `Relay reachable. API v${health.apiVersion} · min app ${health.minClientVersion} · latest ${health.latestClientVersion}`
+        `Host reachable. API v · min app ${health.minClientVersion} · latest ${health.latestClientVersion}`
       );
     } catch {
-      setRelayError("Could not reach that relay. Check the IP, port and firewall on both PCs.");
+      setRelayError("Could not reach that host. Check the address, the port and the firewall on both PCs.");
     } finally {
       setTestingRelay(false);
     }
@@ -187,7 +187,7 @@ export function Profile({
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
           <div className="mono-label" style={{ marginBottom: 10 }}>
-            Session relay
+            Connection mode
           </div>
           <div className="relay-shell">
             <div className="relay-summary-card">
@@ -195,18 +195,18 @@ export function Profile({
                 <div>
                   <div className="relay-summary-label">Current route</div>
                   <div className="relay-summary-value">
-                    {relayConfig.mode === "managed" ? "We Connect hosted relay" : "Self-hosted relay"}
+                    {relayConfig.mode === "managed" ? "Cloud Host" : "Direct"}
                   </div>
                 </div>
                 <div className={`relay-mode-pill ${relayConfig.mode === "managed" ? "managed" : "self-hosted"}`}>
-                  {relayConfig.mode === "managed" ? "Managed" : "Direct / LAN"}
+                  {relayConfig.mode === "managed" ? "Cloud Host" : "Direct"}
                 </div>
               </div>
               <div className="relay-summary-url">{activeRelayUrl || getDefaultRelayApiBaseUrl()}</div>
               <div className="relay-summary-meta">
                 {relayConfig.mode === "managed"
-                  ? "Best for internet sessions without extra setup."
-                  : "This app will use the host below for session creation, join and live WebSocket traffic."}
+                  ? "Simplest option: works without opening ports, and relays the flight data through the We Connect server."
+                  : "Most efficient: flight data goes straight between the two PCs. Needs UPnP or port forwarding."}
               </div>
             </div>
 
@@ -214,15 +214,18 @@ export function Profile({
               <div className={`relay-option-card ${relayConfig.mode === "managed" ? "active" : ""}`}>
                 <div className="relay-option-head">
                   <div>
-                    <div className="relay-option-title">We Connect hosted relay</div>
-                    <div className="relay-option-subtitle">No LAN setup. Uses the public shared relay.</div>
+                    <div className="relay-option-title">Cloud Host</div>
+                    <div className="relay-option-subtitle">
+                      The simplest option when a direct connection fails. Nothing to configure, and it also works on
+                      restrictive networks (CGNAT, strict NAT), at the cost of some extra latency.
+                    </div>
                   </div>
                   {relayConfig.mode === "managed" && <div className="relay-option-badge">Active</div>}
                 </div>
                 <div className="relay-option-url">{getDefaultRelayApiBaseUrl()}</div>
                 <div className="relay-option-actions">
                   <button className="btn" onClick={() => handleSaveRelay("managed")}>
-                    Use hosted relay
+                    Use Cloud Host
                   </button>
                 </div>
               </div>
@@ -230,8 +233,11 @@ export function Profile({
               <div className={`relay-option-card ${relayConfig.mode === "self-hosted" ? "active" : ""}`}>
                 <div className="relay-option-head">
                   <div>
-                    <div className="relay-option-title">My own relay host</div>
-                    <div className="relay-option-subtitle">For LAN or self-hosted sessions from one PC.</div>
+                    <div className="relay-option-title">Direct</div>
+                    <div className="relay-option-subtitle">
+                      The most efficient option: this PC hosts and the flight data travels straight between both PCs,
+                      never through a server. Needs UPnP or port forwarding on your router.
+                    </div>
                   </div>
                   {relayConfig.mode === "self-hosted" && <div className="relay-option-badge">Active</div>}
                 </div>
@@ -261,7 +267,7 @@ export function Profile({
                   </p>
                 </div>
                 <div className="field">
-                  <label>Custom relay host</label>
+                  <label>Host address</label>
                   <input
                     type="text"
                     placeholder={`http://192.168.1.20:${DEFAULT_DIRECT_HOST_PORT}`}
@@ -271,10 +277,10 @@ export function Profile({
                 </div>
                 <div className="relay-option-actions">
                   <button className="btn" onClick={() => handleSaveRelay("self-hosted")}>
-                    Save self-hosted relay
+                    Save direct host
                   </button>
                   <button className="link-action" onClick={handleTestRelay} disabled={testingRelay}>
-                    {testingRelay ? "Testing relay..." : "Test relay"}
+                    {testingRelay ? "Testing connection..." : "Test connection"}
                   </button>
                 </div>
               </div>

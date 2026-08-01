@@ -182,8 +182,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.51",
+    version: "0.1.52",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "The two connection modes are now called Direct and Cloud Host, and each one says what it is for. Direct is the most efficient — the flight data goes straight between both PCs — but needs UPnP or port forwarding. Cloud Host is the simpler fallback when a direct connection cannot be made.",
+      "Settings no longer talks about relays and LAN hosts in wording only a developer would recognise.",
+    ],
+  },
+  {
+    version: "0.1.51",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "You can now choose which port the direct host uses, in Settings. It defaults to 25071 — the same port YourControls uses — so a router rule you already have keeps working. Both pilots have to set the same number.",

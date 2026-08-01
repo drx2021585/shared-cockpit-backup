@@ -261,14 +261,14 @@ export function Party({
 
           <div style={{ paddingTop: 6, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <button className="btn" onClick={handleCreate} disabled={submitting || createdSession !== null}>
-              {submitting ? "Creating…" : "Create session"}
+              {submitting ? "Creating…" : "Create session (Cloud Host)"}
             </button>
             <button className="link-action" onClick={handleCreateDirect} disabled={submitting || createdSession !== null}>
               {submitting ? "Starting direct host…" : "Host direct session"}
             </button>
           </div>
           <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 2 }}>
-            Direct mode uses this PC as the relay host and prepares a direct invite code for the other pilot.
+            Direct: most efficient, but needs UPnP or port forwarding. This PC hosts and the flight data goes straight between both PCs. Cloud Host is the simpler fallback when that fails.
           </p>
           <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: -8 }}>
             Expected local host: {ipv4 === "Unavailable" || ipv4 === "Detecting…" ? "unavailable" : `http://${ipv4}:${relayPort}`}
