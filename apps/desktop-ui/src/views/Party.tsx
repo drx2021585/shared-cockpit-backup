@@ -250,7 +250,7 @@ export function Party({
             Direct mode uses this PC as the relay host and prepares a direct invite code for the other pilot.
           </p>
           <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: -8 }}>
-            Expected local host: {ipv4 === "Unavailable" || ipv4 === "Detecting…" ? "unavailable" : `http://${ipv4}:8787`}
+            Expected local host: {ipv4 === "Unavailable" || ipv4 === "Detecting…" ? "unavailable" : `http://${ipv4}:${relayPort}`}
           </p>
         </div>
 

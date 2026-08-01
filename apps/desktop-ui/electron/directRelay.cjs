@@ -213,7 +213,10 @@ function sanitizeSession(session, participantToken) {
 }
 
 function createDirectRelay(options) {
-  const port = options.port ?? DEFAULT_PORT;
+  // `port` cambia si el preferido esta ocupado: baseUrl(), isPortOpen() y los
+  // helpers de PowerShell leen siempre el que quedo activo.
+  let port = options.port ?? DEFAULT_PORT;
+  const portCandidates = Array.from({ length: 5 }, (_, index) => port + index);
   const appVersion = options.appVersion;
   const profilesDir = options.profilesDir;
   const currentPid = Number(options.currentPid ?? process.pid);
@@ -796,56 +799,50 @@ function createDirectRelay(options) {
       if (sameVersionRelay) {
         return { started: false, baseUrl: baseUrl(), external: true };
       }
+      // Intento de recuperar el puerto preferido (mantiene estable el codigo
+      // de invitacion). Si no se logra, no se aborta: se cae al siguiente
+      // puerto de la lista mas abajo.
       if (existingHealth?.mode === "direct-host") {
         await killListeningProcesses();
-        const released = await waitForPortClosed(5000);
-        if (!released) {
-          throw new Error("Direct host port is still busy on this PC.");
-        }
       } else {
-        const killResult = await killManageableListeningProcesses();
-        if (killResult.killed) {
-          const released = await waitForPortClosed(5000);
-          if (!released) {
-            throw new Error(
-              `Direct host port ${port} is still busy after closing an old We Connect process.`
-            );
-          }
-        } else {
-          throw new Error(
-            `Direct host port ${port} is already in use on this PC by ${formatOwners(killResult.owners)}.`
-          );
-        }
+        await killManageableListeningProcesses();
       }
+      await waitForPortClosed(5000);
     }
 
     profiles = scanAircraftProfiles(profilesDir);
     const relayApp = buildApp();
     server = createServer(relayApp);
-    wss = attachWebSocket(server);
 
-    try {
-      await listen();
-    } catch (err) {
-      const reason = err && typeof err.message === "string" ? err.message : String(err);
-      if (err?.code !== "EADDRINUSE") {
-        await stop();
-        throw new Error(`Direct host failed to bind port ${port}: ${reason}`);
+    // El puerto preferido puede estar ocupado por algo que no es nuestro
+    // (otro programa, una instancia sin permisos para matar). Antes eso era
+    // un error fatal; ahora se prueba el siguiente. El puerto elegido viaja
+    // al invitado dentro del codigo de invitacion directo, asi que cambiarlo
+    // no rompe nada (ver buildDirectInviteCode en src/lib).
+    for (const candidate of portCandidates) {
+      port = candidate;
+      try {
+        await listen();
+        // El WebSocketServer se engancha DESPUES de bindear: creado con
+        // { server }, `ws` re-emite el EADDRINUSE del http.Server sobre si
+        // mismo, y ese 'error' sin listener es una excepcion no capturada que
+        // se lleva puesto el proceso principal de Electron.
+        wss = attachWebSocket(server);
+        return { started: true, baseUrl: baseUrl() };
+      } catch (err) {
+        if (err?.code !== "EADDRINUSE") {
+          await stop();
+          throw new Error(`Direct host failed to bind port ${port}: ${err?.message ?? err}`);
+        }
       }
-      const killResult = await killManageableListeningProcesses();
-      if (!killResult.killed || !(await waitForPortClosed(5000))) {
-        await stop();
-        throw new Error(
-          `Direct host failed to bind port ${port}: ${formatOwners(killResult.owners) || reason}`
-        );
-      }
-      await listen().catch(async (retryError) => {
-        await stop();
-        throw new Error(`Direct host failed to bind port ${port}: ${retryError?.message ?? retryError}`);
-      });
     }
 
-    return { started: true, baseUrl: baseUrl() };
+    await stop();
+    port = portCandidates[0];
+    const owners = formatOwners(await getListeningProcessDetails());
+    throw new Error(
+      `Direct host could not open any port on this PC (tried ${portCandidates.join(", ")}). Port ${portCandidates[0]} is held by ${owners}.`
+    );
   }
 
   function listen() {

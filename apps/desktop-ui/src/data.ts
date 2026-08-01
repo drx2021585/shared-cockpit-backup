@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.47",
+    version: "0.1.48",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "The direct host no longer needs port 8787 to be free: if another program is holding it, We Connect moves to the next free port instead of crashing. The port travels inside the direct invite code, so your friend still joins with the same code.",
+      "Fixed the remaining crash path behind 'A JavaScript error occurred in the main process' — a failed port bind was raised twice internally, and the second one had nobody listening for it.",
+      "The screens that show your local host address now display the port actually in use instead of always saying 8787.",
+    ],
+  },
+  {
+    version: "0.1.47",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Fixed a crash that closed We Connect with 'A JavaScript error occurred in the main process' when starting a direct host. The app was trying to open the same port several times at once instead of waiting for the first attempt.",

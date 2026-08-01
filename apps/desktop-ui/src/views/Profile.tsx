@@ -35,8 +35,17 @@ export function Profile({
   const [relayError, setRelayError] = useState<string | null>(null);
   const [testingRelay, setTestingRelay] = useState(false);
   const { ipv4 } = usePublicIp();
+  // El puerto sale del relay activo, no de una constante: el direct host cae a
+  // 8788+ si 8787 esta ocupado (ver electron/directRelay.cjs).
+  const activeRelayPort = (() => {
+    try {
+      return new URL(normalizeRelayBaseUrl(relayConfig.customBaseUrl)).port || "8787";
+    } catch {
+      return "8787";
+    }
+  })();
   const suggestedRelayUrl =
-    ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:8787` : null;
+    ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:${activeRelayPort}` : null;
   const activeRelayUrl =
     relayConfig.mode === "managed"
       ? getDefaultRelayApiBaseUrl()

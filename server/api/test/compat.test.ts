@@ -15,7 +15,8 @@ test("isClientVersionSupported enforces the minimum version", () => {
   assert.equal(isClientVersionSupported("0.1.43"), false);
   assert.equal(isClientVersionSupported("0.1.44"), false);
   assert.equal(isClientVersionSupported("0.1.46"), false);
-  assert.equal(isClientVersionSupported("0.1.47"), true);
+  assert.equal(isClientVersionSupported("0.1.47"), false);
+  assert.equal(isClientVersionSupported("0.1.48"), true);
   assert.equal(isClientVersionSupported("0.1.23"), false);
   assert.equal(isClientVersionSupported("0.1.19"), false);
   assert.equal(isClientVersionSupported(null), false);
