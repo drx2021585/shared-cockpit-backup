@@ -51,6 +51,29 @@ intercambiar endpoints, no necesariamente para transportar todos los datos"*.
    no puede funcionar: hay que caer a `Cloud Host` (o a TURN) automáticamente y
    decírselo al usuario, no fallar en silencio.
 
+## Medición: esto NO resuelve la red del autor
+
+Test STUN desde la red de desarrollo (2026-08-01), mismo socket UDP local
+contra tres servidores distintos:
+
+| Servidor | Puerto público asignado |
+| --- | --- |
+| stun.l.google.com | 28230 |
+| stun1.l.google.com | 28230 |
+| stun.cloudflare.com | 62101 |
+
+Puerto distinto por destino = **NAT simétrico**. El hole punching necesita que
+el mapeo sea independiente del destino para poder anunciar un endpoint que
+siga siendo válido cuando el otro par escriba; con NAT simétrico el agujero es
+impredecible por definición. Sumado al CGNAT (sin puerto propio) y a que la IP
+pública rota entre mediciones, en esta red **la conexión directa no es
+alcanzable por ningún camino**: ni forwarding, ni UPnP, ni punching.
+
+Consecuencia para el plan: sigue valiendo la pena para usuarios con NAT de
+cono, que son mayoría en fibra/cable domésticos, pero **no** hay que
+presentarlo como la solución para redes móviles/5G. Ahí el único camino es
+relay (TURN), que es funcionalmente lo que ya hace Cloud Host.
+
 ## Qué NO hacer
 
 - No borrar `Cloud Host`: es el respaldo cuando esto falla, y falla en un
