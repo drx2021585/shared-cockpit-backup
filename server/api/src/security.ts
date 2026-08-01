@@ -128,7 +128,9 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction) 
   res.setHeader("Access-Control-Allow-Origin", origin && origin !== "null" ? origin : "null");
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  // X-WeConnect-Client-Version viaja en cada request del cliente; sin
+  // declararla aquí el preflight la rechaza y el fetch falla antes de salir.
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WeConnect-Client-Version");
   res.setHeader("Access-Control-Max-Age", "600");
   if (req.method === "OPTIONS") {
     res.status(204).end();

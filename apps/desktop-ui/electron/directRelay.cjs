@@ -542,6 +542,31 @@ function createDirectRelay(options) {
 
   function buildApp() {
     const relayApp = express();
+
+    // CORS. Sin esto el direct host no era usable desde la app: el renderer
+    // empaquetado se sirve por file:// (Origin: null) y el invitado lo llama
+    // desde otro origen, así que todo /api iba por preflight y el navegador
+    // descartaba la respuesta -> "Failed to fetch" al crear la party. Va antes
+    // del gate de versión de abajo porque un preflight OPTIONS no lleva
+    // cabeceras custom y ese gate lo respondía con 426.
+    //
+    // Se refleja el Origin en vez de "*" para que el header Authorization
+    // (token de participante) siga siendo aceptable, y se declara
+    // X-WeConnect-Client-Version porque el cliente la manda en cada request.
+    relayApp.use((req, res, next) => {
+      const origin = typeof req.headers.origin === "string" ? req.headers.origin : null;
+      res.setHeader("Access-Control-Allow-Origin", origin && origin !== "null" ? origin : "*");
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WeConnect-Client-Version");
+      res.setHeader("Access-Control-Max-Age", "600");
+      if (req.method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+      next();
+    });
+
     relayApp.use(express.json({ limit: "16kb" }));
 
     relayApp.get("/api/health", (_req, res) => {

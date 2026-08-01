@@ -108,16 +108,32 @@ export function Party({
     setError(null);
     try {
       const directRelay = window.weconnectDirectRelay;
-      let readyBaseUrl = localDirectRelayBaseUrl;
-      if (directRelay) {
-        const started = await directRelay.ensureHost();
-        if (!started.ok) {
-          setError(started.error ?? "Could not start the direct host on this PC.");
-          return;
-        }
-        readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
+      if (!directRelay) {
+        // Build web puro: el direct host vive en el proceso principal de
+        // Electron (electron/directRelay.cjs), no hay nada escuchando en
+        // 127.0.0.1:8787 que se pueda levantar desde el navegador.
+        setError("Direct hosting is only available in the We Connect desktop app.");
+        return;
       }
-      await fetchServerHealth(readyBaseUrl);
+      const started = await directRelay.ensureHost();
+      if (!started.ok) {
+        setError(started.error ?? "Could not start the direct host on this PC.");
+        return;
+      }
+      const readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
+      try {
+        await fetchServerHealth(readyBaseUrl);
+      } catch (healthError) {
+        // Un fallo de red crudo aquí (fetch rechazado por CSP, firewall o
+        // antivirus) llegaba a la UI como "Failed to fetch", que no le dice
+        // nada al usuario ni a un reporte de diagnóstico.
+        if (healthError instanceof ApiError) throw healthError;
+        setError(
+          `The direct host started but could not be reached at ${readyBaseUrl}. ` +
+            "Check that no firewall or antivirus is blocking We Connect on this PC."
+        );
+        return;
+      }
       onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
       await createParty(readyBaseUrl);
     } catch (err) {
