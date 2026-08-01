@@ -182,8 +182,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.54",
+    version: "0.1.55",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Added a technical reference that documents exactly how YourControls Direct works today: fixed UDP port, optional UPnP, direct handshake and the absence of STUN/TURN in that mode.",
+      "The direct-host baseline is now separated clearly from the future rendezvous and hole-punching plan, so networking work no longer mixes two different connection models.",
+    ],
+  },
+  {
+    version: "0.1.54",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "There is now one way to connect: create a session, share the 6-character code, your friend enters it. Direct hosting, LAN codes, router port opening and the connection-mode settings are gone.",
