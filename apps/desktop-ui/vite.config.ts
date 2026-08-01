@@ -7,10 +7,9 @@ import react from "@vitejs/plugin-react";
 // rompería, y el riesgo que mitiga la CSP (inyección de script remoto) no
 // aplica al dev server local.
 //
-// connect-src: el server/api desplegado, más `http:`/`ws:` abiertos para el
-// direct host y el bridge local. La IP y el puerto del anfitrión son
-// arbitrarios y la CSP no admite comodines dentro de un host, así que
-// enumerarlos es imposible. script-src/default-src siguen en 'self'.
+// connect-src: solo el server/api desplegado y el bridge local de SimConnect.
+// Los esquemas http:/ws: abiertos que necesitaba el host directo se pudieron
+// quitar al eliminar ese modo: ya no hay que alcanzar IPs arbitrarias.
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
@@ -19,7 +18,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
-  "connect-src 'self' https://shared-cockpit-api.onrender.com wss://shared-cockpit-api.onrender.com http: ws:",
+  "connect-src 'self' https://shared-cockpit-api.onrender.com wss://shared-cockpit-api.onrender.com " +
+    "ws://localhost:7620 ws://127.0.0.1:7620",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

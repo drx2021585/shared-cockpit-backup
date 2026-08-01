@@ -6,8 +6,6 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { spawn, execFile } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
-const { createDirectRelay } = require("./directRelay.cjs");
-const upnp = require("./upnp.cjs");
 
 // La app apunta al backend compartido en Railway por defecto (ver
 // src/lib/apiClient.ts) — ya no levanta un server/api local embebido. Un
@@ -18,7 +16,6 @@ const upnp = require("./upnp.cjs");
 let mainWindow = null;
 let lastUpdaterEvent = null;
 let startupUpdateCheckInFlight = false;
-let directRelayManager = null;
 
 // autoDownload=false: el usuario confirma la descarga desde el modal
 // (UpdateModal.tsx) — mismo flujo que ya existía, ahora con datos reales en
@@ -141,21 +138,7 @@ function getLocalNetworkAddresses() {
   return { ipv4, ipv6 };
 }
 
-ipcMain.handle("network:get-local-addresses", async () => {
-  const addresses = getLocalNetworkAddresses();
-  // La IP que el otro jugador puede alcanzar es la de la interfaz con salida a
-  // la red, no la primera que devuelva el SO: en PCs con Hyper-V, VirtualBox o
-  // VPN esa primera suele ser una interfaz virtual inalcanzable.
-  const routed = await upnp.localAddressTowards();
-  return { ...addresses, ipv4: routed ?? addresses.ipv4 };
-});
-
-function getBundledAircraftProfilesDir() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "aircraft-profiles");
-  }
-  return path.join(__dirname, "..", "..", "..", "aircraft-profiles");
-}
+ipcMain.handle("network:get-local-addresses", () => getLocalNetworkAddresses());
 
 function getAppPackageVersion() {
   try {
@@ -165,69 +148,6 @@ function getAppPackageVersion() {
   }
 }
 
-const DEFAULT_DIRECT_PORT = 25071;
-let directRelayPort = DEFAULT_DIRECT_PORT;
-
-async function ensureDirectRelayManager(requestedPort) {
-  const port = Number.isInteger(requestedPort) && requestedPort >= 1024 && requestedPort <= 65535
-    ? requestedPort
-    : directRelayPort;
-
-  // Cambiar el puerto en Ajustes tiene que mover el host de verdad, no quedar
-  // guardado para el proximo arranque de la app.
-  if (directRelayManager && port !== directRelayPort) {
-    await directRelayManager.stop();
-    directRelayManager = null;
-    portExposure = null;
-  }
-  directRelayPort = port;
-
-  if (directRelayManager) return directRelayManager;
-  directRelayManager = createDirectRelay({
-    appVersion: getAppPackageVersion(),
-    profilesDir: getBundledAircraftProfilesDir(),
-    port,
-    currentPid: process.pid,
-    currentExecPath: process.execPath,
-  });
-  return directRelayManager;
-}
-
-// Estado de la apertura del puerto hacia Internet. Se intenta una sola vez por
-// ejecucion: el mapeo UPnP no caduca (NewLeaseDuration 0) y volver a pedirlo en
-// cada ensureHost() metia segundos de espera en cada request.
-let portExposure = null;
-
-async function exposePort(port) {
-  if (portExposure?.port === port) return portExposure;
-
-  const lanIp = await upnp.localAddressTowards();
-  const mapping = await upnp.mapPort({ port, internalAddress: lanIp });
-  let publicIp = mapping.externalIp ?? null;
-
-  if (!publicIp) {
-    // Sin UPnP igual hace falta la IP publica: es la que el anfitrion tiene que
-    // dar si abre el puerto a mano en el router.
-    publicIp = await fetch("https://api.ipify.org", { signal: AbortSignal.timeout(4000) })
-      .then((res) => res.text())
-      .then((text) => (/^\d+\.\d+\.\d+\.\d+$/.test(text.trim()) ? text.trim() : null))
-      .catch(() => null);
-  }
-
-  portExposure = { port, lanIp, publicIp, portMapped: mapping.ok, portMapError: mapping.ok ? null : mapping.reason };
-  return portExposure;
-}
-
-ipcMain.handle("direct-relay:ensure-host", async (_event, requestedPort) => {
-  const relay = await ensureDirectRelayManager(Number(requestedPort));
-  try {
-    const result = await relay.ensureRunning();
-    const port = Number(new URL(result.baseUrl).port);
-    return { ok: true, ...result, ...(await exposePort(port)) };
-  } catch (err) {
-    return { ok: false, error: err?.message ?? String(err) };
-  }
-});
 
 // ---------------------------------------------------------------------------
 // Asistente de primer inicio: pide la carpeta Community de MSFS e instala ahí
@@ -818,11 +738,6 @@ function stopBridge() {
 }
 
 app.on("before-quit", stopBridge);
-app.on("before-quit", () => {
-  if (directRelayManager) {
-    void directRelayManager.stop();
-  }
-});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

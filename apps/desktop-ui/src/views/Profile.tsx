@@ -1,15 +1,5 @@
 import { currentVersion, versionHistory } from "../data";
 import { useEffect, useState } from "react";
-import { fetchServerHealth } from "../lib/apiClient";
-import {
-  getDefaultRelayApiBaseUrl,
-  normalizeRelayBaseUrl,
-  readDirectHostPort,
-  writeDirectHostPort,
-  DEFAULT_DIRECT_HOST_PORT,
-  type RelayConfig,
-} from "../lib/relayConfig";
-import { usePublicIp } from "../lib/useNetworkInfo";
 
 interface ProfileProps {
   pilotName: string;
@@ -17,8 +7,6 @@ interface ProfileProps {
   onCheckForUpdates: () => void;
   communityPath?: string | null;
   onChangeFlightSimFolder?: () => void;
-  relayConfig: RelayConfig;
-  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
 export function Profile({
@@ -27,37 +15,9 @@ export function Profile({
   onCheckForUpdates,
   communityPath,
   onChangeFlightSimFolder,
-  relayConfig,
-  onRelayConfigChange,
 }: ProfileProps) {
-  const localDirectRelayBaseUrl = `http://127.0.0.1:${readDirectHostPort()}`;
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
-  const [relayDraft, setRelayDraft] = useState(relayConfig.customBaseUrl);
-  const [relayMessage, setRelayMessage] = useState<string | null>(null);
-  const [relayError, setRelayError] = useState<string | null>(null);
-  const [testingRelay, setTestingRelay] = useState(false);
-  const [portDraft, setPortDraft] = useState(String(readDirectHostPort()));
-  const { ipv4 } = usePublicIp();
-  // El puerto sale del relay activo, no de una constante: es configurable y
-  // ademas el direct host cae al siguiente si el elegido esta ocupado.
-  const activeRelayPort = (() => {
-    try {
-      return new URL(normalizeRelayBaseUrl(relayConfig.customBaseUrl)).port || String(readDirectHostPort());
-    } catch {
-      return String(readDirectHostPort());
-    }
-  })();
-  const suggestedRelayUrl =
-    ipv4 !== "Unavailable" && ipv4 !== "Detecting…" ? `http://${ipv4}:${activeRelayPort}` : null;
-  const activeRelayUrl =
-    relayConfig.mode === "managed"
-      ? getDefaultRelayApiBaseUrl()
-      : normalizeRelayBaseUrl(relayConfig.customBaseUrl) || localDirectRelayBaseUrl;
-
-  useEffect(() => {
-    setRelayDraft(relayConfig.customBaseUrl);
-  }, [relayConfig.customBaseUrl]);
 
   function toggleVersion(version: string) {
     setExpandedVersions((current) => ({
@@ -88,77 +48,6 @@ export function Profile({
     });
   }
 
-  function handleSaveRelay(mode: RelayConfig["mode"], customBaseUrl?: string) {
-    setRelayError(null);
-    setRelayMessage(null);
-    const nextBaseUrl =
-      mode === "self-hosted" ? normalizeRelayBaseUrl(customBaseUrl ?? relayDraft) : "";
-    if (mode === "self-hosted" && !nextBaseUrl) {
-      setRelayError(`Enter the IP or address of the host PC, for example http://192.168.1.20:${readDirectHostPort()}`);
-      return;
-    }
-    onRelayConfigChange({ mode, customBaseUrl: nextBaseUrl });
-    setRelayDraft(nextBaseUrl);
-    setRelayMessage(
-      mode === "managed"
-        ? "Using Cloud Host again."
-        : `Direct host saved: ${nextBaseUrl}`
-    );
-  }
-
-  function handleSavePort() {
-    const port = Number(portDraft);
-    if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-      setRelayError("The port must be a number between 1024 and 65535.");
-      setPortDraft(String(readDirectHostPort()));
-      return;
-    }
-    writeDirectHostPort(port);
-    setRelayError(null);
-    setRelayMessage(`Direct host port set to ${port}. Your friend has to use the same one.`);
-  }
-
-  async function handleUseSuggestedRelay() {
-    if (!suggestedRelayUrl) {
-      setRelayError("Local IPv4 is still being detected on this PC.");
-      setRelayMessage(null);
-      return;
-    }
-    let nextBaseUrl = localDirectRelayBaseUrl;
-    if (window.weconnectDirectRelay) {
-      const started = await window.weconnectDirectRelay.ensureHost(readDirectHostPort());
-      if (!started.ok) {
-        setRelayError(started.error ?? "Could not start the direct host on this PC.");
-        setRelayMessage(null);
-        return;
-      }
-      nextBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
-    }
-    setRelayDraft(nextBaseUrl);
-    handleSaveRelay("self-hosted", nextBaseUrl);
-  }
-
-  async function handleTestRelay() {
-    const normalized = normalizeRelayBaseUrl(relayConfig.mode === "self-hosted" ? relayConfig.customBaseUrl || relayDraft : relayDraft);
-    if (!normalized) {
-      setRelayError("Enter the IP or address of the host PC first.");
-      return;
-    }
-    setTestingRelay(true);
-    setRelayError(null);
-    setRelayMessage(null);
-    try {
-      const health = await fetchServerHealth(normalized);
-      setRelayMessage(
-        `Host reachable. API v · min app ${health.minClientVersion} · latest ${health.latestClientVersion}`
-      );
-    } catch {
-      setRelayError("Could not reach that host. Check the address, the port and the firewall on both PCs.");
-    } finally {
-      setTestingRelay(false);
-    }
-  }
-
   return (
     <div className="section" style={{ paddingTop: 32, paddingBottom: 64 }}>
       <div className="section-head" style={{ marginBottom: 10 }}>
@@ -184,111 +73,6 @@ export function Profile({
             This name is used right away when you create or join a session — no separate save
             step needed.
           </p>
-        </div>
-        <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
-          <div className="mono-label" style={{ marginBottom: 10 }}>
-            Connection mode
-          </div>
-          <div className="relay-shell">
-            <div className="relay-summary-card">
-              <div className="relay-summary-top">
-                <div>
-                  <div className="relay-summary-label">Current route</div>
-                  <div className="relay-summary-value">
-                    {relayConfig.mode === "managed" ? "Cloud Host" : "Direct"}
-                  </div>
-                </div>
-                <div className={`relay-mode-pill ${relayConfig.mode === "managed" ? "managed" : "self-hosted"}`}>
-                  {relayConfig.mode === "managed" ? "Cloud Host" : "Direct"}
-                </div>
-              </div>
-              <div className="relay-summary-url">{activeRelayUrl || getDefaultRelayApiBaseUrl()}</div>
-              <div className="relay-summary-meta">
-                {relayConfig.mode === "managed"
-                  ? "Simplest option: works without opening ports, and relays the flight data through the We Connect server."
-                  : "Most efficient: flight data goes straight between the two PCs. Needs UPnP or port forwarding."}
-              </div>
-            </div>
-
-            <div className="relay-grid">
-              <div className={`relay-option-card ${relayConfig.mode === "managed" ? "active" : ""}`}>
-                <div className="relay-option-head">
-                  <div>
-                    <div className="relay-option-title">Cloud Host</div>
-                    <div className="relay-option-subtitle">
-                      The simplest option when a direct connection fails. Nothing to configure, and it also works on
-                      restrictive networks (CGNAT, strict NAT), at the cost of some extra latency.
-                    </div>
-                  </div>
-                  {relayConfig.mode === "managed" && <div className="relay-option-badge">Active</div>}
-                </div>
-                <div className="relay-option-url">{getDefaultRelayApiBaseUrl()}</div>
-                <div className="relay-option-actions">
-                  <button className="btn" onClick={() => handleSaveRelay("managed")}>
-                    Use Cloud Host
-                  </button>
-                </div>
-              </div>
-
-              <div className={`relay-option-card ${relayConfig.mode === "self-hosted" ? "active" : ""}`}>
-                <div className="relay-option-head">
-                  <div>
-                    <div className="relay-option-title">Direct</div>
-                    <div className="relay-option-subtitle">
-                      The most efficient option: this PC hosts and the flight data travels straight between both PCs,
-                      never through a server. Needs UPnP or port forwarding on your router.
-                    </div>
-                  </div>
-                  {relayConfig.mode === "self-hosted" && <div className="relay-option-badge">Active</div>}
-                </div>
-                <div className="relay-suggested-box">
-                  <div className="relay-suggested-label">Suggested on this PC</div>
-                  <div className="relay-suggested-value">
-                    {suggestedRelayUrl ?? "Detecting local IPv4..."}
-                  </div>
-                  <button className="link-action" onClick={handleUseSuggestedRelay}>
-                    Use this PC as host
-                  </button>
-                </div>
-                <div className="field">
-                  <label>Direct host port</label>
-                  <input
-                    type="number"
-                    min={1024}
-                    max={65535}
-                    placeholder={String(DEFAULT_DIRECT_HOST_PORT)}
-                    value={portDraft}
-                    onChange={(e) => setPortDraft(e.target.value)}
-                    onBlur={handleSavePort}
-                  />
-                  <p style={{ fontSize: 12, color: "var(--text-35)", marginTop: 8 }}>
-                    Both pilots must use the same port. Default is {DEFAULT_DIRECT_HOST_PORT}, the same one
-                    YourControls uses, so a router rule you already have keeps working.
-                  </p>
-                </div>
-                <div className="field">
-                  <label>Host address</label>
-                  <input
-                    type="text"
-                    placeholder={`http://192.168.1.20:${DEFAULT_DIRECT_HOST_PORT}`}
-                    value={relayDraft}
-                    onChange={(e) => setRelayDraft(e.target.value)}
-                  />
-                </div>
-                <div className="relay-option-actions">
-                  <button className="btn" onClick={() => handleSaveRelay("self-hosted")}>
-                    Save direct host
-                  </button>
-                  <button className="link-action" onClick={handleTestRelay} disabled={testingRelay}>
-                    {testingRelay ? "Testing connection..." : "Test connection"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {relayMessage && <div className="relay-feedback ok">{relayMessage}</div>}
-            {relayError && <div className="relay-feedback error">{relayError}</div>}
-          </div>
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
           <div className="mono-label" style={{ marginBottom: 10 }}>

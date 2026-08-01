@@ -13,8 +13,7 @@ import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
-import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
-import { normalizeRelayBaseUrl, readDirectHostPort, readRelayConfig, type RelayConfig, writeRelayConfig } from "./lib/relayConfig";
+import { prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
 import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
@@ -41,18 +40,6 @@ function compareVersions(left: string, right: string): number {
   return 0;
 }
 
-function isLocalDirectRelay(config: RelayConfig): boolean {
-  if (config.mode !== "self-hosted") return false;
-  const normalized = normalizeRelayBaseUrl(config.customBaseUrl);
-  if (!normalized) return false;
-  try {
-    const url = new URL(normalized);
-    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  } catch {
-    return false;
-  }
-}
-
 export function App() {
   const [view, setView] = useState<ViewId>("home");
   const [pilotName, setPilotName] = useState(() => {
@@ -72,39 +59,15 @@ export function App() {
     minVersion: null,
     latestVersion: null,
   });
-  const [relayConfig, setRelayConfig] = useState<RelayConfig>(() => readRelayConfig());
+
+  useEffect(() => {
+    prefetchAircraftProfiles();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const directRelay = window.weconnectDirectRelay;
-
-    async function warmUpCurrentRelay() {
-      if (isLocalDirectRelay(relayConfig) && directRelay) {
-        const started = await directRelay.ensureHost(readDirectHostPort());
-        if (!started.ok || cancelled) return;
-      }
-      if (!cancelled) {
-        prefetchAircraftProfiles();
-      }
-    }
-
-    void warmUpCurrentRelay();
-    return () => {
-      cancelled = true;
-    };
-  }, [relayConfig]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const directRelay = window.weconnectDirectRelay;
-    const localDirect = isLocalDirectRelay(relayConfig);
-
-    async function loadHealth() {
-      if (localDirect && directRelay) {
-        const started = await directRelay.ensureHost(readDirectHostPort());
-        if (!started.ok || cancelled) return;
-      }
-      const health = await fetchServerHealth();
+    fetchServerHealth()
+      .then((health) => {
         if (cancelled) return;
         const updateRequired = compareVersions(currentVersion, health.minClientVersion) < 0;
         setServerCompatibility({
@@ -112,25 +75,13 @@ export function App() {
           minVersion: health.minClientVersion,
           latestVersion: health.latestClientVersion,
         });
-        if (updateRequired) {
-          setUpdateModalOpen(false);
-        }
-    }
-
-    loadHealth().catch(() => {
-        if (cancelled) return;
-        if (localDirect) {
-          setServerCompatibility({
-            updateRequired: false,
-            minVersion: null,
-            latestVersion: null,
-          });
-        }
-      });
+        if (updateRequired) setUpdateModalOpen(false);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [relayConfig]);
+  }, []);
 
   useEffect(() => {
     const setup = window.weconnectSetup;
@@ -199,13 +150,6 @@ export function App() {
     setView("home");
   }
 
-  function handleRelayConfigChange(nextConfig: RelayConfig) {
-    writeRelayConfig(nextConfig);
-    invalidateAircraftProfilesCache();
-    prefetchAircraftProfiles();
-    setRelayConfig(readRelayConfig());
-  }
-
   function renderView() {
     switch (view) {
       case "home":
@@ -222,8 +166,6 @@ export function App() {
             createdSession={createdSession}
             onSessionCreated={handleSessionCreated}
             onSessionReady={handleSessionReady}
-            relayConfig={relayConfig}
-            onRelayConfigChange={handleRelayConfigChange}
           />
         );
       case "join":
@@ -232,7 +174,6 @@ export function App() {
             pilotName={pilotName}
             onPilotNameChange={setPilotName}
             onSessionReady={handleSessionReady}
-            onRelayConfigChange={handleRelayConfigChange}
           />
         );
       case "cockpit":
@@ -245,8 +186,6 @@ export function App() {
             onCheckForUpdates={() => setUpdateModalOpen(true)}
             communityPath={communityPath}
             onChangeFlightSimFolder={() => setShowFirstLaunchSetup(true)}
-            relayConfig={relayConfig}
-            onRelayConfigChange={handleRelayConfigChange}
           />
         );
     }
@@ -283,7 +222,7 @@ export function App() {
       )}
       <UpdateModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)} />
       <RequiredUpdateModal
-        open={serverCompatibility.updateRequired && !isLocalDirectRelay(relayConfig)}
+        open={serverCompatibility.updateRequired}
         minVersion={serverCompatibility.minVersion ?? currentVersion}
         latestVersion={serverCompatibility.latestVersion ?? serverCompatibility.minVersion ?? currentVersion}
         onOpenUpdater={handleOpenUpdateModal}

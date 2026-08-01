@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
-import { usePublicIp } from "../lib/useNetworkInfo";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
-import { buildDirectInviteCode } from "../lib/directInviteCode";
-import { getDefaultRelayApiBaseUrl, readDirectHostPort, type RelayConfig } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -11,8 +8,6 @@ interface PartyProps {
   createdSession: Session | null;
   onSessionCreated: (session: Session, pilotName: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
-  relayConfig: RelayConfig;
-  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
 export function Party({
@@ -21,11 +16,7 @@ export function Party({
   createdSession,
   onSessionCreated,
   onSessionReady,
-  relayConfig,
-  onRelayConfigChange,
 }: PartyProps) {
-  const localDirectRelayBaseUrl = `http://127.0.0.1:${readDirectHostPort()}`;
-  const { ipv4, ipv6 } = usePublicIp();
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
 
   const [sessionName, setSessionName] = useState("Afternoon flight");
@@ -35,17 +26,8 @@ export function Party({
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("captain");
   const [joinCodeBlurred, setJoinCodeBlurred] = useState(true);
-  const [ipBlurred, setIpBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Lo que informo el proceso principal al levantar el host: IP local, IP
-  // publica y si el router abrio el puerto solo.
-  const [directHost, setDirectHost] = useState<{
-    lanIp?: string | null;
-    publicIp?: string | null;
-    portMapped?: boolean;
-    portMapError?: string | null;
-  } | null>(null);
 
   const compatibleProfiles = profiles.filter(
     (profile) => profile.availability !== "soon" && profile.compatibility[sim]
@@ -56,29 +38,8 @@ export function Party({
   const effectiveProfileId =
     (selectedProfileIsCompatible ? aircraftProfileId : compatibleProfiles[0]?.id) || "";
   const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
-  const ipStyle = { filter: ipBlurred ? "blur(4px)" : "none" };
-  const relayPort = (() => {
-    if (relayConfig.mode !== "self-hosted") return readDirectHostPort();
-    try {
-      const url = new URL(relayConfig.customBaseUrl);
-      return Number(url.port || (url.protocol === "https:" ? 443 : 80));
-    } catch {
-      return readDirectHostPort();
-    }
-  })();
-  const hostingDirect = createdSession !== null && relayConfig.mode === "self-hosted";
-  const directInviteCode =
-    hostingDirect && ipv4 !== "Unavailable" && ipv4 !== "Detecting…"
-      ? buildDirectInviteCode({ host: directHost?.lanIp ?? ipv4, port: relayPort, joinCode: createdSession!.joinCode })
-      : null;
-  // Codigo para un amigo fuera de tu red: misma sesion, misma PC, pero con la
-  // IP publica. El trafico sigue yendo PC a PC.
-  const internetInviteCode =
-    hostingDirect && directHost?.publicIp
-      ? buildDirectInviteCode({ host: directHost.publicIp, port: relayPort, joinCode: createdSession!.joinCode })
-      : null;
 
-  async function createParty(baseUrl?: string) {
+  async function createParty() {
     if (!pilotName.trim()) {
       setError("Enter your pilot name first.");
       return false;
@@ -95,7 +56,7 @@ export function Party({
         hostPilotName: pilotName.trim(),
         hostSeat: seat,
         sim,
-      }, baseUrl);
+      });
       onSessionCreated(session, pilotName.trim());
       return true;
     } catch (err) {
@@ -108,53 +69,7 @@ export function Party({
     setSubmitting(true);
     setError(null);
     try {
-      // El modo se guarda en localStorage y sobrevive al cierre de la app. Sin
-      // esto, alguien que probo una vez "Host direct session" quedaba fijado en
-      // Direct para siempre: este boton decia Cloud Host pero seguia creando la
-      // sesion en el host local, donde el otro jugador no la encuentra nunca.
-      onRelayConfigChange({ mode: "managed", customBaseUrl: "" });
-      await createParty(getDefaultRelayApiBaseUrl());
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleCreateDirect() {
-    if (ipv4 === "Unavailable" || ipv4 === "Detecting…") {
-      setError("Local IPv4 is not available on this PC yet.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const directRelay = window.weconnectDirectRelay;
-      if (!directRelay) {
-        // El direct host vive en el proceso principal de Electron.
-        setError("Direct hosting is only available in the We Connect desktop app.");
-        return;
-      }
-      const started = await directRelay.ensureHost(readDirectHostPort());
-      if (!started.ok) {
-        setError(started.error ?? "Could not start the direct host on this PC.");
-        return;
-      }
-      const readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
-      setDirectHost({
-        lanIp: started.lanIp,
-        publicIp: started.publicIp,
-        portMapped: started.portMapped,
-        portMapError: started.portMapError,
-      });
-      await fetchServerHealth(readyBaseUrl);
-      onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
-      await createParty(readyBaseUrl);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Direct host could not start the session: ${err.code}`);
-      } else {
-        // Un fallo de red crudo aquí llega como "Failed to fetch", que no dice nada.
-        setError("The direct host started but could not be reached. Check that no firewall or antivirus is blocking We Connect on this PC.");
-      }
+      await createParty();
     } finally {
       setSubmitting(false);
     }
@@ -266,18 +181,9 @@ export function Party({
 
           <div style={{ paddingTop: 6, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <button className="btn" onClick={handleCreate} disabled={submitting || createdSession !== null}>
-              {submitting ? "Creating…" : "Create session (Cloud Host)"}
-            </button>
-            <button className="link-action" onClick={handleCreateDirect} disabled={submitting || createdSession !== null}>
-              {submitting ? "Starting direct host…" : "Host direct session"}
+              {submitting ? "Creating…" : "Create session"}
             </button>
           </div>
-          <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: 2 }}>
-            Direct: most efficient, but needs UPnP or port forwarding. This PC hosts and the flight data goes straight between both PCs. Cloud Host is the simpler fallback when that fails.
-          </p>
-          <p style={{ color: "var(--text-45)", fontSize: 12, marginTop: -8 }}>
-            Expected local host: {ipv4 === "Unavailable" || ipv4 === "Detecting…" ? "unavailable" : `http://${ipv4}:${relayPort}`}
-          </p>
         </div>
 
         <div>
@@ -298,39 +204,6 @@ export function Party({
             </div>
           </div>
 
-          {directInviteCode && (
-            <>
-              <div className="divider-row" style={{ marginTop: 18, marginBottom: 10, border: "none" }}>
-                <div className="mono-label">Direct invite code — same network</div>
-              </div>
-              <div className="code-box">
-                <div className="code-caption" style={{ marginBottom: 10 }}>
-                  For a friend on your own network. Paste it on the other PC and We Connect routes itself here.
-                </div>
-                <div className="code-value" style={{ fontSize: 12, letterSpacing: "0.04em", wordBreak: "break-all" }}>
-                  {directInviteCode}
-                </div>
-              </div>
-            </>
-          )}
-
-          {internetInviteCode && (
-            <>
-              <div className="divider-row" style={{ marginTop: 18, marginBottom: 10, border: "none" }}>
-                <div className="mono-label">Direct invite code — over the internet</div>
-              </div>
-              <div className="code-box">
-                <div className="code-caption" style={{ marginBottom: 10 }}>
-                  {directHost?.portMapped
-                    ? `Your router opened port ${relayPort} automatically. Send this to a friend outside your network — the flight data goes straight between the two PCs.`
-                    : `Your router did not open the port by itself. This code works only after you forward TCP port ${relayPort} to ${directHost?.lanIp ?? "this PC"} in your router settings. If your internet is 5G home, mobile or satellite, forwarding is usually not possible at all (your provider shares one address between many homes) — use the normal session code instead, or put both PCs on the same virtual network with something like Tailscale and use the same-network code above.`}
-                </div>
-                <div className="code-value" style={{ fontSize: 12, letterSpacing: "0.04em", wordBreak: "break-all" }}>
-                  {internetInviteCode}
-                </div>
-              </div>
-            </>
-          )}
 
           {createdSession && (
             <div style={{ marginBottom: 16 }}>
@@ -340,26 +213,6 @@ export function Party({
             </div>
           )}
 
-          <div className="divider-row" style={{ marginBottom: 10, border: "none" }}>
-            <div className="mono-label">Network</div>
-            <button className="link-action" onClick={() => setIpBlurred((v) => !v)}>
-              {ipBlurred ? "Show" : "Hide"}
-            </button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div className="net-row">
-              <div className="net-label">IPv4</div>
-              <div className="net-value" style={ipStyle}>
-                {ipv4}
-              </div>
-            </div>
-            <div className="net-row">
-              <div className="net-label">IPv6</div>
-              <div className="net-value" style={ipStyle}>
-                {ipv6}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

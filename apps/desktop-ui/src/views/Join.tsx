@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { joinSession, ApiError, type Session } from "../lib/apiClient";
-import { parseDirectInviteCode } from "../lib/directInviteCode";
-import { type RelayConfig } from "../lib/relayConfig";
 
 interface JoinProps {
   pilotName: string;
   onPilotNameChange: (name: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
-  onRelayConfigChange: (config: RelayConfig) => void;
 }
 
-export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConfigChange }: JoinProps) {
+export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
@@ -29,41 +26,21 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConf
     setSubmitting(true);
     setError(null);
     try {
-      const directInvite = parseDirectInviteCode(code.trim());
-      const resolvedJoinCode = directInvite?.joinCode ?? code.trim().toUpperCase();
-      // El modo tiene que seguir al codigo que se pego, no quedar pegado del
-      // intento anterior: un codigo de sesion normal va a Cloud Host aunque
-      // antes se haya probado un codigo directo. Sin esto, quien probo una vez
-      // un codigo directo quedaba apuntando para siempre a la IP de esa PC y
-      // se quedaba en "Joining…" contra una direccion muerta.
-      onRelayConfigChange(
-        directInvite
-          ? { mode: "self-hosted", customBaseUrl: `http://${directInvite.host}:${directInvite.port}` }
-          : { mode: "managed", customBaseUrl: "" }
-      );
-      const session = await joinSession(resolvedJoinCode, {
+      const session = await joinSession(code.trim().toUpperCase(), {
         pilotName: pilotName.trim(),
         seat,
         password: password || undefined,
       });
       onSessionReady(session, pilotName);
     } catch (err) {
-      const directInvite = parseDirectInviteCode(code.trim());
       if (err instanceof ApiError) {
         const messages: Record<string, string> = {
-          "session-not-found": directInvite
-            ? "That direct code reached your friend's PC, but the session is no longer open there."
-            : "No session found with that code. If your friend is hosting directly, you need their direct invite code, not the short session code.",
+          "session-not-found": "No session found with that code. Check that your friend created the session and that you typed the code exactly.",
           "invalid-password": "That password isn't correct.",
           "session-full": "This session already has two pilots.",
           "client-update-required": "Your We Connect is older than your friend's. Update it (Settings → Check for updates) and join again.",
         };
         setError(messages[err.code] ?? `Could not join: ${err.code}`);
-      } else if (directInvite) {
-        setError(
-          `Could not reach your friend's PC at ${directInvite.host}:${directInvite.port}. ` +
-            "That address only works if you are both on the same network, and their firewall has to let We Connect accept connections."
-        );
       } else {
         setError("Could not reach the server.");
       }
@@ -78,7 +55,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConf
         <h2 className="h2-modal">Join a party</h2>
       </div>
       <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
-        Enter the code your friend shared to join their cockpit. Direct invite codes are accepted too.
+        Enter the code your friend shared to join their cockpit.
       </p>
       <form
         autoComplete="off"
@@ -116,7 +93,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConf
           />
         </div>
         <div className="field">
-          <label>Session code or direct invite code</label>
+          <label>Session code</label>
           <input
             type="text"
             name="weconnect-session-code"

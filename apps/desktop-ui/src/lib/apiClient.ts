@@ -15,7 +15,7 @@
 // recogía commits nuevos) — ver render.yaml en la raíz del repo. La base de
 // datos (Supabase) no cambió, solo dónde corre este proceso.
 import { currentVersion } from "../data";
-import { getRelayApiBaseUrl, readDirectHostPort } from "./relayConfig";
+import { getRelayApiBaseUrl } from "./relayConfig";
 
 export interface ServerHealth {
   status: "ok";
@@ -96,29 +96,8 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-function isLocalDirectRelayBaseUrl(baseUrl: string): boolean {
-  try {
-    const url = new URL(baseUrl);
-    return url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  } catch {
-    return false;
-  }
-}
-
-async function ensureRelayBaseUrl(baseUrl: string): Promise<string> {
-  if (!isLocalDirectRelayBaseUrl(baseUrl)) return baseUrl;
-  const directRelay = window.weconnectDirectRelay;
-  if (!directRelay) return baseUrl;
-  const started = await directRelay.ensureHost(readDirectHostPort());
-  if (!started.ok) {
-    throw new ApiError(started.error ?? "direct-relay-unavailable", 503);
-  }
-  return started.baseUrl ?? baseUrl;
-}
-
-async function request<T>(path: string, init?: RequestInit, baseUrl = getRelayApiBaseUrl()): Promise<T> {
-  const resolvedBaseUrl = await ensureRelayBaseUrl(baseUrl);
-  const res = await fetch(`${resolvedBaseUrl}${path}`, {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${getRelayApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -146,8 +125,8 @@ export function fetchAircraftProfiles() {
   return request<AircraftProfile[]>("/api/aircraft-profiles");
 }
 
-export function fetchServerHealth(baseUrl?: string) {
-  return request<ServerHealth>("/api/health", undefined, baseUrl);
+export function fetchServerHealth() {
+  return request<ServerHealth>("/api/health");
 }
 
 export async function createSession(input: {
@@ -161,11 +140,11 @@ export async function createSession(input: {
   // lo tome.
   hostSeat: "captain" | "first_officer" | "observer";
   sim: "msfs2020" | "msfs2024";
-}, baseUrl?: string) {
+}) {
   const session = await request<Session>("/api/sessions", {
     method: "POST",
     body: JSON.stringify(input),
-  }, baseUrl);
+  });
   participantToken = session.participantToken ?? null;
   return session;
 }
@@ -191,8 +170,7 @@ export function fetchSession(joinCode: string) {
 // parámetro pilotName se mantiene en las firmas para no romper a los
 // llamadores, pero no viaja.
 export async function closeSession(joinCode: string, _pilotName?: string) {
-  const baseUrl = await ensureRelayBaseUrl(getRelayApiBaseUrl());
-  const res = await fetch(`${baseUrl}/api/sessions/${joinCode}`, {
+  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
@@ -204,8 +182,7 @@ export async function closeSession(joinCode: string, _pilotName?: string) {
 }
 
 async function postSessionAction(joinCode: string, action: string) {
-  const baseUrl = await ensureRelayBaseUrl(getRelayApiBaseUrl());
-  const res = await fetch(`${baseUrl}/api/sessions/${joinCode}/${action}`, {
+  const res = await fetch(`${getRelayApiBaseUrl()}/api/sessions/${joinCode}/${action}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({}),

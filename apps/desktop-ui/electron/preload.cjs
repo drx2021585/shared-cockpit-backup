@@ -28,10 +28,6 @@ contextBridge.exposeInMainWorld("weconnectNetwork", {
   getLocalAddresses: () => ipcRenderer.invoke("network:get-local-addresses"),
 });
 
-contextBridge.exposeInMainWorld("weconnectDirectRelay", {
-  ensureHost: (port) => ipcRenderer.invoke("direct-relay:ensure-host", port),
-});
-
 /**
  * Asistente de primer inicio (carpeta Community de MSFS) — ver main.cjs para
  * la implementación real de validación/copia/persistencia de config.

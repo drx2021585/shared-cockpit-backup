@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.53",
+    version: "0.1.54",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "There is now one way to connect: create a session, share the 6-character code, your friend enters it. Direct hosting, LAN codes, router port opening and the connection-mode settings are gone.",
+      "Nothing to configure and nothing that depends on your router or your internet provider — the same flow works on home fibre, on mobile 5G and behind any firewall.",
+      "Fewer moving parts also means fewer ways to break: this removes about 2,700 lines of code, including the whole local host that caused the recent crashes.",
+    ],
+  },
+  {
+    version: "0.1.53",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Fixed getting stuck on 'Joining…' forever. Once you had tried a direct invite code, the app stayed locked onto that PC's address for good, so every later attempt with a normal session code went to an address that was no longer listening.",
