@@ -4,8 +4,12 @@ const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
 const crypto = require("node:crypto");
+const express = require("express");
+const { createServer } = require("node:http");
 const { spawn, execFile } = require("node:child_process");
+const { WebSocketServer, WebSocket } = require("ws");
 const { autoUpdater } = require("electron-updater");
+const { parse: parseYaml } = require("yaml");
 
 // La app apunta al backend compartido en Railway por defecto (ver
 // src/lib/apiClient.ts) — ya no levanta un server/api local embebido. Un
@@ -140,6 +144,31 @@ function getLocalNetworkAddresses() {
 
 ipcMain.handle("network:get-local-addresses", () => getLocalNetworkAddresses());
 
+async function getPublicNetworkAddresses() {
+  let ipv4 = null;
+  let ipv6 = null;
+
+  try {
+    const response = await fetch("https://api.ipify.org?format=json");
+    const payload = await response.json();
+    if (typeof payload?.ip === "string") {
+      ipv4 = payload.ip;
+    }
+  } catch {}
+
+  try {
+    const response = await fetch("https://api64.ipify.org?format=json");
+    const payload = await response.json();
+    if (typeof payload?.ip === "string" && payload.ip.includes(":")) {
+      ipv6 = payload.ip;
+    }
+  } catch {}
+
+  return { ipv4, ipv6 };
+}
+
+ipcMain.handle("network:get-public-addresses", () => getPublicNetworkAddresses());
+
 function getAppPackageVersion() {
   try {
     return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8")).version ?? app.getVersion();
@@ -147,6 +176,750 @@ function getAppPackageVersion() {
     return app.getVersion();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Relay directo embebido: host local en memoria para el flujo "port forward /
+// self-hosted relay". Reutiliza el mismo contrato HTTP + WebSocket que consume
+// la UI, pero vive dentro del proceso principal de Electron y no necesita
+// PostgreSQL.
+// ---------------------------------------------------------------------------
+
+const DIRECT_HOST_DEFAULT_PORT = 25071;
+const DIRECT_HOST_MAX_MESSAGE_SIZE = 64 * 1024;
+const DIRECT_HOST_MAX_MESSAGES_PER_SECOND = 300;
+const DIRECT_RELAY_TOKEN_BYTES = 32;
+const DIRECT_JOIN_CODE_RE = /^[A-Z2-9]{3}-[A-Z2-9]{3}$/;
+const DIRECT_FLOW_SEATS = new Set(["captain", "first_officer", "observer"]);
+const DIRECT_FLIGHT_MESSAGE_TYPES = new Set([
+  "control.event",
+  "control.axis",
+  "aircraft.snapshot",
+  "flight.pose",
+  "screen.snapshot",
+  "authority.transfer",
+]);
+
+const DIRECT_LEVEL_SCORE = {
+  full: 100,
+  partial: 60,
+  none: 0,
+};
+
+const DIRECT_SYSTEM_PREFIX_TO_CAPABILITY = {
+  flight: "flightControls",
+  flight_controls: "flightControls",
+  gear: "flightControls",
+  autopilot: "autopilot",
+  autoflight: "autopilot",
+  efis: "autopilot",
+  fms: "autopilot",
+  electrical: "electrical",
+  apu: "electrical",
+  hydraulics: "hydraulics",
+  radios: "radios",
+  comm: "radios",
+  communications: "radios",
+  mcdu: "mcdu",
+  navigation: "mcdu",
+  air: "air",
+  anti_ice: "antiIce",
+  engine: "engine",
+  fuel: "fuel",
+  fire_protection: "fireProtection",
+  instruments: "instruments",
+  warnings: "warnings",
+  efb: "efb",
+  misc: "cabinMisc",
+  doors: "cabinMisc",
+};
+
+let directHostService = null;
+
+function cleanText(value, maxLength) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
+}
+
+function directGenerateToken() {
+  return crypto.randomBytes(DIRECT_RELAY_TOKEN_BYTES).toString("hex");
+}
+
+function directHashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function directGenerateJoinCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(6);
+  const pick = (n, offset) =>
+    Array.from({ length: n }, (_, index) => chars[bytes[offset + index] % chars.length]).join("");
+  return `${pick(3, 0)}-${pick(3, 3)}`;
+}
+
+function directCreateEmptySessionState() {
+  return {
+    aircraftSnapshot: null,
+    flightPose: null,
+    authorityTransfer: null,
+    controlEvents: new Map(),
+    controlAxes: new Map(),
+    screenSnapshots: new Map(),
+  };
+}
+
+function directRememberMessage(cache, joinCode, msg) {
+  let state = cache.get(joinCode);
+  if (!state) {
+    state = directCreateEmptySessionState();
+    cache.set(joinCode, state);
+  }
+  switch (msg.type) {
+    case "aircraft.snapshot":
+      state.aircraftSnapshot = msg;
+      break;
+    case "flight.pose":
+      state.flightPose = msg;
+      break;
+    case "authority.transfer":
+      state.authorityTransfer = msg;
+      break;
+    case "control.event":
+      if (typeof msg.controlId === "string") state.controlEvents.set(msg.controlId, msg);
+      break;
+    case "control.axis":
+      if (typeof msg.controlId === "string") state.controlAxes.set(msg.controlId, msg);
+      break;
+    case "screen.snapshot":
+      if (typeof msg.screenId === "string") state.screenSnapshots.set(msg.screenId, msg);
+      break;
+  }
+}
+
+function directReplayMessages(cache, joinCode) {
+  const state = cache.get(joinCode);
+  if (!state) return [];
+  return [
+    ...(state.aircraftSnapshot ? [state.aircraftSnapshot] : []),
+    ...(state.authorityTransfer ? [state.authorityTransfer] : []),
+    ...Array.from(state.controlEvents.values()),
+    ...Array.from(state.controlAxes.values()),
+    ...Array.from(state.screenSnapshots.values()),
+    ...(state.flightPose ? [state.flightPose] : []),
+  ];
+}
+
+function getBundledAircraftProfilesDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "aircraft-profiles");
+  }
+  return path.join(__dirname, "..", "..", "..", "aircraft-profiles");
+}
+
+function directReadProfileControls(profileDir) {
+  const controlsDir = path.join(profileDir, "controls");
+  if (!fs.existsSync(controlsDir)) return [];
+  const controls = [];
+  for (const file of fs.readdirSync(controlsDir)) {
+    if (!file.endsWith(".yaml")) continue;
+    const parsed = parseYaml(fs.readFileSync(path.join(controlsDir, file), "utf-8"));
+    if (Array.isArray(parsed)) controls.push(...parsed);
+  }
+  return controls;
+}
+
+function directComputeCoverage(capabilities, controls) {
+  const declaredLevels = Object.values(capabilities ?? {});
+  if (declaredLevels.length === 0) return 0;
+
+  const meanDeclaredCap =
+    declaredLevels.reduce((sum, level) => sum + (DIRECT_LEVEL_SCORE[level] ?? 0), 0) /
+    declaredLevels.length;
+
+  if (controls.length === 0) return Math.round(meanDeclaredCap);
+
+  const bySystem = new Map();
+  for (const control of controls) {
+    const prefix = String(control?.id ?? "").split(".")[0];
+    const bucket = bySystem.get(prefix) ?? { total: 0, bidirectional: 0 };
+    bucket.total += 1;
+    if (control?.read && control?.write) bucket.bidirectional += 1;
+    bySystem.set(prefix, bucket);
+  }
+
+  let weightedScore = 0;
+  let totalWeight = 0;
+  for (const [prefix, bucket] of bySystem) {
+    const capabilityKey = DIRECT_SYSTEM_PREFIX_TO_CAPABILITY[prefix];
+    const cap =
+      capabilityKey && capabilities?.[capabilityKey] !== undefined
+        ? DIRECT_LEVEL_SCORE[capabilities[capabilityKey]] ?? 0
+        : meanDeclaredCap;
+    const measured = (100 * bucket.bidirectional) / bucket.total;
+    weightedScore += Math.min(measured, cap) * bucket.total;
+    totalWeight += bucket.total;
+  }
+
+  return totalWeight > 0 ? Math.round(weightedScore / totalWeight) : Math.round(meanDeclaredCap);
+}
+
+function scanBundledAircraftProfiles() {
+  const profilesDir = getBundledAircraftProfilesDir();
+  if (!fs.existsSync(profilesDir)) return [];
+
+  const profiles = [];
+  for (const entry of fs.readdirSync(profilesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const profileDir = path.join(profilesDir, entry.name);
+    const manifestPath = path.join(profileDir, "manifest.yaml");
+    if (!fs.existsSync(manifestPath)) continue;
+    const manifest = parseYaml(fs.readFileSync(manifestPath, "utf-8"));
+    const controls = directReadProfileControls(profileDir);
+    profiles.push({
+      id: manifest.aircraft.id,
+      name: manifest.aircraft.name,
+      developer: manifest.aircraft.developer,
+      version: manifest.versions?.tested?.[manifest.versions.tested.length - 1] ?? "unknown",
+      availability: manifest.availability === "soon" ? "soon" : "released",
+      coverage: directComputeCoverage(manifest.capabilities ?? {}, controls),
+      capabilities: manifest.capabilities ?? {},
+      compatibility: manifest.compatibility ?? { msfs2020: false, msfs2024: false },
+      variants: Array.isArray(manifest.variants)
+        ? manifest.variants.filter((value) => typeof value === "string")
+        : [],
+      verified: manifest.verification === "live-tested",
+    });
+  }
+
+  return profiles.sort((left, right) => right.coverage - left.coverage);
+}
+
+function directBuildHealthPayload() {
+  const version = getAppPackageVersion();
+  return {
+    status: "ok",
+    uptimeSeconds: Math.floor(process.uptime()),
+    apiVersion: 1,
+    minClientVersion: version,
+    latestClientVersion: version,
+  };
+}
+
+function directNormalizeVersion(version) {
+  return String(version ?? "")
+    .trim()
+    .replace(/^v/i, "");
+}
+
+function directIsClientVersionSupported(version) {
+  return directNormalizeVersion(version) === directNormalizeVersion(getAppPackageVersion());
+}
+
+function directValidateFlightMessage(msg) {
+  if (typeof msg !== "object" || msg === null) return "not-an-object";
+  const type = msg.type;
+  if (typeof type !== "string") return "missing-type";
+
+  const shortStr = (value, max = 128) => typeof value === "string" && value.length > 0 && value.length <= max;
+  const finiteNum = (value) => typeof value === "number" && Number.isFinite(value);
+
+  switch (type) {
+    case "control.event":
+      if (!shortStr(msg.sessionId) || !shortStr(msg.controlId) || !shortStr(msg.source, 64)) return "invalid";
+      if (!["boolean", "number", "string"].includes(typeof msg.value)) return "invalid";
+      if (!finiteNum(msg.sequence) || !finiteNum(msg.timestamp)) return "invalid";
+      return null;
+    case "control.axis":
+      if (!shortStr(msg.controlId) || !finiteNum(msg.value) || !finiteNum(msg.sequence) || !finiteNum(msg.timestamp)) return "invalid";
+      return null;
+    case "aircraft.snapshot":
+      if (!finiteNum(msg.revision) || !shortStr(msg.profile) || typeof msg.systems !== "object" || msg.systems === null) return "invalid";
+      return null;
+    case "flight.pose":
+      if (!shortStr(msg.sessionId) || !finiteNum(msg.sequence) || !finiteNum(msg.timestamp)) return "invalid";
+      if (!finiteNum(msg.lat) || !finiteNum(msg.lon) || !finiteNum(msg.alt)) return "invalid";
+      if (!finiteNum(msg.pitch) || !finiteNum(msg.bank) || !finiteNum(msg.heading)) return "invalid";
+      if (!finiteNum(msg.groundSpeed) || !finiteNum(msg.indicatedAirspeed) || !finiteNum(msg.verticalSpeed)) return "invalid";
+      return null;
+    case "authority.transfer":
+      if (!shortStr(msg.group) || !shortStr(msg.previousOwner, 64) || !shortStr(msg.newOwner, 64) || !finiteNum(msg.revision)) return "invalid";
+      return null;
+    case "screen.snapshot":
+      if (!shortStr(msg.sessionId) || !shortStr(msg.screenId) || !finiteNum(msg.rows) || !finiteNum(msg.cols) || !Array.isArray(msg.cells) || !finiteNum(msg.revision)) return "invalid";
+      return null;
+    default:
+      return "unknown-type";
+  }
+}
+
+function createDirectHostService(port) {
+  const appServer = express();
+  const httpServer = createServer(appServer);
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws", maxPayload: DIRECT_HOST_MAX_MESSAGE_SIZE });
+  const profiles = scanBundledAircraftProfiles();
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const sessions = new Map();
+  const connections = new Map();
+  const sessionStateCache = new Map();
+  const startedAt = Date.now();
+
+  function findSession(joinCode) {
+    const session = sessions.get(joinCode);
+    return session && !session.endedAt ? session : null;
+  }
+
+  function listParticipants(session) {
+    return Array.from(session.participants.values())
+      .filter((participant) => participant.disconnectedAt === null)
+      .map((participant) => ({
+        pilot_name: participant.pilotName,
+        seat: participant.seat,
+        joined_at: participant.joinedAt,
+      }));
+  }
+
+  function buildSessionResponse(session) {
+    return {
+      id: session.id,
+      joinCode: session.joinCode,
+      sessionName: session.sessionName,
+      aircraftProfileId: session.aircraftProfileId,
+      status: session.status,
+      sim: session.sim,
+      hasPassword: !!session.password,
+      creatorPilotName: session.creatorPilotName,
+      controlOwner: session.controlOwner,
+      controlRequestedBy: session.controlRequestedBy,
+      controlRevision: session.controlRevision,
+      participants: listParticipants(session),
+    };
+  }
+
+  function authenticate(joinCode, token) {
+    if (!token) return null;
+    const session = findSession(joinCode);
+    if (!session) return null;
+    const tokenHash = directHashToken(token);
+    for (const participant of session.participants.values()) {
+      if (participant.tokenHash === tokenHash) {
+        return { pilotName: participant.pilotName, seat: participant.seat };
+      }
+    }
+    return null;
+  }
+
+  function broadcastSessionState(joinCode) {
+    const session = findSession(joinCode);
+    if (!session) return;
+    const payload = JSON.stringify({ type: "session.state", session: buildSessionResponse(session) });
+    for (const [ws, meta] of connections) {
+      if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
+    }
+  }
+
+  function broadcastAuthorityTransfer(joinCode, transfer) {
+    const outgoing = {
+      type: "authority.transfer",
+      sessionId: joinCode,
+      group: "flight_controls",
+      previousOwner: transfer.previousOwner,
+      newOwner: transfer.newOwner,
+      revision: transfer.revision,
+    };
+    directRememberMessage(sessionStateCache, joinCode, outgoing);
+    const payload = JSON.stringify(outgoing);
+    for (const [ws, meta] of connections) {
+      if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
+    }
+  }
+
+  function relayFlightMessage(senderWs, joinCode, pilotName, msg) {
+    const outgoing = { ...msg, origin: "remote", sourcePilot: pilotName };
+    directRememberMessage(sessionStateCache, joinCode, outgoing);
+    const payload = JSON.stringify(outgoing);
+    for (const [ws, meta] of connections) {
+      if (ws === senderWs) continue;
+      if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
+    }
+  }
+
+  appServer.use(express.json({ limit: "16kb" }));
+  appServer.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WeConnect-Client-Version");
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+  appServer.use("/api", (req, res, next) => {
+    if (req.path === "/health") {
+      next();
+      return;
+    }
+    const version = req.headers["x-weconnect-client-version"];
+    if (!directIsClientVersionSupported(typeof version === "string" ? version : null)) {
+      res.status(426).json({
+        error: "client-update-required",
+        ...directBuildHealthPayload(),
+      });
+      return;
+    }
+    next();
+  });
+
+  appServer.get("/api/health", (_req, res) => {
+    const payload = directBuildHealthPayload();
+    payload.uptimeSeconds = Math.floor((Date.now() - startedAt) / 1000);
+    res.json(payload);
+  });
+
+  appServer.get("/api/aircraft-profiles", (_req, res) => {
+    res.json(profiles);
+  });
+
+  appServer.post("/api/sessions", (req, res) => {
+    const sessionName = cleanText(req.body?.sessionName, 80);
+    const aircraftProfileId = cleanText(req.body?.aircraftProfileId, 80);
+    const hostPilotName = cleanText(req.body?.hostPilotName, 40);
+    const hostSeat = req.body?.hostSeat;
+    const sim = req.body?.sim;
+    const password = typeof req.body?.password === "string" && req.body.password.length > 0 ? req.body.password : null;
+    if (!sessionName || !aircraftProfileId || !hostPilotName || !DIRECT_FLOW_SEATS.has(hostSeat) || (sim !== "msfs2020" && sim !== "msfs2024")) {
+      res.status(400).json({ error: "missing required fields" });
+      return;
+    }
+    const profile = profilesById.get(aircraftProfileId);
+    if (!profile || profile.availability === "soon" || !profile.compatibility?.[sim]) {
+      res.status(400).json({ error: "unknown aircraft profile" });
+      return;
+    }
+    let joinCode = directGenerateJoinCode();
+    while (sessions.has(joinCode)) joinCode = directGenerateJoinCode();
+    const participantToken = directGenerateToken();
+    const participant = {
+      pilotName: hostPilotName,
+      seat: hostSeat,
+      joinedAt: new Date().toISOString(),
+      disconnectedAt: null,
+      tokenHash: directHashToken(participantToken),
+    };
+    const session = {
+      id: crypto.randomBytes(12).toString("hex"),
+      joinCode,
+      sessionName,
+      aircraftProfileId,
+      status: "waiting",
+      sim,
+      password,
+      creatorPilotName: hostPilotName,
+      controlOwner: hostSeat === "observer" ? "captain" : hostSeat,
+      controlRequestedBy: null,
+      controlRevision: 0,
+      endedAt: null,
+      participants: new Map([[hostPilotName, participant]]),
+    };
+    sessions.set(joinCode, session);
+    res.status(201).json({ ...buildSessionResponse(session), participantToken });
+  });
+
+  appServer.get("/api/sessions/:code", (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    if (!DIRECT_JOIN_CODE_RE.test(joinCode)) {
+      res.status(404).json({ error: "session-not-found" });
+      return;
+    }
+    const session = findSession(joinCode);
+    if (!session) {
+      res.status(404).json({ error: "session-not-found" });
+      return;
+    }
+    res.json(buildSessionResponse(session));
+  });
+
+  appServer.post("/api/sessions/:code/join", (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const session = findSession(joinCode);
+    if (!session) {
+      res.status(404).json({ error: "session-not-found" });
+      return;
+    }
+    const pilotName = cleanText(req.body?.pilotName, 40);
+    const seat = req.body?.seat;
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (!pilotName || !DIRECT_FLOW_SEATS.has(seat)) {
+      res.status(400).json({ error: "missing required fields" });
+      return;
+    }
+    if (session.password && session.password !== password) {
+      res.status(409).json({ error: "invalid-password" });
+      return;
+    }
+    const activeCount = Array.from(session.participants.values()).filter(
+      (participant) => participant.disconnectedAt === null && participant.seat !== "observer"
+    ).length;
+    if (activeCount >= 2 && seat !== "observer") {
+      res.status(409).json({ error: "session-full" });
+      return;
+    }
+    const participantToken = directGenerateToken();
+    session.participants.set(pilotName, {
+      pilotName,
+      seat,
+      joinedAt: session.participants.get(pilotName)?.joinedAt ?? new Date().toISOString(),
+      disconnectedAt: null,
+      tokenHash: directHashToken(participantToken),
+    });
+    if (seat !== "observer" && activeCount + 1 >= 2) {
+      session.status = "active";
+    }
+    res.json({ ...buildSessionResponse(session), participantToken });
+  });
+
+  function requireParticipant(req, res, next) {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const header = req.headers.authorization;
+    const match = typeof header === "string" ? /^Bearer\s+([a-f0-9]{64})$/i.exec(header.trim()) : null;
+    const auth = authenticate(joinCode, match?.[1] ?? null);
+    if (!auth) {
+      res.status(401).json({ error: "invalid-token" });
+      return;
+    }
+    req.weconnectAuth = auth;
+    next();
+  }
+
+  appServer.delete("/api/sessions/:code", requireParticipant, (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const auth = req.weconnectAuth;
+    const session = findSession(joinCode);
+    if (!session) {
+      res.status(404).json({ error: "session-not-found" });
+      return;
+    }
+    if (session.creatorPilotName !== auth.pilotName) {
+      res.status(403).json({ error: "not-session-creator" });
+      return;
+    }
+    session.endedAt = new Date().toISOString();
+    session.status = "ended";
+    for (const [ws, meta] of connections) {
+      if (meta.joinCode === joinCode) ws.close(4001, "session closed");
+    }
+    sessionStateCache.delete(joinCode);
+    res.status(204).end();
+  });
+
+  appServer.post("/api/sessions/:code/leave", requireParticipant, (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const auth = req.weconnectAuth;
+    const session = findSession(joinCode);
+    const participant = session?.participants.get(auth.pilotName);
+    if (!session || !participant) {
+      res.status(404).json({ error: "session-not-found" });
+      return;
+    }
+    participant.disconnectedAt = new Date().toISOString();
+    participant.tokenHash = null;
+    if (session.controlOwner === participant.seat) {
+      const nextParticipant = Array.from(session.participants.values()).find(
+        (candidate) => candidate.disconnectedAt === null && candidate.seat !== "observer" && candidate.pilotName !== participant.pilotName
+      );
+      session.controlOwner = nextParticipant?.seat ?? null;
+      session.controlRequestedBy = null;
+    }
+    broadcastSessionState(joinCode);
+    res.status(204).end();
+  });
+
+  appServer.post("/api/sessions/:code/request-controls", requireParticipant, (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const auth = req.weconnectAuth;
+    const session = findSession(joinCode);
+    if (!session || auth.seat === "observer" || session.controlOwner === auth.seat) {
+      res.status(409).json({ error: "controls-request-not-allowed" });
+      return;
+    }
+    session.controlRequestedBy = auth.seat;
+    broadcastSessionState(joinCode);
+    res.status(204).end();
+  });
+
+  appServer.post("/api/sessions/:code/give-controls", requireParticipant, (req, res) => {
+    const joinCode = String(req.params.code ?? "").toUpperCase();
+    const auth = req.weconnectAuth;
+    const session = findSession(joinCode);
+    if (!session || session.controlOwner !== auth.seat || !session.controlRequestedBy) {
+      res.status(409).json({ error: "control-transfer-not-allowed" });
+      return;
+    }
+    const previousOwner = session.controlOwner;
+    session.controlOwner = session.controlRequestedBy;
+    session.controlRequestedBy = null;
+    session.controlRevision += 1;
+    broadcastAuthorityTransfer(joinCode, {
+      previousOwner,
+      newOwner: session.controlOwner,
+      revision: session.controlRevision,
+    });
+    broadcastSessionState(joinCode);
+    res.status(204).end();
+  });
+
+  wss.on("connection", (ws, req) => {
+    const url = new URL(req.url ?? "", "http://localhost");
+    const joinCode = (url.searchParams.get("code") ?? "").toUpperCase();
+    const token = url.searchParams.get("token");
+    const clientVersion = url.searchParams.get("clientVersion");
+    if (!directIsClientVersionSupported(clientVersion)) {
+      ws.close(4002, "client update required");
+      return;
+    }
+    const auth = DIRECT_JOIN_CODE_RE.test(joinCode) ? authenticate(joinCode, token) : null;
+    if (!auth) {
+      ws.close(4000, "invalid session or token");
+      return;
+    }
+
+    connections.set(ws, {
+      joinCode,
+      pilotName: auth.pilotName,
+      seat: auth.seat,
+      msgWindowStart: Date.now(),
+      msgCount: 0,
+    });
+
+    const session = findSession(joinCode);
+    if (session) {
+      const participant = session.participants.get(auth.pilotName);
+      if (participant) participant.disconnectedAt = null;
+      broadcastSessionState(joinCode);
+      for (const cached of directReplayMessages(sessionStateCache, joinCode)) {
+        if (ws.readyState !== WebSocket.OPEN) break;
+        ws.send(JSON.stringify(cached));
+      }
+    }
+
+    ws.on("message", (raw) => {
+      const meta = connections.get(ws);
+      if (!meta) return;
+      const now = Date.now();
+      if (now - meta.msgWindowStart >= 1000) {
+        meta.msgWindowStart = now;
+        meta.msgCount = 0;
+      }
+      meta.msgCount += 1;
+      if (meta.msgCount > DIRECT_HOST_MAX_MESSAGES_PER_SECOND) return;
+
+      try {
+        const msg = JSON.parse(raw.toString());
+        if (msg.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", clientSentAt: msg.clientSentAt, serverTime: Date.now() }));
+          return;
+        }
+        if (!DIRECT_FLIGHT_MESSAGE_TYPES.has(msg.type)) return;
+        const error = directValidateFlightMessage(msg);
+        if (error) return;
+        if (typeof msg.sessionId === "string" && msg.sessionId !== meta.joinCode) return;
+        relayFlightMessage(ws, meta.joinCode, meta.pilotName, msg);
+      } catch {
+        return;
+      }
+    });
+
+    ws.on("close", () => {
+      const meta = connections.get(ws);
+      connections.delete(ws);
+      if (!meta) return;
+      const session = findSession(meta.joinCode);
+      const participant = session?.participants.get(meta.pilotName);
+      if (participant) participant.disconnectedAt = new Date().toISOString();
+      broadcastSessionState(meta.joinCode);
+    });
+  });
+
+  return {
+    port,
+    async start() {
+      await new Promise((resolve, reject) => {
+        httpServer.once("error", reject);
+        httpServer.listen(port, "0.0.0.0", () => {
+          httpServer.removeListener("error", reject);
+          resolve();
+        });
+      });
+      return {
+        port,
+        localIpv4: getLocalNetworkAddresses().ipv4,
+        localIpv6: getLocalNetworkAddresses().ipv6,
+        profiles: profiles.length,
+      };
+    },
+    async stop() {
+      for (const ws of connections.keys()) {
+        try {
+          ws.close();
+        } catch {}
+      }
+      await new Promise((resolve) => {
+        wss.close(() => {
+          httpServer.close(() => resolve());
+        });
+      });
+    },
+  };
+}
+
+ipcMain.handle("relay:get-config", () => ({
+  defaultPort: DIRECT_HOST_DEFAULT_PORT,
+  running: !!directHostService,
+  port: directHostService?.port ?? null,
+  localAddresses: getLocalNetworkAddresses(),
+}));
+
+ipcMain.handle("relay:start-direct-host", async (_event, portValue) => {
+  const requestedPort = Number(portValue);
+  const port = Number.isInteger(requestedPort) && requestedPort > 0 && requestedPort < 65536
+    ? requestedPort
+    : DIRECT_HOST_DEFAULT_PORT;
+
+  if (directHostService && directHostService.port === port) {
+    return {
+      ok: true,
+      running: true,
+      port,
+      localAddresses: getLocalNetworkAddresses(),
+    };
+  }
+
+  if (directHostService) {
+    await directHostService.stop();
+    directHostService = null;
+  }
+
+  const service = createDirectHostService(port);
+  try {
+    const started = await service.start();
+    directHostService = service;
+    return { ok: true, running: true, ...started };
+  } catch (err) {
+    return { ok: false, error: err?.message ?? String(err), running: false };
+  }
+});
+
+ipcMain.handle("relay:stop-direct-host", async () => {
+  if (!directHostService) return { ok: true, running: false };
+  await directHostService.stop();
+  directHostService = null;
+  return { ok: true, running: false };
+});
 
 
 // ---------------------------------------------------------------------------
@@ -737,7 +1510,16 @@ function stopBridge() {
   bridgeLogStream = null;
 }
 
-app.on("before-quit", stopBridge);
+async function stopDirectHost() {
+  if (!directHostService) return;
+  await directHostService.stop();
+  directHostService = null;
+}
+
+app.on("before-quit", () => {
+  stopBridge();
+  void stopDirectHost();
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

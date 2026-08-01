@@ -30,6 +30,23 @@ interface Window {
   };
   weconnectNetwork?: {
     getLocalAddresses: () => Promise<{ ipv4: string | null; ipv6: string | null }>;
+    getPublicAddresses: () => Promise<{ ipv4: string | null; ipv6: string | null }>;
+  };
+  weconnectRelay?: {
+    getConfig: () => Promise<{
+      defaultPort: number;
+      running: boolean;
+      port: number | null;
+      localAddresses: { ipv4: string | null; ipv6: string | null };
+    }>;
+    startDirectHost: (port: number) => Promise<{
+      ok: boolean;
+      running: boolean;
+      port?: number;
+      localAddresses?: { ipv4: string | null; ipv6: string | null };
+      error?: string;
+    }>;
+    stopDirectHost: () => Promise<{ ok: boolean; running: boolean }>;
   };
   weconnectWindow?: {
     isElectron: true;

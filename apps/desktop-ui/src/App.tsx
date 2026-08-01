@@ -13,7 +13,7 @@ import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
-import { prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
+import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
 import { currentVersion } from "./data";
 
 const PILOT_NAME_STORAGE_KEY = "weconnect.pilotName";
@@ -54,6 +54,7 @@ export function App() {
   const [updateNotice, setUpdateNotice] = useState<UpdateNoticeState>({ visible: false, version: null });
   const [showFirstLaunchSetup, setShowFirstLaunchSetup] = useState(false);
   const [communityPath, setCommunityPath] = useState<string | null>(null);
+  const [relayRevision, setRelayRevision] = useState(0);
   const [serverCompatibility, setServerCompatibility] = useState<ServerCompatibilityState>({
     updateRequired: false,
     minVersion: null,
@@ -62,6 +63,16 @@ export function App() {
 
   useEffect(() => {
     prefetchAircraftProfiles();
+  }, []);
+
+  useEffect(() => {
+    const onRelayChanged = () => {
+      invalidateAircraftProfilesCache();
+      prefetchAircraftProfiles();
+      setRelayRevision((value) => value + 1);
+    };
+    window.addEventListener("weconnect-relay-changed", onRelayChanged);
+    return () => window.removeEventListener("weconnect-relay-changed", onRelayChanged);
   }, []);
 
   useEffect(() => {
@@ -81,7 +92,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [relayRevision]);
 
   useEffect(() => {
     const setup = window.weconnectSetup;

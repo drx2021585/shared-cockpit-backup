@@ -1,16 +1,53 @@
-/**
- * Dónde vive el servidor de sesiones. Antes esto era una eleccion del usuario
- * (relay propio / LAN / host directo con UPnP); todo eso se elimino: la unica
- * forma de conectarse es el codigo de 6 caracteres contra el backend
- * compartido, que es la que funciona en cualquier red — incluidas las moviles
- * con CGNAT y NAT simetrico, donde la conexion directa es inalcanzable por
- * definicion (ver docs/plan-direct-p2p-rendezvous.md para la medicion).
- *
- * Para desarrollo local se sobreescribe con VITE_API_BASE en un .env.local.
- */
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
+const STORAGE_KEY = "weconnect.relayConfig";
+
+export type RelayMode = "hosted" | "custom";
+
+export interface RelayConfig {
+  mode: RelayMode;
+  customUrl: string | null;
+}
+
+function normalizeUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+function readStoredConfig(): RelayConfig | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      mode: parsed?.mode === "custom" ? "custom" : "hosted",
+      customUrl: typeof parsed?.customUrl === "string" && parsed.customUrl.trim()
+        ? normalizeUrl(parsed.customUrl)
+        : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getRelayConfig(): RelayConfig {
+  return readStoredConfig() ?? { mode: "hosted", customUrl: null };
+}
+
+export function setRelayConfig(config: RelayConfig) {
+  if (typeof window === "undefined") return;
+  const next: RelayConfig = {
+    mode: config.mode === "custom" ? "custom" : "hosted",
+    customUrl: config.customUrl ? normalizeUrl(config.customUrl) : null,
+  };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  window.dispatchEvent(new Event("weconnect-relay-changed"));
+}
 
 export function getRelayApiBaseUrl() {
+  const config = getRelayConfig();
+  if (config.mode === "custom" && config.customUrl) {
+    return config.customUrl;
+  }
   return DEFAULT_API_BASE;
 }
 

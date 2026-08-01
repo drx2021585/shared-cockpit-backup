@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.55",
+    version: "0.1.56",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "We Connect can host a direct self-hosted relay again: the host PC now runs a local in-memory HTTP + WebSocket session server that can be exposed to the internet with manual router port forwarding.",
+      "The profile screen now shows the host LAN address, public address, direct-host port, the exact TCP forwarding rule to create on the router, and the URL the guest should use from a different network.",
+      "The direct path now enforces app-version compatibility on both HTTP and WebSocket, so a host and a guest on different internet connections fail clearly instead of half-connecting with mismatched builds.",
+    ],
+  },
+  {
+    version: "0.1.55",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "Added a technical reference that documents exactly how YourControls Direct works today: fixed UDP port, optional UPnP, direct handshake and the absence of STUN/TURN in that mode.",

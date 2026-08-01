@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld("weconnectDesktop", {
 
 contextBridge.exposeInMainWorld("weconnectNetwork", {
   getLocalAddresses: () => ipcRenderer.invoke("network:get-local-addresses"),
+  getPublicAddresses: () => ipcRenderer.invoke("network:get-public-addresses"),
+});
+
+contextBridge.exposeInMainWorld("weconnectRelay", {
+  getConfig: () => ipcRenderer.invoke("relay:get-config"),
+  startDirectHost: (port) => ipcRenderer.invoke("relay:start-direct-host", port),
+  stopDirectHost: () => ipcRenderer.invoke("relay:stop-direct-host"),
 });
 
 /**
