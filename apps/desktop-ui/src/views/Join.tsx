@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { joinSession, ApiError, type Session } from "../lib/apiClient";
+import { getRelayConfig, setRelayConfig, type RelayMode } from "../lib/relayConfig";
 
 interface JoinProps {
   pilotName: string;
@@ -8,11 +9,50 @@ interface JoinProps {
 }
 
 export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
+  const relayConfig = getRelayConfig();
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
+  const [observerConfirmOpen, setObserverConfirmOpen] = useState(false);
+  const [relayMode, setRelayMode] = useState<RelayMode>(relayConfig.mode);
+  const [relayUrl, setRelayUrl] = useState(relayConfig.customUrl ?? "");
+  const [directPort, setDirectPort] = useState<number>(relayConfig.directPort);
+  const [relaySaved, setRelaySaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function applyRelaySettings() {
+    let nextUrl = relayUrl.trim();
+    if (relayMode === "custom" && nextUrl) {
+      try {
+        const parsed = new URL(nextUrl);
+        parsed.port = String(directPort);
+        nextUrl = parsed.toString().replace(/\/+$/, "");
+        setRelayUrl(nextUrl);
+      } catch {
+        // Dejar el texto tal cual si todavía no parsea.
+      }
+    }
+    setRelayConfig({
+      mode: relayMode,
+      customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+      directPort,
+    });
+    setRelaySaved(
+      relayMode === "custom"
+        ? "Direct connection settings saved for this PC."
+        : "Hosted relay selected for this PC."
+    );
+  }
+
+  function requestObserverSeat() {
+    setObserverConfirmOpen(true);
+  }
+
+  function acceptObserverSeat() {
+    setSeat("observer");
+    setObserverConfirmOpen(false);
+  }
 
   async function handleJoin() {
     if (!pilotName.trim()) {
@@ -65,6 +105,66 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
         }}
         style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}
       >
+        <div
+          style={{
+            border: "1px solid var(--hairline)",
+            background: "rgba(255,255,255,0.03)",
+            padding: 14,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div className="mono-label">Connection</div>
+          <div className="seat-toggle">
+            <button
+              className={`seat-option ${relayMode === "hosted" ? "active" : ""}`}
+              onClick={() => setRelayMode("hosted")}
+              type="button"
+            >
+              Hosted relay
+            </button>
+            <button
+              className={`seat-option ${relayMode === "custom" ? "active" : ""}`}
+              onClick={() => setRelayMode("custom")}
+              type="button"
+            >
+              My own relay
+            </button>
+          </div>
+          {relayMode === "custom" && (
+            <>
+              <div className="field">
+                <label>Direct host port</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={directPort}
+                  onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
+                />
+              </div>
+              <div className="field">
+                <label>Relay URL</label>
+                <input
+                  type="text"
+                  placeholder="http://HOST-PUBLIC-IP:25071"
+                  value={relayUrl}
+                  onChange={(e) => setRelayUrl(e.target.value)}
+                />
+              </div>
+              <p style={{ color: "var(--text-35)", fontSize: 12, margin: 0 }}>
+                Use the same URL and the same TCP port your host configured.
+              </p>
+            </>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="link-action" onClick={applyRelaySettings} type="button">
+              Save connection settings
+            </button>
+            {relaySaved && <div style={{ color: "var(--green)", fontSize: 12 }}>{relaySaved}</div>}
+          </div>
+        </div>
         <input
           type="text"
           name="fake-username"
@@ -143,7 +243,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
             </button>
             <button
               className={`seat-option ${seat === "observer" ? "active" : ""}`}
-              onClick={() => setSeat("observer")}
+              onClick={requestObserverSeat}
               type="button"
             >
               Observer
@@ -160,6 +260,46 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
           </button>
         </div>
       </form>
+      {observerConfirmOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              background: "var(--bg-elevated, #101010)",
+              border: "1px solid var(--hairline)",
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 18,
+            }}
+          >
+            <div className="mono-label">Observer seat confirmation</div>
+            <div style={{ color: "var(--text-70)", lineHeight: 1.5 }}>
+              Estas conciente que al esatr en esta silla,no podras tocar,mover y influir en deciciones de los capitanes / primer oficial?
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button className="link-action" type="button" onClick={() => setObserverConfirmOpen(false)}>
+                Atras
+              </button>
+              <button className="btn" type="button" onClick={acceptObserverSeat}>
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

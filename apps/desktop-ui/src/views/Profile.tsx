@@ -78,6 +78,7 @@ export function Profile({
     setRelayConfig({
       mode: relayMode,
       customUrl: relayMode === "custom" ? (autoRelayUrl || customRelayUrl) : null,
+      directPort,
     });
     setRelayError(null);
     setRelaySaved(
@@ -217,18 +218,23 @@ export function Profile({
                     onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
                   />
                 </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <button className="link-action" onClick={handleStartDirectHost}>
                     {directRunning ? "Restart local direct host" : "Start local direct host"}
                   </button>
+                  <span style={{ color: "var(--text-35)" }}>|</span>
                   {directRunning && (
-                    <button className="link-action" onClick={handleStopDirectHost}>
-                      Stop local direct host
-                    </button>
+                    <>
+                      <button className="link-action" onClick={handleStopDirectHost}>
+                        Stop local direct host
+                      </button>
+                      <span style={{ color: "var(--text-35)" }}>|</span>
+                    </>
                   )}
                   <button className="link-action" onClick={testRelayUrl} disabled={relayTesting}>
                     {relayTesting ? "Testing…" : "Test relay"}
                   </button>
+                  <span style={{ color: "var(--text-35)" }}>|</span>
                   <button className="link-action" onClick={saveRelaySettings}>
                     Save relay settings
                   </button>

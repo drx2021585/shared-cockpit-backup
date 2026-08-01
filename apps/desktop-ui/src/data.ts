@@ -182,8 +182,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.57",
+    version: "0.1.58",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Choosing Observer in Create a party or Join a party now asks for explicit confirmation before taking a seat that cannot touch the flight controls or influence the active crew.",
+      "Create a party and Join a party now expose the direct-connection settings too, so the host and the guest can both set the direct-host port and relay URL without having to leave those screens.",
+      "The aircraft catalog now stops overriding the real LVFR A330 data with stale local placeholders, so the A330-200 and A330-300 use their actual current profiles in Aircraft.",
+      "The old Handing off the controls marketing block was removed from the home page.",
+    ],
+  },
+  {
+    version: "0.1.57",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "The low-level network details were removed from Profile, so the relay settings screen stays focused on choosing hosted relay versus your own relay and on starting the direct host.",

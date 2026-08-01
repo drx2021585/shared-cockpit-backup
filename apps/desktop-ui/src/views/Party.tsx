@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
-import { getRelayConfig } from "../lib/relayConfig";
+import { getRelayConfig, setRelayConfig, type RelayMode } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -20,7 +20,11 @@ export function Party({
 }: PartyProps) {
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
   const relayConfig = getRelayConfig();
-  const customRelayUrl = relayConfig.mode === "custom" ? relayConfig.customUrl : null;
+  const [relayMode, setRelayMode] = useState<RelayMode>(relayConfig.mode);
+  const [relayUrl, setRelayUrl] = useState(relayConfig.customUrl ?? "");
+  const [directPort, setDirectPort] = useState<number>(relayConfig.directPort);
+  const [relaySaved, setRelaySaved] = useState<string | null>(null);
+  const customRelayUrl = relayMode === "custom" ? relayUrl.trim() || null : null;
   const customRelayHost = customRelayUrl ? (() => {
     try {
       return new URL(customRelayUrl).host;
@@ -35,6 +39,7 @@ export function Party({
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("captain");
+  const [observerConfirmOpen, setObserverConfirmOpen] = useState(false);
   const [joinCodeBlurred, setJoinCodeBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +53,39 @@ export function Party({
   const effectiveProfileId =
     (selectedProfileIsCompatible ? aircraftProfileId : compatibleProfiles[0]?.id) || "";
   const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
+
+  function applyRelaySettings() {
+    let nextUrl = relayUrl.trim();
+    if (relayMode === "custom" && nextUrl) {
+      try {
+        const parsed = new URL(nextUrl);
+        parsed.port = String(directPort);
+        nextUrl = parsed.toString().replace(/\/+$/, "");
+        setRelayUrl(nextUrl);
+      } catch {
+        // Mantener el valor escrito tal cual si no parsea como URL todavía.
+      }
+    }
+    setRelayConfig({
+      mode: relayMode,
+      customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+      directPort,
+    });
+    setRelaySaved(
+      relayMode === "custom"
+        ? "Direct connection settings saved for this PC."
+        : "Hosted relay selected for this PC."
+    );
+  }
+
+  function requestObserverSeat() {
+    setObserverConfirmOpen(true);
+  }
+
+  function acceptObserverSeat() {
+    setSeat("observer");
+    setObserverConfirmOpen(false);
+  }
 
   async function createParty() {
     if (!pilotName.trim()) {
@@ -96,6 +134,63 @@ export function Party({
 
       <div className="grid-2">
         <div style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              border: "1px solid var(--hairline)",
+              background: "rgba(255,255,255,0.03)",
+              padding: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div className="mono-label">Connection</div>
+            <div className="seat-toggle">
+              <button
+                type="button"
+                className={`seat-option ${relayMode === "hosted" ? "active" : ""}`}
+                onClick={() => setRelayMode("hosted")}
+              >
+                Hosted relay
+              </button>
+              <button
+                type="button"
+                className={`seat-option ${relayMode === "custom" ? "active" : ""}`}
+                onClick={() => setRelayMode("custom")}
+              >
+                My own relay
+              </button>
+            </div>
+            {relayMode === "custom" && (
+              <>
+                <div className="field">
+                  <label>Direct host port</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={65535}
+                    value={directPort}
+                    onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Relay URL</label>
+                  <input
+                    type="text"
+                    placeholder="http://YOUR-PUBLIC-IP:25071"
+                    value={relayUrl}
+                    onChange={(e) => setRelayUrl(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button className="link-action" type="button" onClick={applyRelaySettings}>
+                Save connection settings
+              </button>
+              {relaySaved && <div style={{ color: "var(--green)", fontSize: 12 }}>{relaySaved}</div>}
+            </div>
+          </div>
           {customRelayUrl && (
             <div
               style={{
@@ -115,7 +210,7 @@ export function Party({
                 Before your friend joins from another network, make sure:
               </div>
               <div style={{ fontSize: 12, color: "var(--text-70)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div>1. The local direct host is running in Profile -&gt; My own relay.</div>
+                <div>1. The local direct host is running on TCP {directPort}.</div>
                 <div>2. Your router forwards the same TCP port from the internet to this PC.</div>
                 <div>3. Your friend uses the same relay URL: <span className="mono">{customRelayUrl}</span>.</div>
                 <div>4. If they cannot reach it, test that <span className="mono">{customRelayHost}</span> is really your current public address.</div>
@@ -186,18 +281,21 @@ export function Party({
               <button
                 className={`seat-option ${seat === "captain" ? "active" : ""}`}
                 onClick={() => setSeat("captain")}
+                type="button"
               >
                 Captain
               </button>
               <button
                 className={`seat-option ${seat === "first_officer" ? "active" : ""}`}
                 onClick={() => setSeat("first_officer")}
+                type="button"
               >
                 First officer
               </button>
               <button
                 className={`seat-option ${seat === "observer" ? "active" : ""}`}
-                onClick={() => setSeat("observer")}
+                onClick={requestObserverSeat}
+                type="button"
               >
                 Observer
               </button>
@@ -251,6 +349,46 @@ export function Party({
 
         </div>
       </div>
+      {observerConfirmOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              background: "var(--bg-elevated, #101010)",
+              border: "1px solid var(--hairline)",
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 18,
+            }}
+          >
+            <div className="mono-label">Observer seat confirmation</div>
+            <div style={{ color: "var(--text-70)", lineHeight: 1.5 }}>
+              Estas conciente que al esatr en esta silla,no podras tocar,mover y influir en deciciones de los capitanes / primer oficial?
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button className="link-action" type="button" onClick={() => setObserverConfirmOpen(false)}>
+                Atras
+              </button>
+              <button className="btn" type="button" onClick={acceptObserverSeat}>
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

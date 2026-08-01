@@ -4,8 +4,6 @@ import {
   scopeIn,
   scopeOut,
   screens,
-  authorityRows,
-  transferSteps,
   reliability,
   learnSteps,
   currentVersion,
@@ -128,44 +126,10 @@ export function Home() {
         </div>
       </div>
 
-      {/* ROLES & TRANSFER */}
-      <div className="section" id="roles">
-        <div className="section-head section-top">
-          <span className="index-num">03</span>
-          <h2 className="h2">Handing off the controls</h2>
-        </div>
-        <p className="lead" style={{ maxWidth: 560 }}>
-          Only one pilot flies the aircraft at a time. Everything else — radios, lights, autopilot
-          — can be worked by either seat at once, without stepping on each other.
-        </p>
-        <div className="mono-label" style={{ marginBottom: 26 }}>
-          Who controls what
-        </div>
-        <div className="grid-2" style={{ alignItems: "start" }}>
-          <div>
-            {authorityRows.map((row) => (
-              <div className="authority-row" key={row.name}>
-                <div className="authority-name">{row.name}</div>
-                <div className="authority-mode">{row.mode}</div>
-              </div>
-            ))}
-          </div>
-          <div>
-            {transferSteps.map((step, i) => (
-              <div className="transfer-step" key={step}>
-                <div className="transfer-step-num">0{i + 1}</div>
-                <div className="transfer-step-label">{step}</div>
-              </div>
-            ))}
-            <div className="transfer-callout">"I HAVE CONTROL"</div>
-          </div>
-        </div>
-      </div>
-
       {/* STAYING IN SYNC (reliability) */}
       <div className="section">
         <div className="section-head section-top">
-          <span className="index-num">04</span>
+          <span className="index-num">03</span>
           <h2 className="h2">Staying in sync</h2>
         </div>
         <p className="lead" style={{ maxWidth: 560 }}>
@@ -185,7 +149,7 @@ export function Home() {
       {/* AIRCRAFT SUPPORT */}
       <div className="section">
         <div className="section-head section-top">
-          <span className="index-num">05</span>
+          <span className="index-num">04</span>
           <h2 className="h2">Aircraft support</h2>
         </div>
         <p className="lead" style={{ maxWidth: 560 }}>

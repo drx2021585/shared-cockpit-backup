@@ -2,14 +2,21 @@ const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpi
 const STORAGE_KEY = "weconnect.relayConfig";
 
 export type RelayMode = "hosted" | "custom";
+export const DEFAULT_DIRECT_PORT = 25071;
 
 export interface RelayConfig {
   mode: RelayMode;
   customUrl: string | null;
+  directPort: number;
 }
 
 function normalizeUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
+}
+
+function normalizePort(value: unknown): number {
+  const port = Number(value);
+  return Number.isInteger(port) && port > 0 && port < 65536 ? port : DEFAULT_DIRECT_PORT;
 }
 
 function readStoredConfig(): RelayConfig | null {
@@ -23,6 +30,7 @@ function readStoredConfig(): RelayConfig | null {
       customUrl: typeof parsed?.customUrl === "string" && parsed.customUrl.trim()
         ? normalizeUrl(parsed.customUrl)
         : null,
+      directPort: normalizePort(parsed?.directPort),
     };
   } catch {
     return null;
@@ -30,7 +38,7 @@ function readStoredConfig(): RelayConfig | null {
 }
 
 export function getRelayConfig(): RelayConfig {
-  return readStoredConfig() ?? { mode: "hosted", customUrl: null };
+  return readStoredConfig() ?? { mode: "hosted", customUrl: null, directPort: DEFAULT_DIRECT_PORT };
 }
 
 export function setRelayConfig(config: RelayConfig) {
@@ -38,6 +46,7 @@ export function setRelayConfig(config: RelayConfig) {
   const next: RelayConfig = {
     mode: config.mode === "custom" ? "custom" : "hosted",
     customUrl: config.customUrl ? normalizeUrl(config.customUrl) : null,
+    directPort: normalizePort(config.directPort),
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   window.dispatchEvent(new Event("weconnect-relay-changed"));
