@@ -31,12 +31,16 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady, onRelayConf
     try {
       const directInvite = parseDirectInviteCode(code.trim());
       const resolvedJoinCode = directInvite?.joinCode ?? code.trim().toUpperCase();
-      if (directInvite) {
-        onRelayConfigChange({
-          mode: "self-hosted",
-          customBaseUrl: `http://${directInvite.host}:${directInvite.port}`,
-        });
-      }
+      // El modo tiene que seguir al codigo que se pego, no quedar pegado del
+      // intento anterior: un codigo de sesion normal va a Cloud Host aunque
+      // antes se haya probado un codigo directo. Sin esto, quien probo una vez
+      // un codigo directo quedaba apuntando para siempre a la IP de esa PC y
+      // se quedaba en "Joining…" contra una direccion muerta.
+      onRelayConfigChange(
+        directInvite
+          ? { mode: "self-hosted", customBaseUrl: `http://${directInvite.host}:${directInvite.port}` }
+          : { mode: "managed", customBaseUrl: "" }
+      );
       const session = await joinSession(resolvedJoinCode, {
         pilotName: pilotName.trim(),
         seat,

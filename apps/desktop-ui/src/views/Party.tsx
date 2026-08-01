@@ -3,7 +3,7 @@ import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
 import { buildDirectInviteCode } from "../lib/directInviteCode";
-import { readDirectHostPort, type RelayConfig } from "../lib/relayConfig";
+import { getDefaultRelayApiBaseUrl, readDirectHostPort, type RelayConfig } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -108,7 +108,12 @@ export function Party({
     setSubmitting(true);
     setError(null);
     try {
-      await createParty();
+      // El modo se guarda en localStorage y sobrevive al cierre de la app. Sin
+      // esto, alguien que probo una vez "Host direct session" quedaba fijado en
+      // Direct para siempre: este boton decia Cloud Host pero seguia creando la
+      // sesion en el host local, donde el otro jugador no la encuentra nunca.
+      onRelayConfigChange({ mode: "managed", customBaseUrl: "" });
+      await createParty(getDefaultRelayApiBaseUrl());
     } finally {
       setSubmitting(false);
     }

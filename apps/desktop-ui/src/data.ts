@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.52",
+    version: "0.1.53",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "Fixed getting stuck on 'Joining…' forever. Once you had tried a direct invite code, the app stayed locked onto that PC's address for good, so every later attempt with a normal session code went to an address that was no longer listening.",
+      "Creating a party with Cloud Host now really uses Cloud Host. If you had hosted directly before, the button said Cloud Host but kept creating the session on your own PC, where your friend could never find it.",
+      "The connection mode now follows what you actually do: a normal code means Cloud Host, a direct code means Direct.",
+    ],
+  },
+  {
+    version: "0.1.52",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "The two connection modes are now called Direct and Cloud Host, and each one says what it is for. Direct is the most efficient — the flight data goes straight between both PCs — but needs UPnP or port forwarding. Cloud Host is the simpler fallback when a direct connection cannot be made.",
