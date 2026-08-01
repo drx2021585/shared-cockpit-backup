@@ -51,6 +51,7 @@ import {
   FLIGHT_CONTROLS_GROUP_ID,
 } from "./authority.ts";
 import { buildHealthPayload, isClientVersionSupported } from "./compat.ts";
+import { SessionStateCache } from "./session-state-cache.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 
@@ -247,6 +248,7 @@ app.delete(
         ws.close(4001, "session closed");
       }
     }
+    sessionStateCache.clear(joinCode);
     clearSessionAuthority(joinCode);
     res.status(204).end();
   }
@@ -346,6 +348,7 @@ interface ConnMeta {
 }
 
 const connections = new Map<WebSocket, ConnMeta>();
+const sessionStateCache = new SessionStateCache();
 
 // Tope generoso: el canal rápido (control.axis) legítimo corre a 20-60Hz por
 // eje; 300 msg/s por socket ya es varias veces eso. Por encima se descartan
@@ -501,6 +504,7 @@ function validateFlightMessage(msg: any): string | null {
  */
 function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: string, msg: any) {
   const outgoing = { ...msg, origin: "remote", sourcePilot: pilotName };
+  sessionStateCache.remember(joinCode, outgoing);
   const payload = JSON.stringify(outgoing);
   for (const [ws, meta] of connections) {
     if (ws === senderWs) continue;
@@ -531,14 +535,16 @@ interface AuthorityTransferResult {
  * interno hex de la fila `sessions`).
  */
 function broadcastAuthorityTransfer(joinCode: string, transfer: AuthorityTransferResult) {
-  const payload = JSON.stringify({
+  const outgoing = {
     type: "authority.transfer",
     sessionId: joinCode,
     group: FLIGHT_CONTROLS_GROUP_ID,
     previousOwner: transfer.previousOwner,
     newOwner: transfer.newOwner,
     revision: transfer.revision,
-  });
+  };
+  sessionStateCache.remember(joinCode, outgoing);
+  const payload = JSON.stringify(outgoing);
   for (const [ws, meta] of connections) {
     if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
       ws.send(payload);
@@ -597,6 +603,10 @@ wss.on("connection", async (ws, req) => {
     ensureSessionAuthority(joinCode, sessionForAuthority.controlOwner);
   }
   await broadcastSessionState(joinCode);
+  for (const cached of sessionStateCache.replay(joinCode)) {
+    if (ws.readyState !== WebSocket.OPEN) break;
+    ws.send(JSON.stringify(cached));
+  }
 
   ws.on("message", async (raw) => {
     const meta = connections.get(ws);

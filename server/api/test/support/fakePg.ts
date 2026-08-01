@@ -81,6 +81,21 @@ async function handleQuery(state: FakeDbState, text: string, params: any[]) {
     const rows = [...state.profiles.values()].sort((a, b) => b.coverage - a.coverage);
     return { rows };
   }
+  if (text.includes("SELECT id FROM aircraft_profiles WHERE NOT (id = ANY($1::text[]))")) {
+    const [liveIds] = params as [string[]];
+    const keep = new Set(liveIds);
+    const rows = [...state.profiles.keys()]
+      .filter((id) => !keep.has(id))
+      .map((id) => ({ id }));
+    return { rows };
+  }
+  if (text.includes("DELETE FROM aircraft_profiles WHERE id = ANY($1::text[])")) {
+    const [staleIds] = params as [string[]];
+    for (const id of staleIds) {
+      state.profiles.delete(id);
+    }
+    return { rows: [] };
+  }
 
   // --- generateJoinCode collision check ---
   if (text.includes("SELECT 1 FROM sessions WHERE join_code = $1")) {

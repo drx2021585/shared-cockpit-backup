@@ -1,6 +1,7 @@
 import { useSessionSocket } from "../lib/useSessionSocket";
 import { usePublicIp } from "../lib/useNetworkInfo";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
+import { buildMirrorBootstrapMessages, buildParticipantFingerprint } from "../lib/sessionMirror";
 import {
   MIN_SUPPORTED_BRIDGE_API_VERSION,
   replaceStaleBridge,
@@ -273,40 +274,35 @@ export function Cockpit({
     }
   }, [bridge.screens, connected, joinCode, sendToSession]);
 
-  const previousConnectedRef = useRef(false);
+  const lastMirrorBootstrapKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    const justReconnected = connected && !previousConnectedRef.current;
-    previousConnectedRef.current = connected;
-    if (!justReconnected || !joinCode || !pilotName) {
+    if (!connected || !joinCode || !pilotName) {
+      lastMirrorBootstrapKeyRef.current = null;
       return;
     }
 
-    for (const [controlId, entry] of Object.entries(bridge.controls)) {
-      sendToSession({
-        type: entry.channel === "event" ? "control.event" : "control.axis",
-        sessionId: joinCode,
-        controlId,
-        value: entry.value,
-        source: pilotName,
-        sequence: Date.now(),
-        timestamp: Date.now(),
-      } as ControlEvent | ControlAxis);
+    const participants = session?.participants ?? [];
+    const participantFingerprint = buildParticipantFingerprint(participants);
+    const bootstrapKey = `${joinCode}|${participantFingerprint}`;
+    if (lastMirrorBootstrapKeyRef.current === bootstrapKey) {
+      return;
     }
 
-    for (const [screenId, screen] of Object.entries(bridge.screens)) {
-      sendToSession({
-        type: "screen.snapshot",
-        sessionId: joinCode,
-        screenId,
-        rows: screen.rows,
-        cols: screen.cols,
-        cells: screen.cells,
-        powered: screen.powered ?? undefined,
-        revision: screen.revision,
-        timestamp: Date.now(),
-      } as ScreenSnapshot);
+    lastMirrorBootstrapKeyRef.current = bootstrapKey;
+    const localSeat = participants.find((p) => p.pilot_name === pilotName)?.seat ?? null;
+    const localHasFlightAuthority = !!localSeat && session?.controlOwner === localSeat;
+    const bootstrapMessages = buildMirrorBootstrapMessages({
+      joinCode,
+      pilotName,
+      controls: bridge.controls,
+      screens: bridge.screens,
+      pose: bridge.pose,
+      includePose: localHasFlightAuthority,
+    });
+    for (const message of bootstrapMessages) {
+      sendToSession(message);
     }
-  }, [bridge.controls, bridge.screens, connected, joinCode, pilotName, sendToSession]);
+  }, [bridge.controls, bridge.pose, bridge.screens, connected, joinCode, pilotName, sendToSession, session]);
 
   const lastSentPoseRef = useRef<{ sequence: number; at: number } | null>(null);
   useEffect(() => {

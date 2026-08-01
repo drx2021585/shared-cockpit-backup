@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.41",
+    version: "0.1.42",
     title: "Current build",
+    date: "2026-07-31",
+    commits: [
+      "New peers now receive the relay's cached cockpit state as soon as they join a live session, instead of waiting for the host to touch each switch again.",
+      "The relay now remembers the latest aircraft snapshot, controls, screens, flight pose and authority transfer per session in both hosted and direct-host modes.",
+      "Late-join replay is covered by real WebSocket integration tests, so the host-authoritative mirror path is exercised end to end before release.",
+    ],
+  },
+  {
+    version: "0.1.41",
+    title: "Published release",
     date: "2026-07-31",
     commits: [
       "The relay compatibility endpoint now reports the real current release instead of being stuck on API/client version 0.1.32, so Test relay and required-update checks stop advertising an outdated build.",

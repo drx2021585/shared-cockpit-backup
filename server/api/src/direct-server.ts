@@ -23,6 +23,7 @@ import {
 } from "./authority.ts";
 import { buildHealthPayload, isClientVersionSupported } from "./compat.ts";
 import { generateParticipantToken, hashPassword, hashToken, verifyPassword } from "./auth.ts";
+import { SessionStateCache } from "./session-state-cache.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -78,6 +79,7 @@ interface ConnMeta {
 }
 
 const app = express();
+const sessionStateCache = new SessionStateCache();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "16kb" }));
 app.use(securityHeaders);
@@ -261,6 +263,7 @@ function closeDirectSession(joinCode: string, pilotName: string): boolean {
   if (!session) return false;
   if (session.creatorPilotName !== pilotName) return false;
   sessions.delete(joinCode);
+  sessionStateCache.clear(joinCode);
   clearSessionAuthority(joinCode);
   return true;
 }
@@ -290,6 +293,7 @@ function leaveDirectSession(joinCode: string, pilotName: string): boolean {
   recomputeSessionStatus(session);
   if (activeParticipants(session).length === 0) {
     sessions.delete(joinCode);
+    sessionStateCache.clear(joinCode);
     clearSessionAuthority(joinCode);
   }
   return true;
@@ -571,7 +575,9 @@ function validateFlightMessage(msg: any): string | null {
 }
 
 function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: string, msg: any) {
-  const payload = JSON.stringify({ ...msg, origin: "remote", sourcePilot: pilotName });
+  const outgoing = { ...msg, origin: "remote", sourcePilot: pilotName };
+  sessionStateCache.remember(joinCode, outgoing);
+  const payload = JSON.stringify(outgoing);
   for (const [ws, meta] of connections) {
     if (ws === senderWs) continue;
     if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
@@ -581,14 +587,16 @@ function relayFlightMessage(senderWs: WebSocket, joinCode: string, pilotName: st
 }
 
 function broadcastAuthorityTransfer(joinCode: string, transfer: { previousOwner: string; newOwner: string; revision: number }) {
-  const payload = JSON.stringify({
+  const outgoing = {
     type: "authority.transfer",
     sessionId: joinCode,
     group: FLIGHT_CONTROLS_GROUP_ID,
     previousOwner: transfer.previousOwner,
     newOwner: transfer.newOwner,
     revision: transfer.revision,
-  });
+  };
+  sessionStateCache.remember(joinCode, outgoing);
+  const payload = JSON.stringify(outgoing);
   for (const [ws, meta] of connections) {
     if (meta.joinCode === joinCode && ws.readyState === WebSocket.OPEN) {
       ws.send(payload);
@@ -638,6 +646,10 @@ wss.on("connection", (ws, req) => {
   markReconnected(joinCode, auth.pilotName);
   ensureSessionAuthority(joinCode, getSessionByCode(joinCode)?.controlOwner);
   void broadcastSessionState(joinCode);
+  for (const cached of sessionStateCache.replay(joinCode)) {
+    if (ws.readyState !== WebSocket.OPEN) break;
+    ws.send(JSON.stringify(cached));
+  }
 
   ws.on("message", (raw) => {
     const meta = connections.get(ws);

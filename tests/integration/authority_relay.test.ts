@@ -59,6 +59,7 @@ async function getFreePort(): Promise<number> {
 const PORT = await getFreePort();
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const WS_URL = `ws://127.0.0.1:${PORT}/ws`;
+const CLIENT_VERSION = "0.1.42";
 
 process.env.PORT = String(PORT);
 process.env.DATABASE_URL = "postgres://fake-for-tests/fake";
@@ -113,7 +114,10 @@ interface CreatedSession {
 async function createPmdgSession(hostPilotName: string, hostSeat: "captain" | "first_officer"): Promise<CreatedSession> {
   const res = await fetch(`${BASE_URL}/api/sessions`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-weconnect-client-version": CLIENT_VERSION,
+    },
     body: JSON.stringify({
       sessionName: `Vuelo de prueba ${hostPilotName}`,
       aircraftProfileId: "pmdg-737-900",
@@ -130,11 +134,14 @@ async function createPmdgSession(hostPilotName: string, hostSeat: "captain" | "f
 async function joinSessionAs(
   joinCode: string,
   pilotName: string,
-  seat: "captain" | "first_officer"
+  seat: "captain" | "first_officer" | "observer"
 ): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/sessions/${joinCode}/join`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-weconnect-client-version": CLIENT_VERSION,
+    },
     body: JSON.stringify({ pilotName, seat }),
   });
   assert.equal(res.status, 200, "join debe responder 200");
@@ -148,7 +155,9 @@ interface ConnectedSeat {
 }
 
 async function connectSeat(joinCode: string, token: string): Promise<ConnectedSeat> {
-  const socket = new WebSocket(`${WS_URL}?code=${joinCode}&token=${token}`);
+  const socket = new WebSocket(
+    `${WS_URL}?code=${joinCode}&token=${token}&clientVersion=${encodeURIComponent(CLIENT_VERSION)}`
+  );
   const received: any[] = [];
   socket.addEventListener("message", (ev) => {
     try {
@@ -166,6 +175,10 @@ async function connectSeat(joinCode: string, token: string): Promise<ConnectedSe
 
 function controlEvents(received: any[], controlId: string): any[] {
   return received.filter((m) => m.type === "control.event" && m.controlId === controlId);
+}
+
+function firstMessage(received: any[], type: string): any | undefined {
+  return received.find((m) => m.type === type);
 }
 
 async function settle(ms = 150): Promise<void> {
@@ -332,13 +345,19 @@ test("relay real: tras give-controls exitoso, el nuevo dueño escribe flight_con
   // (mismos endpoints que usa apps/desktop-ui).
   const requestRes = await fetch(`${BASE_URL}/api/sessions/${created.joinCode}/request-controls`, {
     method: "POST",
-    headers: { authorization: `Bearer ${foToken}` },
+    headers: {
+      authorization: `Bearer ${foToken}`,
+      "x-weconnect-client-version": CLIENT_VERSION,
+    },
   });
   assert.equal(requestRes.status, 204);
 
   const giveRes = await fetch(`${BASE_URL}/api/sessions/${created.joinCode}/give-controls`, {
     method: "POST",
-    headers: { authorization: `Bearer ${created.hostToken}` },
+    headers: {
+      authorization: `Bearer ${created.hostToken}`,
+      "x-weconnect-client-version": CLIENT_VERSION,
+    },
   });
   assert.equal(giveRes.status, 204);
 
@@ -395,6 +414,104 @@ test("relay real: tras give-controls exitoso, el nuevo dueño escribe flight_con
 
   captain.socket.close();
   firstOfficer.socket.close();
+});
+
+test("relay real: un peer que entra tarde recibe el ultimo estado cacheado de la sesion", async () => {
+  const created = await createPmdgSession("Grace", "captain");
+  const foToken = await joinSessionAs(created.joinCode, "Heidi", "first_officer");
+
+  const captain = await connectSeat(created.joinCode, created.hostToken);
+  const firstOfficer = await connectSeat(created.joinCode, foToken);
+  await settle();
+
+  captain.socket.send(
+    JSON.stringify({
+      type: "aircraft.snapshot",
+      sessionId: created.joinCode,
+      revision: 4,
+      profile: "pmdg-737-900",
+      simulatorVersion: "msfs2020",
+      detectedTitle: "PMDG 737-900",
+      appVersion: "0.1.42",
+      systems: { electrical: { battery: true } },
+    })
+  );
+  captain.socket.send(
+    JSON.stringify({
+      type: "control.event",
+      sessionId: created.joinCode,
+      controlId: "lights.beacon",
+      value: true,
+      source: "grace-bridge",
+      sequence: 10,
+      timestamp: Date.now(),
+    })
+  );
+  captain.socket.send(
+    JSON.stringify({
+      type: "screen.snapshot",
+      sessionId: created.joinCode,
+      screenId: "cdu_captain",
+      rows: 2,
+      cols: 2,
+      cells: [
+        { char: "A", colorId: 0, flags: 0 },
+        { char: "B", colorId: 1, flags: 0 },
+        { char: "C", colorId: 2, flags: 0 },
+        { char: "D", colorId: 3, flags: 0 },
+      ],
+      revision: 3,
+      powered: true,
+      timestamp: Date.now(),
+    })
+  );
+  captain.socket.send(
+    JSON.stringify({
+      type: "flight.pose",
+      sessionId: created.joinCode,
+      sequence: 11,
+      timestamp: Date.now(),
+      lat: 40.1,
+      lon: -3.5,
+      alt: 12000,
+      pitch: 2,
+      bank: 1,
+      heading: 270,
+      groundSpeed: 250,
+      indicatedAirspeed: 240,
+      verticalSpeed: 300,
+    })
+  );
+  await settle();
+
+  const observerToken = await joinSessionAs(created.joinCode, "Ivan", "observer");
+  const observer = await connectSeat(created.joinCode, observerToken);
+  await settle();
+
+  const replayedSnapshot = firstMessage(observer.received, "aircraft.snapshot");
+  assert.ok(replayedSnapshot, "el peer tardio debe recibir aircraft.snapshot cacheado");
+  assert.equal(replayedSnapshot.revision, 4);
+  assert.equal(replayedSnapshot.profile, "pmdg-737-900");
+
+  const replayedControl = controlEvents(observer.received, "lights.beacon");
+  assert.equal(replayedControl.length, 1, "el peer tardio debe recibir el ultimo control.event cacheado");
+  assert.equal(replayedControl[0].value, true);
+  assert.equal(replayedControl[0].origin, "remote");
+  assert.equal(replayedControl[0].sourcePilot, "Grace");
+
+  const replayedScreen = observer.received.find((m) => m.type === "screen.snapshot" && m.screenId === "cdu_captain");
+  assert.ok(replayedScreen, "el peer tardio debe recibir la ultima pantalla cacheada");
+  assert.equal(replayedScreen.revision, 3);
+  assert.equal(replayedScreen.cells[0].char, "A");
+
+  const replayedPose = firstMessage(observer.received, "flight.pose");
+  assert.ok(replayedPose, "el peer tardio debe recibir flight.pose cacheado");
+  assert.equal(replayedPose.sequence, 11);
+  assert.equal(replayedPose.heading, 270);
+
+  captain.socket.close();
+  firstOfficer.socket.close();
+  observer.socket.close();
 });
 
 after(async () => {
