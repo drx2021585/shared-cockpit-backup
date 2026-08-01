@@ -182,14 +182,20 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.45",
+    version: "0.1.46",
     title: "Current build",
     date: "2026-08-01",
     commits: [
-      "Host direct session works again: creating a party as a direct host stopped failing with 'Failed to fetch'. The app was blocking its own local host on two separate layers before the request ever left the PC.",
-      "Joining a direct invite code from another PC is fixed by the same change — the guest's requests to the host's address were being discarded in the same way.",
-      "If the local host ever becomes unreachable again, the app now names the address it tried and points at firewall or antivirus, instead of showing a raw network error.",
-      "Choosing Host direct session in the browser build now says desktop-only up front, rather than failing against a port that only exists in the desktop app.",
+      "Internal cleanup of the direct-host fix from 0.1.45 — same behaviour, less code. No action needed if you already updated.",
+    ],
+  },
+  {
+    version: "0.1.45",
+    title: "Published release",
+    date: "2026-08-01",
+    commits: [
+      "Host direct session works again: creating a party as a direct host stopped failing with 'Failed to fetch'. The app was blocking its own local host before the request ever left the PC.",
+      "Joining someone's direct invite code from another PC is fixed by the same change — the guest's requests were being discarded in the same way.",
     ],
   },
   {

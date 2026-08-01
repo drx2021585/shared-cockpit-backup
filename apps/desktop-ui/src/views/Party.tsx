@@ -109,9 +109,7 @@ export function Party({
     try {
       const directRelay = window.weconnectDirectRelay;
       if (!directRelay) {
-        // Build web puro: el direct host vive en el proceso principal de
-        // Electron (electron/directRelay.cjs), no hay nada escuchando en
-        // 127.0.0.1:8787 que se pueda levantar desde el navegador.
+        // El direct host vive en el proceso principal de Electron.
         setError("Direct hosting is only available in the We Connect desktop app.");
         return;
       }
@@ -121,26 +119,15 @@ export function Party({
         return;
       }
       const readyBaseUrl = started.baseUrl ?? localDirectRelayBaseUrl;
-      try {
-        await fetchServerHealth(readyBaseUrl);
-      } catch (healthError) {
-        // Un fallo de red crudo aquí (fetch rechazado por CSP, firewall o
-        // antivirus) llegaba a la UI como "Failed to fetch", que no le dice
-        // nada al usuario ni a un reporte de diagnóstico.
-        if (healthError instanceof ApiError) throw healthError;
-        setError(
-          `The direct host started but could not be reached at ${readyBaseUrl}. ` +
-            "Check that no firewall or antivirus is blocking We Connect on this PC."
-        );
-        return;
-      }
+      await fetchServerHealth(readyBaseUrl);
       onRelayConfigChange({ mode: "self-hosted", customBaseUrl: readyBaseUrl });
       await createParty(readyBaseUrl);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(`Direct host could not start the session: ${err.code}`);
       } else {
-        setError(err instanceof Error ? err.message : "Could not start the direct host on this PC.");
+        // Un fallo de red crudo aquí llega como "Failed to fetch", que no dice nada.
+        setError("The direct host started but could not be reached. Check that no firewall or antivirus is blocking We Connect on this PC.");
       }
     } finally {
       setSubmitting(false);

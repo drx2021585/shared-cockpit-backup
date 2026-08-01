@@ -543,20 +543,14 @@ function createDirectRelay(options) {
   function buildApp() {
     const relayApp = express();
 
-    // CORS. Sin esto el direct host no era usable desde la app: el renderer
-    // empaquetado se sirve por file:// (Origin: null) y el invitado lo llama
-    // desde otro origen, así que todo /api iba por preflight y el navegador
-    // descartaba la respuesta -> "Failed to fetch" al crear la party. Va antes
-    // del gate de versión de abajo porque un preflight OPTIONS no lleva
-    // cabeceras custom y ese gate lo respondía con 426.
-    //
-    // Se refleja el Origin en vez de "*" para que el header Authorization
-    // (token de participante) siga siendo aceptable, y se declara
-    // X-WeConnect-Client-Version porque el cliente la manda en cada request.
+    // CORS. El renderer empaquetado se sirve por file:// (Origin: null) y el
+    // invitado llama desde otro origen, así que todo /api va por preflight.
+    // Va ANTES del gate de versión de abajo: un preflight no lleva cabeceras
+    // custom y ese gate lo respondía con 426.
+    // ponytail: gemelo de corsMiddleware en server/api/src/security.ts, que no
+    // es importable desde aquí (TS, otro paquete). Tocar los dos a la vez.
     relayApp.use((req, res, next) => {
-      const origin = typeof req.headers.origin === "string" ? req.headers.origin : null;
-      res.setHeader("Access-Control-Allow-Origin", origin && origin !== "null" ? origin : "*");
-      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WeConnect-Client-Version");
       res.setHeader("Access-Control-Max-Age", "600");
