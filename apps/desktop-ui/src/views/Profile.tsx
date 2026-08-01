@@ -32,10 +32,9 @@ export function Profile({
   const [directPort, setDirectPort] = useState<number>(25071);
   const [directRunning, setDirectRunning] = useState(false);
   const [directStatus, setDirectStatus] = useState<string | null>(null);
-  const [localIpv4, setLocalIpv4] = useState<string | null>(null);
-  const [localIpv6, setLocalIpv6] = useState<string | null>(null);
   const [publicIpv4, setPublicIpv4] = useState<string | null>(null);
-  const [publicIpv6, setPublicIpv6] = useState<string | null>(null);
+
+  const autoRelayUrl = publicIpv4 ? `http://${publicIpv4}:${directPort}` : "";
 
   function toggleVersion(version: string) {
     setExpandedVersions((current) => ({
@@ -66,14 +65,11 @@ export function Profile({
       .then((config) => {
         setDirectPort(config.port ?? config.defaultPort);
         setDirectRunning(config.running);
-        setLocalIpv4(config.localAddresses.ipv4);
-        setLocalIpv6(config.localAddresses.ipv6);
       })
       .catch(() => undefined);
     window.weconnectNetwork?.getPublicAddresses()
       .then((info) => {
         setPublicIpv4(info.ipv4);
-        setPublicIpv6(info.ipv6);
       })
       .catch(() => undefined);
   }, []);
@@ -81,7 +77,7 @@ export function Profile({
   function saveRelaySettings() {
     setRelayConfig({
       mode: relayMode,
-      customUrl: relayMode === "custom" ? customRelayUrl : null,
+      customUrl: relayMode === "custom" ? (autoRelayUrl || customRelayUrl) : null,
     });
     setRelayError(null);
     setRelaySaved(
@@ -93,7 +89,9 @@ export function Profile({
 
   async function testRelayUrl() {
     const base =
-      relayMode === "hosted" ? getDefaultRelayApiBaseUrl() : customRelayUrl.trim().replace(/\/+$/, "");
+      relayMode === "hosted"
+        ? getDefaultRelayApiBaseUrl()
+        : (autoRelayUrl || customRelayUrl).trim().replace(/\/+$/, "");
     if (!base) {
       setRelayError("Enter the relay URL first.");
       return;
@@ -127,11 +125,6 @@ export function Profile({
     }
     setDirectRunning(true);
     setDirectPort(result.port ?? directPort);
-    setLocalIpv4(result.localAddresses?.ipv4 ?? null);
-    setLocalIpv6(result.localAddresses?.ipv6 ?? null);
-    if (!customRelayUrl.trim() && result.localAddresses?.ipv4 && result.port) {
-      setCustomRelayUrl(`http://${result.localAddresses.ipv4}:${result.port}`);
-    }
     setDirectStatus(`Direct host listening on TCP ${result.port}. Forward that same port to this PC.`);
   }
 
@@ -209,8 +202,9 @@ export function Profile({
                   <input
                     type="text"
                     placeholder="http://YOUR-PUBLIC-IP:25071"
-                    value={customRelayUrl}
+                    value={autoRelayUrl || customRelayUrl}
                     onChange={(e) => setCustomRelayUrl(e.target.value)}
+                    readOnly={!!autoRelayUrl}
                   />
                 </div>
                 <div className="field">
@@ -239,15 +233,10 @@ export function Profile({
                     Save relay settings
                   </button>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-35)", display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div>Host LAN IPv4: {localIpv4 ?? "unknown"}</div>
-                  <div>Host LAN IPv6: {localIpv6 ?? "unknown"}</div>
-                  <div>Host public IPv4: {publicIpv4 ?? "unknown"}</div>
-                  <div>Host public IPv6: {publicIpv6 ?? "unknown"}</div>
-                  <div>Router rule: TCP {directPort} external -&gt; {localIpv4 ?? "HOST-LAN-IP"}:{directPort} internal</div>
-                  <div>
-                    Guest URL: <span className="mono">{`http://${publicIpv4 ?? "YOUR-PUBLIC-IP"}:${directPort}`}</span> or your public DNS name on the same port.
-                  </div>
+                <div style={{ fontSize: 12, color: "var(--text-35)" }}>
+                  {autoRelayUrl
+                    ? "Relay URL is generated automatically from your public IPv4 and the direct-host port."
+                    : "Public IPv4 could not be detected, so the relay URL stays manual."}
                 </div>
               </>
             )}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
+import { getRelayConfig } from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -18,6 +19,15 @@ export function Party({
   onSessionReady,
 }: PartyProps) {
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
+  const relayConfig = getRelayConfig();
+  const customRelayUrl = relayConfig.mode === "custom" ? relayConfig.customUrl : null;
+  const customRelayHost = customRelayUrl ? (() => {
+    try {
+      return new URL(customRelayUrl).host;
+    } catch {
+      return customRelayUrl;
+    }
+  })() : null;
 
   const [sessionName, setSessionName] = useState("Afternoon flight");
   const [aircraftProfileId, setAircraftProfileId] = useState<string>("");
@@ -86,6 +96,32 @@ export function Party({
 
       <div className="grid-2">
         <div style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}>
+          {customRelayUrl && (
+            <div
+              style={{
+                border: "1px solid var(--hairline)",
+                background: "rgba(255,255,255,0.03)",
+                padding: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div className="mono-label">Direct host checklist</div>
+              <div style={{ fontSize: 12, color: "var(--text-70)" }}>
+                This party will use your own relay at <span className="mono">{customRelayUrl}</span>.
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-35)" }}>
+                Before your friend joins from another network, make sure:
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-70)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <div>1. The local direct host is running in Profile -&gt; My own relay.</div>
+                <div>2. Your router forwards the same TCP port from the internet to this PC.</div>
+                <div>3. Your friend uses the same relay URL: <span className="mono">{customRelayUrl}</span>.</div>
+                <div>4. If they cannot reach it, test that <span className="mono">{customRelayHost}</span> is really your current public address.</div>
+              </div>
+            </div>
+          )}
           <div className="field">
             <label>Your pilot name</label>
             <input

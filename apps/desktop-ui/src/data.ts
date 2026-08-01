@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.56",
+    version: "0.1.57",
     title: "Current build",
+    date: "2026-08-01",
+    commits: [
+      "The low-level network details were removed from Profile, so the relay settings screen stays focused on choosing hosted relay versus your own relay and on starting the direct host.",
+      "The direct-host guidance now appears in Create a party, where the host actually needs it: if you're using your own relay, the screen now reminds you to keep the local direct host running, forward the same TCP port in the router, and give your co-pilot the same relay URL.",
+      "Relay URL generation still stays automatic from public IPv4 plus Direct host port when the app can detect your public address.",
+    ],
+  },
+  {
+    version: "0.1.56",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "We Connect can host a direct self-hosted relay again: the host PC now runs a local in-memory HTTP + WebSocket session server that can be exposed to the internet with manual router port forwarding.",
