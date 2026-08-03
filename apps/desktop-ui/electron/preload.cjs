@@ -59,7 +59,7 @@ contextBridge.exposeInMainWorld("weconnectWindow", {
 
 /**
  * Token efímero del bridge local (ver main.cjs launchBridgeIfNeeded): el
- * renderer lo anexa como ?token= al conectar a ws://localhost:7620, para que
+ * renderer lo anexa como ?token= al conectar a ws://127.0.0.1:17481, para que
  * solo esta app pueda hablar con el bridge. null si el bridge corre lanzado
  * a mano (flujo de desarrollo sin token).
  */

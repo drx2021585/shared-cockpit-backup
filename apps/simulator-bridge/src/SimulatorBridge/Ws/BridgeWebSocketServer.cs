@@ -9,8 +9,8 @@ using SharedCockpit.Bridge.Protocol;
 namespace SharedCockpit.Bridge.Ws;
 
 /// <summary>
-/// Servidor WebSocket local en ws://localhost:7620 (puerto fijado por
-/// docs/decisiones/web-first.md). Usa HttpListener (incluido en .NET, sin
+/// Servidor WebSocket local en loopback (configurable; default 127.0.0.1:17481).
+/// Usa HttpListener (incluido en .NET, sin
 /// dependencias externas de framework web) porque este proceso es un
 /// worker/consola simple, no una API HTTP completa.
 ///
@@ -35,6 +35,7 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
     private byte[]? _lastStatusBytes;
     private CancellationTokenSource? _cts;
     private Task? _acceptLoopTask;
+    private readonly HashSet<string> _allowedOrigins;
     // Token efímero opcional (SHAREDCOCKPIT_BRIDGE_TOKEN): cuando We Connect
     // lanza este proceso, genera un secreto y lo exige como ?token= en el
     // handshake — así ningún otro proceso local puede inyectar comandos al
@@ -42,12 +43,13 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
     // acepta cualquier cliente local como antes.
     private readonly string? _authToken;
 
-    public BridgeWebSocketServer(int port, ILog log, Action<IncomingMessage> onIncoming, string? authToken = null)
+    public BridgeWebSocketServer(string host, int port, IEnumerable<string> allowedOrigins, ILog log, Action<IncomingMessage> onIncoming, string? authToken = null)
     {
         _log = log;
         _onIncoming = onIncoming;
         _authToken = string.IsNullOrEmpty(authToken) ? null : authToken;
-        _listener.Prefixes.Add($"http://localhost:{port}/");
+        _allowedOrigins = new HashSet<string>(allowedOrigins, StringComparer.OrdinalIgnoreCase);
+        _listener.Prefixes.Add($"http://{host}:{port}/");
     }
 
     /// <summary>
@@ -58,13 +60,12 @@ public sealed class BridgeWebSocketServer : IAsyncDisposable
     /// (Electron empaquetado), http://localhost / 127.0.0.1 (Vite dev) o
     /// ausencia de Origin (clientes no-navegador, p.ej. herramientas locales).
     /// </summary>
-    private static bool IsOriginAllowed(string? origin)
+    private bool IsOriginAllowed(string? origin)
     {
         if (string.IsNullOrEmpty(origin)) return true;
         return origin.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
             || origin.Equals("null", StringComparison.OrdinalIgnoreCase)
-            || origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
-            || origin.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase);
+            || _allowedOrigins.Any(allowed => origin.StartsWith(allowed, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool IsAuthorized(HttpListenerContext context)

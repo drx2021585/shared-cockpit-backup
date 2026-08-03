@@ -127,4 +127,35 @@ public class MessageShapeTests
         var unknown = Assert.IsType<IncomingUnknown>(parsed);
         Assert.Equal("session.ping", unknown.RawType);
     }
+
+    [Fact]
+    public void BridgeStatus_CanEmbedIflySdkStatus()
+    {
+        var json = BridgeStatus.Build(
+            simConnected: true,
+            matchedProfileId: "ifly-737-max8",
+            detectedTitle: "iFly 737-MAX8",
+            error: null,
+            simulatorVersion: "msfs2024",
+            iflyStatus: new SharedCockpit.Bridge.IFlySdk.IflySdkStatus(
+                SharedCockpit.Bridge.IFlySdk.IflyBridgeState.ConnectedReadOnly,
+                SimulatorDetected: true,
+                PluginProcessDetected: true,
+                MutexDetected: true,
+                SharedMemoryDetected: true,
+                ReadAccessAvailable: true,
+                CommandAccessAvailable: false,
+                PluginProcessName: "737MAX_Plugin",
+                ExpectedSdkVersion: "1.5",
+                ReportedSdkVersion: null,
+                StructureSizeBytes: 4096,
+                SnapshotByteLength: 4096,
+                LastSnapshotAtMs: 1_700_000_000_000,
+                RawChangesObserved: 3,
+                LastError: null));
+
+        Assert.Equal("ConnectedReadOnly", json["ifly"]!["state"]!.GetValue<string>());
+        Assert.True(json["ifly"]!["sharedMemoryDetected"]!.GetValue<bool>());
+        Assert.Equal(4096, json["ifly"]!["structureSizeBytes"]!.GetValue<int>());
+    }
 }

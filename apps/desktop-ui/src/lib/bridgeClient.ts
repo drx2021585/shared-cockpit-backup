@@ -12,7 +12,7 @@ import type {
 /**
  * Cliente hacia apps/simulator-bridge (agente simconnect-bridge-agent), el
  * proceso local en C#/.NET que habla SimConnect y expone un WebSocket en
- * ws://localhost:7620 con los mensajes de packages/protocol/types.ts
+ * ws://127.0.0.1:17481 con los mensajes de packages/protocol/types.ts
  * (control.event, control.axis, aircraft.snapshot). Este archivo NO habla
  * con SimConnect ni con la red externa directamente — solo consume ese
  * WebSocket local, igual que useSessionSocket.ts consume server/api.
@@ -23,7 +23,7 @@ import type {
  * `mode: "mock"` — la UI está obligada a mostrarlo como tal (ver Cockpit.tsx).
  * Nunca se debe presentar como telemetría real.
  *
- * Modo `real` (default): WebSocket real a ws://localhost:7620. Si no hay
+ * Modo `real` (default): WebSocket real a ws://127.0.0.1:17481. Si no hay
  * nada escuchando ahí (bridge no instalado/corriendo, o MSFS no abierto),
  * el estado se refleja honestamente como desconectado — no se rellena con
  * datos de ejemplo.
@@ -44,8 +44,26 @@ export interface BridgeReplaceResult {
   reason: string;
 }
 
+export interface BridgeIflyStatus {
+  state: string;
+  simulatorDetected: boolean;
+  pluginProcessDetected: boolean;
+  mutexDetected: boolean;
+  sharedMemoryDetected: boolean;
+  readAccessAvailable: boolean;
+  commandAccessAvailable: boolean;
+  pluginProcessName: string;
+  expectedSdkVersion: string | null;
+  reportedSdkVersion: string | null;
+  structureSizeBytes: number | null;
+  snapshotByteLength: number | null;
+  lastSnapshotAtMs: number | null;
+  rawChangesObserved: number;
+  lastError: string | null;
+}
+
 /**
- * Le pide a Electron que mate el bridge que esté escuchando en el 7620 y arranque
+ * Le pide a Electron que mate el bridge que esté escuchando en el 17481 y arranque
  * el empaquetado con la app. Es la salida para el caso en que un bridge viejo
  * quedó corriendo (lanzado a mano o de una versión anterior): la app se pega a él
  * porque el puerto ya responde, y sin esto el único arreglo era el Task Manager.
@@ -93,6 +111,7 @@ export interface BridgeDiagnostics {
   /** Controles cuya polaridad el bridge midió y corrigió en vivo. Es la lista que
    * se vuelca a los YAML del perfil para que llegue a todos los jugadores. */
   polarityInvertedControls: string[];
+  ifly?: BridgeIflyStatus | null;
   timestamp: number;
 }
 
@@ -128,6 +147,7 @@ export interface SimulatorBridgeState {
   simulatorVersion: "msfs2020" | "msfs2024" | null;
   bridgeApiVersion: number | null;
   bridgeBuildVersion: string | null;
+  ifly: BridgeIflyStatus | null;
   pose: BridgeFlightPose | null;
   /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
   controls: Record<string, BridgeControlValue>;
@@ -149,7 +169,7 @@ export interface SimulatorBridgeState {
   reconnectNow: () => void;
 }
 
-const BRIDGE_WS_URL = "ws://localhost:7620";
+const BRIDGE_WS_URL = "ws://127.0.0.1:17481";
 // Reconexión agresiva a propósito: el bridge es un proceso local, así que
 // reintentar rápido no cuesta red. Con el backoff viejo (500ms base, tope 15s)
 // una caída al pasar control dejaba la cabina muerta más de un minuto aunque el
@@ -188,6 +208,7 @@ function emptyState(
     simulatorVersion: null,
     bridgeApiVersion: null,
     bridgeBuildVersion: null,
+    ifly: null,
     pose: null,
     controls: {},
     screens: {},
@@ -208,6 +229,7 @@ function applyMessage(
       simulatorVersion?: "msfs2020" | "msfs2024";
       bridgeApiVersion?: number;
       bridgeBuildVersion?: string | null;
+      ifly?: BridgeIflyStatus | null;
     };
     return {
       ...state,
@@ -219,6 +241,7 @@ function applyMessage(
         typeof status.bridgeApiVersion === "number" ? status.bridgeApiVersion : null,
       bridgeBuildVersion:
         typeof status.bridgeBuildVersion === "string" ? status.bridgeBuildVersion : null,
+      ifly: status.ifly ?? null,
     };
   }
   if ((msg as unknown as { type: string }).type === "bridge.error") {

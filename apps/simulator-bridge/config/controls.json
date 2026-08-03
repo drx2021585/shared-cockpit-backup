@@ -1,0 +1,18 @@
+{
+  "controls": {
+    "overhead.battery": {
+      "readField": "REPLACE_WITH_REAL_SDK_FIELD",
+      "writeMethod": "command",
+      "commandOn": "REPLACE_WITH_REAL_KEY_COMMAND",
+      "commandOff": "REPLACE_WITH_REAL_KEY_COMMAND",
+      "fallbackToggle": null
+    },
+    "mcp.selectedAltitude": {
+      "readField": "REPLACE_WITH_REAL_SDK_FIELD",
+      "writeMethod": "incremental",
+      "incrementCommand": "REPLACE_WITH_REAL_COMMAND_ID",
+      "decrementCommand": "REPLACE_WITH_REAL_COMMAND_ID",
+      "step": 100
+    }
+  }
+}

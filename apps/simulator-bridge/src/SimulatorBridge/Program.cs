@@ -1,4 +1,6 @@
 using SharedCockpit.Bridge.Bridge;
+using SharedCockpit.Bridge.IFlySdk;
+using SharedCockpit.Bridge.Infrastructure;
 using SharedCockpit.Bridge.Logging;
 using SharedCockpit.Bridge.Profiles;
 using SharedCockpit.Bridge.SimConnectInterop;
@@ -7,7 +9,23 @@ using SharedCockpit.Bridge.Ws;
 var log = new ConsoleLog();
 log.Info("SharedCockpit.Bridge — Sprint 1 (Fase 1: detección + lectura/escritura básica)");
 
-const int Port = 7620; // ver docs/decisiones/web-first.md — puerto fijo acordado con desktop-ui.
+var runtimeConfig = BridgeConfiguration.Load(AppContext.BaseDirectory);
+var bridgeConfig = runtimeConfig.Bridge;
+var processDetector = new WindowsProcessDetector();
+var iflyMonitor = new IFlySdkMonitor(
+    bridgeConfig.Ifly,
+    processDetector,
+    new IFlyMemoryReader(),
+    log,
+    bridgeConfig.Diagnostics.LogEveryChange);
+
+if (args.Any(arg => string.Equals(arg, "--ifly-sdk-inspector", StringComparison.OrdinalIgnoreCase)))
+{
+    using var inspectorMonitor = iflyMonitor;
+    var inspector = new IFlySdkInspector(inspectorMonitor, bridgeConfig.Ifly, processDetector, log);
+    Environment.ExitCode = inspector.Run();
+    return;
+}
 
 var profilesRoot = Environment.GetEnvironmentVariable("SHAREDCOCKPIT_PROFILES_DIR")
     ?? ProfileRepository.DiscoverRoot(AppContext.BaseDirectory)
@@ -88,6 +106,7 @@ var bridge = new BridgeService(
     log,
     message => server?.Broadcast(message),
     simVersion,
+    iflySdkMonitor: iflyMonitor,
     pmdgClient: pmdgClient,
     sharedCockpitWasmClient: sharedCockpitWasmClient,
     // FsuipcLVarClient implementa también ICalculatorCodeClient (ver
@@ -107,7 +126,13 @@ if (!string.IsNullOrEmpty(bridgeToken))
     log.Info("Token de autenticación del bridge activo (SHAREDCOCKPIT_BRIDGE_TOKEN).");
 }
 
-server = new BridgeWebSocketServer(Port, log, bridge.HandleIncoming, bridgeToken);
+server = new BridgeWebSocketServer(
+    bridgeConfig.LocalWebSocket.Host,
+    bridgeConfig.LocalWebSocket.Port,
+    bridgeConfig.LocalWebSocket.AllowedOrigins,
+    log,
+    bridge.HandleIncoming,
+    bridgeToken);
 server.Start();
 
 using var cts = new CancellationTokenSource();

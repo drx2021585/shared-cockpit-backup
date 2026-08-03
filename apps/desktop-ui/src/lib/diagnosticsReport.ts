@@ -187,6 +187,7 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput) {
       lastMessageAt: bridge.lastMessageAt,
       controlsKnownLocally: Object.keys(bridge.controls).length,
       diagnostics: d,
+      ifly: bridge.ifly,
     },
 
     /** La lista accionable: qué corregir en el perfil. */

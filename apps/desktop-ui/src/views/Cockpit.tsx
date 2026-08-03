@@ -885,6 +885,26 @@ export function Cockpit({
                 </div>
               </div>
             )}
+            {(bridge.ifly ?? bridge.diagnostics?.ifly) && (
+              <>
+                <div className="net-row">
+                  <div className="net-label">iFly SDK state</div>
+                  <div className="net-value">
+                    {(bridge.ifly ?? bridge.diagnostics?.ifly)?.state}
+                  </div>
+                </div>
+                <div className="net-row">
+                  <div className="net-label">Plugin / mutex / memory</div>
+                  <div className="net-value">
+                    {[
+                      (bridge.ifly ?? bridge.diagnostics?.ifly)?.pluginProcessDetected ? "plugin" : "no plugin",
+                      (bridge.ifly ?? bridge.diagnostics?.ifly)?.mutexDetected ? "mutex" : "no mutex",
+                      (bridge.ifly ?? bridge.diagnostics?.ifly)?.sharedMemoryDetected ? "memory" : "no memory",
+                    ].join(" · ")}
+                  </div>
+                </div>
+              </>
+            )}
             {(bridge.diagnostics?.polarityInversionsLearned ?? 0) > 0 && (
               <div className="net-row">
                 <div className="net-label">Controls auto-corrected</div>

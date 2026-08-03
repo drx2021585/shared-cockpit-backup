@@ -1,0 +1,31 @@
+{
+  "bridge": {
+    "name": "WeConnect.IFlyBridge",
+    "localWebSocket": {
+      "host": "127.0.0.1",
+      "port": 17481,
+      "allowedOrigins": [
+        "http://localhost",
+        "http://127.0.0.1"
+      ]
+    },
+    "ifly": {
+      "expectedSdkVersion": "REPLACE_WITH_REAL_IFLY_SDK_VERSION",
+      "pollIntervalMs": 20,
+      "mutexTimeoutMs": 250,
+      "reconnectIntervalMs": 2000,
+      "maximumSnapshotBytes": 262144,
+      "pluginProcessName": "737MAX_Plugin",
+      "simulatorProcessNames": [
+        "FlightSimulator2024",
+        "FlightSimulator"
+      ],
+      "mutexName": "hMutex_737MAXSDK",
+      "mappingName": "REPLACE_WITH_REAL_IFLY_MAPPING_NAME",
+      "commandChannelAvailable": false
+    },
+    "diagnostics": {
+      "logEveryChange": true
+    }
+  }
+}

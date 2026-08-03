@@ -1263,7 +1263,7 @@ ipcMain.handle("setup:reset", () => writeSetupConfig({ firstLaunchCompleted: fal
 // package.json "build.extraResources") y se lanza solo al abrir la app.
 // ---------------------------------------------------------------------------
 
-const BRIDGE_PORT = 7620; // debe coincidir con Program.cs
+const BRIDGE_PORT = 17481; // debe coincidir con apps/simulator-bridge/config/bridge.json
 let bridgeProcess = null;
 let bridgeLogStream = null;
 let bridgeRestartTimer = null;

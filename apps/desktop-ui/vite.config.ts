@@ -19,7 +19,7 @@ const CSP = [
   "img-src 'self' data:",
   "font-src 'self' data:",
   "connect-src 'self' https://shared-cockpit-api.onrender.com wss://shared-cockpit-api.onrender.com " +
-    "ws://localhost:7620 ws://127.0.0.1:7620",
+    "ws://localhost:17481 ws://127.0.0.1:17481",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SharedCockpit.Bridge.IFlySdk;
 using SharedCockpit.Bridge.Logging;
 using SharedCockpit.Bridge.Profiles;
 using SharedCockpit.Bridge.Protocol;
@@ -198,6 +199,7 @@ public sealed class BridgeService : IAsyncDisposable
     private readonly TimeSpan _reconnectInterval;
     private readonly TimeSpan _pumpInterval;
     private readonly ControlValueDebouncer _debouncer = new();
+    private readonly IIflySdkMonitor? _iflySdkMonitor;
 
     private IReadOnlyList<AircraftProfile> _allProfiles = Array.Empty<AircraftProfile>();
 
@@ -253,6 +255,7 @@ public sealed class BridgeService : IAsyncDisposable
         string appName = "SharedCockpit.Bridge",
         TimeSpan? reconnectInterval = null,
         TimeSpan? pumpInterval = null,
+        IIflySdkMonitor? iflySdkMonitor = null,
         IPmdgClientDataClient? pmdgClient = null,
         IPmdgClientDataClient? sharedCockpitWasmClient = null,
         ICalculatorCodeClient? calculatorCodeClient = null,
@@ -270,6 +273,7 @@ public sealed class BridgeService : IAsyncDisposable
         _appName = appName;
         _reconnectInterval = reconnectInterval ?? TimeSpan.FromSeconds(5);
         _pumpInterval = pumpInterval ?? TimeSpan.FromMilliseconds(33);
+        _iflySdkMonitor = iflySdkMonitor;
         _pmdgClient = pmdgClient;
         _sharedCockpitWasmClient = sharedCockpitWasmClient;
         _calculatorCodeClient = calculatorCodeClient;
@@ -356,7 +360,8 @@ public sealed class BridgeService : IAsyncDisposable
                 var connected = _sim.TryConnect(_appName);
                 if (!connected)
                 {
-                    Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
+                    _iflySdkMonitor?.Pump(simulatorConnected: false);
+                    Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
                     try
                     {
                         await Task.Delay(_reconnectInterval, ct);
@@ -380,6 +385,7 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("simconnect", () => _sim.Pump());
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
+            PumpSafely("ifly-sdk", () => _iflySdkMonitor?.Pump(_sim.IsConnected));
             // Antes que las confirmaciones: si hay escrituras esperando su turno en
             // un trigger, conviene despacharlas ya para que la ventana de
             // confirmación de ese control corra con la escritura hecha, no con la
@@ -1585,7 +1591,7 @@ public sealed class BridgeService : IAsyncDisposable
         _pmdgUnavailableWarned = false;
         _sim.SubscribeString(TitleKey, "TITLE", PollMode.OnChange);
         SubscribeFlightPoseVariables();
-        Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel));
+        Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
     }
 
     private void OnDisconnected()
@@ -1595,7 +1601,8 @@ public sealed class BridgeService : IAsyncDisposable
         _matchedProfile = null;
         _lastTitle = null;
         _remoteFlightPoseTarget = null;
-        Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel));
+        _iflySdkMonitor?.Pump(simulatorConnected: false);
+        Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
     }
 
     private void OnSimConnectException(string message)
@@ -2205,14 +2212,14 @@ public sealed class BridgeService : IAsyncDisposable
                 : $"no matching aircraft profile (ojo: estos perfiles no se pudieron cargar y por eso " +
                   $"nunca van a detectarse: {string.Join(", ", _failedProfileIds)})";
 
-            Broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel));
+            Broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
             return;
         }
 
         _matchedProfile = result.Profile;
         ClearPendingWriteConfirmations();
         _log.Info($"Perfil detectado: '{result.Profile.ProfileId}' (partialMatch={result.IsPartialMatch}) para título '{title}'");
-        Broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel));
+        Broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
         SubscribeControls(result.Profile);
     }
 
@@ -2547,7 +2554,8 @@ public sealed class BridgeService : IAsyncDisposable
             polarityInversionsLearned: invertedForThisProfile.Length,
             pulsePressesWritten: _pulsePressesWritten,
             errorsReported: _errorsReported,
-            polarityInvertedControls: invertedForThisProfile));
+            polarityInvertedControls: invertedForThisProfile,
+            iflyStatus: _iflySdkMonitor?.CurrentStatus));
     }
 
     private long NextSequence() => Interlocked.Increment(ref _sequence);
@@ -2563,6 +2571,7 @@ public sealed class BridgeService : IAsyncDisposable
         _sim.StringValueReceived -= OnStringValueReceived;
         _debouncer.Dispose();
         _sim.Dispose();
+        _iflySdkMonitor?.Dispose();
 
         if (_pmdgClient is not null)
         {

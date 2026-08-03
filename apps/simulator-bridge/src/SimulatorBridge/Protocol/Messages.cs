@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
+using SharedCockpit.Bridge.IFlySdk;
 
 namespace SharedCockpit.Bridge.Protocol;
 
@@ -212,9 +213,10 @@ public static class BridgeStatus
         string? matchedProfileId,
         string? detectedTitle,
         string? error,
-        string simulatorVersion)
+        string simulatorVersion,
+        IflySdkStatus? iflyStatus = null)
     {
-        return new JsonObject
+        var json = new JsonObject
         {
             ["type"] = "bridge.status",
             ["simConnected"] = simConnected,
@@ -225,6 +227,36 @@ public static class BridgeStatus
             ["bridgeBuildVersion"] = ResolveBridgeBuildVersion(),
             ["error"] = error,
             ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+
+        json["ifly"] = BuildIflyStatusJson(iflyStatus);
+        return json;
+    }
+
+    internal static JsonObject? BuildIflyStatusJson(IflySdkStatus? status)
+    {
+        if (status is null)
+        {
+            return null;
+        }
+
+        return new JsonObject
+        {
+            ["state"] = status.State.ToString(),
+            ["simulatorDetected"] = status.SimulatorDetected,
+            ["pluginProcessDetected"] = status.PluginProcessDetected,
+            ["mutexDetected"] = status.MutexDetected,
+            ["sharedMemoryDetected"] = status.SharedMemoryDetected,
+            ["readAccessAvailable"] = status.ReadAccessAvailable,
+            ["commandAccessAvailable"] = status.CommandAccessAvailable,
+            ["pluginProcessName"] = status.PluginProcessName,
+            ["expectedSdkVersion"] = status.ExpectedSdkVersion,
+            ["reportedSdkVersion"] = status.ReportedSdkVersion,
+            ["structureSizeBytes"] = status.StructureSizeBytes,
+            ["snapshotByteLength"] = status.SnapshotByteLength,
+            ["lastSnapshotAtMs"] = status.LastSnapshotAtMs,
+            ["rawChangesObserved"] = status.RawChangesObserved,
+            ["lastError"] = status.LastError,
         };
     }
 }
@@ -258,9 +290,10 @@ public static class BridgeDiagnostics
         int polarityInversionsLearned,
         int pulsePressesWritten,
         int errorsReported,
-        IEnumerable<string> polarityInvertedControls)
+        IEnumerable<string> polarityInvertedControls,
+        IflySdkStatus? iflyStatus = null)
     {
-        return new JsonObject
+        var json = new JsonObject
         {
             ["type"] = "bridge.diagnostics",
             ["matchedProfileId"] = matchedProfileId,
@@ -286,6 +319,9 @@ public static class BridgeDiagnostics
                 polarityInvertedControls.Select(c => (JsonNode)JsonValue.Create(c)!).ToArray()),
             ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };
+
+        json["ifly"] = BridgeStatus.BuildIflyStatusJson(iflyStatus);
+        return json;
     }
 }
 

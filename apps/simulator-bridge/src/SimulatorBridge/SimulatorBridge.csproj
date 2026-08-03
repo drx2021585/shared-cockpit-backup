@@ -10,8 +10,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>SharedCockpit.Bridge</RootNamespace>
     <AssemblyName>SharedCockpit.Bridge</AssemblyName>
-    <Version>0.1.59</Version>
-    <InformationalVersion>0.1.59</InformationalVersion>
+    <Version>0.1.60</Version>
+    <InformationalVersion>0.1.60</InformationalVersion>
     <!-- Sprint 1: proceso de consola simple con logging a stdout. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- P/Invoke a SimConnect.dll (nativa) solo funciona en Windows x64. -->
@@ -25,10 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- El bridge lee los perfiles directamente desde aircraft-profiles/ en el repo
-         (consumidor, no dueño del contenido). En Sprint 1 se resuelve la ruta en
-         tiempo de ejecución subiendo desde el directorio de salida; ver
-         Profiles/ProfileRepository.cs para el algoritmo de búsqueda. -->
+    <None Include="..\..\config\**\*.json" Link="config\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
