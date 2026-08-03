@@ -64,8 +64,11 @@
     field: "L:VC_VNAV_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 3 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 4 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_VNAV"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -83,8 +86,11 @@
     field: "L:VC_LNAV_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 5 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 6 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_LNAV"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -102,8 +108,11 @@
     field: "L:VC_CMD_A_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 7 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 8 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_CMD_A"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -121,8 +130,11 @@
     field: "L:VC_CMD_B_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 9 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 10 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_CMD_B"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -186,8 +198,11 @@
     field: "L:VC_TOGA_1_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 15 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 16 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_TOGA_1"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -205,8 +220,11 @@
     field: "L:VC_TOGA_2_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 17 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 18 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_TOGA_2"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -220,8 +238,11 @@
   authority: shared
   writeOnly: true
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 15 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 16 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_TOGA_1"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: false
@@ -235,8 +256,11 @@
   authority: shared
   writeOnly: true
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 17 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 18 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_TOGA_2"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: false
@@ -254,8 +278,11 @@
     field: "L:VC_Changeover_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 19 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 20 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_CHANGEOVER"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -293,8 +320,11 @@
     field: "L:VC_SPD_INTV_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 23 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 24 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_SPD_INTV"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -355,8 +385,11 @@
     field: "L:VC_VOR_LOC_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 29 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 30 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_VORLOC"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -397,8 +430,11 @@
     field: "L:VC_ALT_INTV_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 33 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 34 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_ALT_INTV"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -436,8 +472,11 @@
     field: "L:VC_CWS_A_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 37 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 38 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_CWS_A"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -455,8 +494,11 @@
     field: "L:VC_CWS_B_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 39 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 40 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_CWS_B"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -520,8 +562,11 @@
     field: "L:VC_N1_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 45 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 46 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_N1"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -539,8 +584,11 @@
     field: "L:VC_SPEED_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 47 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 48 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_SPEED"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -558,8 +606,11 @@
     field: "L:VC_LVL_CHG_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 49 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 50 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_LVL_CHG"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -577,8 +628,11 @@
     field: "L:VC_HDG_SEL_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 51 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 52 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_HDG_SEL"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -596,8 +650,11 @@
     field: "L:VC_APP_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 53 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 54 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_APP"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -615,8 +672,11 @@
     field: "L:VC_ALT_HLD_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "$value 0 > if{ 55 (>L:VC_Automatic_Flight_trigger_VAL,number) } els{ 56 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_ALT_HLD"
+    parameter: "1|0|0"
+    semantics: "Momentary click. Bridge writes only on press; false closes the pulse locally without a second SDK command."
   synchronization:
     mode: event
     confirmAfterWrite: true

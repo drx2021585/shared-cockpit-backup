@@ -869,14 +869,25 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         var areaName = write.AreaName ?? string.Empty;
-        if (!EnsurePmdgClientReady(_pmdgClient, areaName, control.Id, "write"))
+        var client = ResolveClientDataClient(areaName);
+        if (!EnsurePmdgClientReady(client, areaName, control.Id, "write"))
         {
             return false;
         }
 
+        // Los botones momentáneos del SDK oficial de iFly (Click/Press) NO tienen
+        // rama de "soltar": el SDK expone una única orden de clic. El flanco
+        // falso del boolean llega igual por la red para cerrar el par
+        // pulsar/soltar y para que TrackPulseWrite limpie el estado local, pero no
+        // debe traducirse a una segunda escritura real.
+        if (MomentaryPulse.IsPulseControl(control) && !IsPulsePressRequested(value))
+        {
+            return true;
+        }
+
         var eventIdOrName = write.Event ?? string.Empty;
         var resolvedParameter = ResolveWriteEventParameter(write.Parameter, control.DataType, value);
-        var ok = _pmdgClient!.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
+        var ok = client!.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
         if (!ok)
         {
             Broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));

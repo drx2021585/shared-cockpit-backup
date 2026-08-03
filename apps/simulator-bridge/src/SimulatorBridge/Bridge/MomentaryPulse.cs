@@ -49,6 +49,7 @@ namespace SharedCockpit.Bridge.Bridge;
 /// </summary>
 public static class MomentaryPulse
 {
+    private const string IflyControlAreaName = "iFly737MAX_SDK_Control";
     private sealed record SinglePressShape(string TriggerLVar, int CommandCode);
 
     /// <summary>
@@ -98,10 +99,46 @@ public static class MomentaryPulse
     }
 
     /// <summary>
-    /// ¿Este control se escribe como un pulso? Solo aplica a write.type=calculatorCode:
-    /// las otras formas de escritura (inputEvent, hvar, clientDataEvent) tienen su
-    /// propia semántica y no se tocan acá.
+    /// ¿Este control se escribe como un pulso?
+    ///
+    /// Originalmente solo aplicaba a write.type=calculatorCode (forma RPN de dos
+    /// ramas del generador iFly). Al portar los botones momentáneos del MCP al SDK
+    /// oficial de iFly apareció la misma semántica por otro canal:
+    ///
+    ///   write.type=clientDataEvent
+    ///   areaName: iFly737MAX_SDK_Control
+    ///   event: KEY_COMMAND_*          // Click/Press
+    ///
+    /// En el header del SDK los SET absolutos terminan en _SET y los selectores
+    /// relativos en _INC/_DEC; los Click/Press NO. Para dataType=boolean esa forma
+    /// también representa un pulso momentáneo y debe quedar fuera de
+    /// confirmAfterWrite, AlreadyAtValue, debounce y eco exactamente igual que la
+    /// forma RPN.
     /// </summary>
-    public static bool IsPulseControl(ControlDefinition control) =>
-        control.Write is { Type: WriteType.CalculatorCode } write && IsPulse(write.Name);
+    public static bool IsPulseControl(ControlDefinition control)
+    {
+        var write = control.Write;
+        if (write is null)
+        {
+            return false;
+        }
+
+        if (write.Type == WriteType.CalculatorCode)
+        {
+            return IsPulse(write.Name);
+        }
+
+        if (write.Type != WriteType.ClientDataEvent
+            || control.DataType != ControlDataType.Boolean
+            || !string.Equals(write.AreaName, IflyControlAreaName, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(write.Event))
+        {
+            return false;
+        }
+
+        return write.Event.StartsWith("KEY_COMMAND_", StringComparison.Ordinal)
+            && !write.Event.EndsWith("_SET", StringComparison.Ordinal)
+            && !write.Event.EndsWith("_INC", StringComparison.Ordinal)
+            && !write.Event.EndsWith("_DEC", StringComparison.Ordinal);
+    }
 }

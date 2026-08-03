@@ -1,4 +1,5 @@
 using SharedCockpit.Bridge.Bridge;
+using SharedCockpit.Bridge.Profiles;
 using Xunit;
 
 namespace SimulatorBridge.Tests;
@@ -20,6 +21,25 @@ public class MomentaryPulseTests
     [InlineData("$value   0   >   if{ 3 (>L:X,number) }  els{ 4 (>L:X,number) }")]
     public void IsPulse_RecognizesTheGeneratedMomentaryButtonForm(string rpn) =>
         Assert.True(MomentaryPulse.IsPulse(rpn));
+
+    [Fact]
+    public void IsPulseControl_RecognizesIflySdkClickEventAsMomentaryPulse()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "autoflight.vnav_sw",
+            DataType = ControlDataType.Boolean,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.ClientDataEvent,
+                AreaName = "iFly737MAX_SDK_Control",
+                Event = "KEY_COMMAND_AUTOMATICFLIGHT_VNAV",
+                Parameter = "1|0|0",
+            },
+        };
+
+        Assert.True(MomentaryPulse.IsPulseControl(control));
+    }
 
     [Theory]
     // Selector posicional: compara contra $value, sin rama els{.
@@ -52,6 +72,25 @@ public class MomentaryPulseTests
     {
         Assert.False(MomentaryPulse.IsPulse(null));
         Assert.False(MomentaryPulse.IsPulse(string.Empty));
+    }
+
+    [Fact]
+    public void IsPulseControl_DoesNotMisclassifyIflySdkSetEvent()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "autoflight.heading_sw",
+            DataType = ControlDataType.Number,
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.ClientDataEvent,
+                AreaName = "iFly737MAX_SDK_Control",
+                Event = "KEY_COMMAND_AUTOMATICFLIGHT_HDG_SEL_SET",
+                Parameter = "1|$value|0",
+            },
+        };
+
+        Assert.False(MomentaryPulse.IsPulseControl(control));
     }
 
     [Fact]

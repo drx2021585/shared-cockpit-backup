@@ -803,6 +803,91 @@ public class BridgeServiceConfirmAfterWriteTests
     }
 
     [Fact]
+    public void IflySdkMomentaryClick_FullPressReleasePair_WritesOnlyThePress()
+    {
+        var sdk = new FakeClientDataClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            iflyClient: sdk);
+
+        SetMatchedProfile(service, MakeProfileWithIflySdkMomentaryButton());
+
+        InvokePrivate(service, "OnNumericValueReceived", "autoflight.vnav_sw", 0d);
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "autoflight.vnav_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "autoflight.vnav_sw", RawValue: JsonValue.Create(false),
+            Source: "peer", Sequence: 2, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(sdk.Writes);
+        Assert.Equal("iFly737MAX_SDK_Control", sdk.Writes[0].AreaName);
+        Assert.Equal("KEY_COMMAND_AUTOMATICFLIGHT_VNAV", sdk.Writes[0].EventIdOrName);
+        Assert.Equal("1|0|0", sdk.Writes[0].Parameter);
+    }
+
+    [Fact]
+    public void IflySdkMomentaryClick_ReleaseWithoutAPrecedingPress_IsSkipped()
+    {
+        var sdk = new FakeClientDataClient();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            _ => { },
+            SimulatorVersion.Msfs2020,
+            iflyClient: sdk);
+
+        SetMatchedProfile(service, MakeProfileWithIflySdkMomentaryButton());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "autoflight.vnav_sw", RawValue: JsonValue.Create(false),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Empty(sdk.Writes);
+    }
+
+    [Fact]
+    public void IflySdkMomentaryClick_IsNeverRetried_WhenReadbackNeverMatches()
+    {
+        var sdk = new FakeClientDataClient();
+        var broadcasts = new List<JsonObject>();
+        var service = new BridgeService(
+            new FakeSimConnectClient(),
+            new ProfileRepository(Path.GetTempPath()),
+            new FakeLog(),
+            broadcasts.Add,
+            SimulatorVersion.Msfs2020,
+            iflyClient: sdk);
+
+        SetMatchedProfile(service, MakeProfileWithIflySdkMomentaryButton());
+
+        service.HandleIncoming(new IncomingControlEvent(
+            SessionId: "s1", ControlId: "autoflight.vnav_sw", RawValue: JsonValue.Create(true),
+            Source: "peer", Sequence: 1, Timestamp: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Origin: MessageOrigin.Remote));
+
+        Assert.Single(sdk.Writes);
+
+        Thread.Sleep(500);
+        InvokePrivate(service, "ProcessPendingWriteConfirmations");
+
+        Assert.Single(sdk.Writes);
+        Assert.DoesNotContain(
+            broadcasts,
+            b => b["operation"]?.GetValue<string>() == "confirmAfterWrite");
+    }
+
+    [Fact]
     public void WriteOnlyTriggerMirror_LocalCockpitPulse_IsEmittedAsControlEvent()
     {
         var broadcasts = new List<JsonObject>();
@@ -981,6 +1066,48 @@ public class BridgeServiceConfirmAfterWriteTests
                 Mode = SyncMode.Event,
                 DebounceMs = 100,
                 ConfirmAfterWrite = false,
+                TimeoutMs = 400,
+            },
+        };
+
+        return new AircraftProfile
+        {
+            ProfileId = "ifly-737-max8",
+            Manifest = new AircraftManifest(),
+            Detection = new DetectionRule(),
+            Controls = new[] { control },
+        };
+    }
+
+    private static AircraftProfile MakeProfileWithIflySdkMomentaryButton()
+    {
+        var control = new ControlDefinition
+        {
+            Id = "autoflight.vnav_sw",
+            DataType = ControlDataType.Boolean,
+            Authority = ControlAuthority.Shared,
+            ReadOnly = false,
+            WriteOnly = false,
+            Read = new ControlReadDefinition
+            {
+                Type = ReadType.ClientDataArea,
+                AreaName = "SharedCockpitBridge_LVars",
+                Field = "L:VC_VNAV_SW_VAL",
+                NativeType = ClientDataNativeType.Float,
+            },
+            Write = new ControlWriteDefinition
+            {
+                Type = WriteType.ClientDataEvent,
+                AreaName = "iFly737MAX_SDK_Control",
+                Event = "KEY_COMMAND_AUTOMATICFLIGHT_VNAV",
+                Parameter = "1|0|0",
+                Semantics = "Momentary click. Value1=1 enables click sound.",
+            },
+            Synchronization = new ControlSynchronization
+            {
+                Mode = SyncMode.Event,
+                DebounceMs = 50,
+                ConfirmAfterWrite = true,
                 TimeoutMs = 400,
             },
         };
@@ -1194,6 +1321,34 @@ public class BridgeServiceConfirmAfterWriteTests
             ExecutedCodes.Add(code);
             return true;
         }
+    }
+
+    private sealed class FakeClientDataClient : IPmdgClientDataClient
+    {
+        public bool IsConnected => true;
+        public List<(string AreaName, string EventIdOrName, string? Parameter)> Writes { get; } = new();
+
+        public event Action? Connected;
+        public event Action? Disconnected;
+        public event Action<string>? Warning;
+        public event Action<string, double>? FieldValueReceived;
+        public event Action<string, string>? StringFieldValueReceived;
+        public event Action<ScreenSnapshotMessage>? ScreenSnapshotReceived;
+
+        public bool TryConnect(string appName) => true;
+        public void Disconnect() { }
+        public void Pump() { }
+        public void ResetSubscriptions() { }
+        public bool SubscribeField(string controlId, string areaName, string field, int? arrayIndex, ClientDataNativeType nativeType) => true;
+        public bool SubscribeScreen(ScreenDefinition screen) => true;
+
+        public bool WriteControlEvent(string areaName, string eventIdOrName, string? parameter)
+        {
+            Writes.Add((areaName, eventIdOrName, parameter));
+            return true;
+        }
+
+        public void Dispose() { }
     }
 
     private sealed class FakeSimConnectClient : ISimConnectClient
