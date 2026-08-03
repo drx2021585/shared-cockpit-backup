@@ -139,6 +139,7 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private readonly ICalculatorCodeClient? _calculatorCodeClient;
     private bool _calculatorCodeUnavailableWarned;
+    private readonly IPmdgClientDataClient? _iflyClient;
 
     /// <summary>
     /// Polaridad real APRENDIDA de los controles posicionales, que el perfil no
@@ -258,6 +259,7 @@ public sealed class BridgeService : IAsyncDisposable
         IIflySdkMonitor? iflySdkMonitor = null,
         IPmdgClientDataClient? pmdgClient = null,
         IPmdgClientDataClient? sharedCockpitWasmClient = null,
+        IPmdgClientDataClient? iflyClient = null,
         ICalculatorCodeClient? calculatorCodeClient = null,
         PolarityCalibration? polarityCalibration = null)
     {
@@ -276,6 +278,7 @@ public sealed class BridgeService : IAsyncDisposable
         _iflySdkMonitor = iflySdkMonitor;
         _pmdgClient = pmdgClient;
         _sharedCockpitWasmClient = sharedCockpitWasmClient;
+        _iflyClient = iflyClient;
         _calculatorCodeClient = calculatorCodeClient;
 
         _sim.Connected += OnConnected;
@@ -298,6 +301,16 @@ public sealed class BridgeService : IAsyncDisposable
             _sharedCockpitWasmClient.FieldValueReceived += OnNumericValueReceived;
             _sharedCockpitWasmClient.StringFieldValueReceived += OnStringValueReceived;
             _sharedCockpitWasmClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
+        }
+
+        if (_iflyClient is not null
+            && !ReferenceEquals(_iflyClient, _pmdgClient)
+            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+        {
+            _iflyClient.Warning += OnPmdgWarning;
+            _iflyClient.FieldValueReceived += OnNumericValueReceived;
+            _iflyClient.StringFieldValueReceived += OnStringValueReceived;
+            _iflyClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
         }
     }
 
@@ -829,6 +842,9 @@ public sealed class BridgeService : IAsyncDisposable
     /// momentáneos sin estado).
     /// </summary>
     private const string DynamicParameterPlaceholder = "$value";
+    private const string IflyApuStatePlaceholder = "$ifly_apu_state";
+    private const string IflyBoolStatePlaceholder = "$ifly_bool_state";
+    private const string IflyThreeStatePlaceholder = "$ifly_three_state";
 
     /// <summary>
     /// Escribe un control write.type=clientDataEvent (SDK de terceros, ej. PMDG
@@ -1566,10 +1582,9 @@ public sealed class BridgeService : IAsyncDisposable
     /// </summary>
     private static string? ResolveWriteEventParameter(string? declaredParameter, ControlDataType dataType, object value)
     {
-        if (!string.Equals(declaredParameter, DynamicParameterPlaceholder, StringComparison.Ordinal))
+        if (declaredParameter is null)
         {
-            // Comportamiento histórico: literal estático (o null) definido en el perfil.
-            return declaredParameter;
+            return null;
         }
 
         var numeric = dataType switch
@@ -1579,7 +1594,95 @@ public sealed class BridgeService : IAsyncDisposable
             _ => 0,
         };
 
-        return numeric.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var numericText = numeric.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var iflyApuStateText = ResolveIflyApuState(value).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (string.Equals(declaredParameter, DynamicParameterPlaceholder, StringComparison.Ordinal))
+        {
+            return numericText;
+        }
+        if (string.Equals(declaredParameter, IflyApuStatePlaceholder, StringComparison.Ordinal))
+        {
+            return iflyApuStateText;
+        }
+        if (string.Equals(declaredParameter, IflyBoolStatePlaceholder, StringComparison.Ordinal))
+        {
+            return ResolveIflyBoolState(value).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (string.Equals(declaredParameter, IflyThreeStatePlaceholder, StringComparison.Ordinal))
+        {
+            return ResolveIflyThreeState(value).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (!declaredParameter.Contains(DynamicParameterPlaceholder, StringComparison.Ordinal)
+            && !declaredParameter.Contains(IflyApuStatePlaceholder, StringComparison.Ordinal)
+            && !declaredParameter.Contains(IflyBoolStatePlaceholder, StringComparison.Ordinal)
+            && !declaredParameter.Contains(IflyThreeStatePlaceholder, StringComparison.Ordinal))
+        {
+            // Comportamiento histórico: literal estático definido en el perfil.
+            return declaredParameter;
+        }
+
+        return declaredParameter
+            .Replace(DynamicParameterPlaceholder, numericText, StringComparison.Ordinal)
+            .Replace(IflyApuStatePlaceholder, iflyApuStateText, StringComparison.Ordinal)
+            .Replace(
+                IflyBoolStatePlaceholder,
+                ResolveIflyBoolState(value).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                StringComparison.Ordinal)
+            .Replace(
+                IflyThreeStatePlaceholder,
+                ResolveIflyThreeState(value).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                StringComparison.Ordinal);
+    }
+
+    private static int ResolveIflyApuState(object value)
+    {
+        if (value is not double d)
+        {
+            return 0;
+        }
+
+        if (d > 15d)
+        {
+            return 2; // START
+        }
+
+        return d >= 5d ? 1 : 0; // ON / OFF
+    }
+
+    private static int ResolveIflyBoolState(object value)
+    {
+        if (value is bool b)
+        {
+            return b ? 1 : 0;
+        }
+
+        if (value is not double d)
+        {
+            return 0;
+        }
+
+        return d >= 5d ? 1 : 0;
+    }
+
+    private static int ResolveIflyThreeState(object value)
+    {
+        if (value is not double d)
+        {
+            return 0;
+        }
+
+        if (d < 5d)
+        {
+            return 0;
+        }
+
+        if (d < 15d)
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private void OnConnected()
@@ -2281,6 +2384,10 @@ public sealed class BridgeService : IAsyncDisposable
         {
             _sharedCockpitWasmClient?.ResetSubscriptions();
         }
+        if (!ReferenceEquals(_iflyClient, _pmdgClient) && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+        {
+            _iflyClient?.ResetSubscriptions();
+        }
     }
 
     private void SubscribeLvarControl(ControlDefinition control)
@@ -2454,6 +2561,7 @@ public sealed class BridgeService : IAsyncDisposable
     {
         "PMDG_NG3_Data" or "PMDG_NG3_Control" or "PMDG_NG3_CDU_0" or "PMDG_NG3_CDU_1" => _pmdgClient,
         "SharedCockpitBridge_LVars" => _sharedCockpitWasmClient,
+        "iFly737MAX_SDK_Control" or "iFly737MAX_SDK_Data" => _iflyClient,
         _ => null,
     };
 
@@ -2589,6 +2697,17 @@ public sealed class BridgeService : IAsyncDisposable
             _sharedCockpitWasmClient.StringFieldValueReceived -= OnStringValueReceived;
             _sharedCockpitWasmClient.ScreenSnapshotReceived -= OnScreenSnapshotReceived;
             _sharedCockpitWasmClient.Dispose();
+        }
+
+        if (_iflyClient is not null
+            && !ReferenceEquals(_iflyClient, _pmdgClient)
+            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+        {
+            _iflyClient.Warning -= OnPmdgWarning;
+            _iflyClient.FieldValueReceived -= OnNumericValueReceived;
+            _iflyClient.StringFieldValueReceived -= OnStringValueReceived;
+            _iflyClient.ScreenSnapshotReceived -= OnScreenSnapshotReceived;
+            _iflyClient.Dispose();
         }
 
         await Task.CompletedTask;

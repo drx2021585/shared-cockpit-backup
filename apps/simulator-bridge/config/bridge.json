@@ -10,7 +10,7 @@
       ]
     },
     "ifly": {
-      "expectedSdkVersion": "REPLACE_WITH_REAL_IFLY_SDK_VERSION",
+      "expectedSdkVersion": "1.5",
       "pollIntervalMs": 20,
       "mutexTimeoutMs": 250,
       "reconnectIntervalMs": 2000,
@@ -20,9 +20,13 @@
         "FlightSimulator2024",
         "FlightSimulator"
       ],
-      "mutexName": "hMutex_737MAXSDK",
-      "mappingName": "REPLACE_WITH_REAL_IFLY_MAPPING_NAME",
-      "commandChannelAvailable": false
+      "pluginWindowTitles": [
+        "iFly Plugin",
+        "iFly Plugin - MSFS2024"
+      ],
+      "mutexName": "iFly737MAX_SDK_Mutex",
+      "mappingName": "iFly737MAX_SDK_FileMappingObject",
+      "commandChannelAvailable": true
     },
     "diagnostics": {
       "logEveryChange": true

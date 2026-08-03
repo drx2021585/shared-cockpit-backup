@@ -67,16 +67,17 @@ public sealed class LocalWebSocketSection
 
 public sealed class IFlySdkSection
 {
-    public string ExpectedSdkVersion { get; init; } = "REPLACE_WITH_REAL_IFLY_SDK_VERSION";
+    public string ExpectedSdkVersion { get; init; } = "1.5";
     public int PollIntervalMs { get; init; } = 20;
     public int MutexTimeoutMs { get; init; } = 250;
     public int ReconnectIntervalMs { get; init; } = 2000;
     public int MaximumSnapshotBytes { get; init; } = 262144;
     public string PluginProcessName { get; init; } = "737MAX_Plugin";
+    public string[] PluginWindowTitles { get; init; } = ["iFly Plugin", "iFly Plugin - MSFS2024"];
     public string[] SimulatorProcessNames { get; init; } = ["FlightSimulator2024", "FlightSimulator"];
-    public string MutexName { get; init; } = "hMutex_737MAXSDK";
-    public string MappingName { get; init; } = "REPLACE_WITH_REAL_IFLY_MAPPING_NAME";
-    public bool CommandChannelAvailable { get; init; }
+    public string MutexName { get; init; } = "iFly737MAX_SDK_Mutex";
+    public string MappingName { get; init; } = "iFly737MAX_SDK_FileMappingObject";
+    public bool CommandChannelAvailable { get; init; } = true;
 }
 
 public sealed class DiagnosticsSection

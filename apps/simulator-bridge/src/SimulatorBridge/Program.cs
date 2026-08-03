@@ -88,6 +88,7 @@ using var pmdgClient = new PmdgClientDataClient();
 // reportan como BridgeError sin crashear el resto del bridge (ver
 // FsuipcLVarClient.TryConnect/ExecuteCalculatorCode).
 using var sharedCockpitWasmClient = new FsuipcLVarClient();
+using var iflySdkClient = new IflySdkClient(AppContext.BaseDirectory);
 
 // Polaridad de los controles posicionales aprendida en vuelo y acumulada entre
 // sesiones (ver Bridge/PolarityCalibration.cs). Se guarda junto al resto del
@@ -109,6 +110,7 @@ var bridge = new BridgeService(
     iflySdkMonitor: iflyMonitor,
     pmdgClient: pmdgClient,
     sharedCockpitWasmClient: sharedCockpitWasmClient,
+    iflyClient: iflySdkClient,
     // FsuipcLVarClient implementa también ICalculatorCodeClient (ver
     // ICalculatorCodeClient.cs) -- mismo objeto/conexión FSUIPC7 que ya se usa
     // para leer L-Vars, reutilizado para ejecutar calculator code (RPN) vía el

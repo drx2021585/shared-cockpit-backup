@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <None Include="..\..\config\**\*.json" Link="config\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\desktop-ui\recurso\MSFS_MAX8_SDK_v1.5\737MAX_SDK\sdk\**\*.*" Link="ifly-sdk\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

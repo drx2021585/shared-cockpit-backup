@@ -120,8 +120,11 @@
     field: "L:VC_APU_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_APU_SW_VAL,number) 5 < $value 5 > and if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) 5 > (L:VC_APU_SW_VAL,number) 15 < and $value 15 > and if{ 8 (>L:VC_Engine_APU_trigger_VAL,number) } (L:VC_APU_SW_VAL,number) 5 > $value 5 < and if{ 7 (>L:VC_Engine_APU_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_ENGAPU_APU_SET"
+    parameter: "1|$ifly_apu_state|0"
+    semantics: "sets the iFly APU switch to the explicit SDK state (0 OFF, 1 ON, 2 START). The bridge maps the animated L-Var bands 0/10/20 to those SDK states so shared-cockpit writes stop depending on trigger polarity or one-step wheel motion."
   synchronization:
     mode: event
     confirmAfterWrite: true

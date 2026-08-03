@@ -300,7 +300,7 @@ public class ProfileRepositoryRealDataTests
     /// rompiera, este test tiene que fallar en vez de degradarse en silencio.
     /// </summary>
     [Fact]
-    public void Ifly737Max8_LoadsRealProfile_WithLvarReadsAndCalculatorCodeWrites()
+    public void Ifly737Max8_LoadsRealProfile_WithLvarReads_AndSupportedWritePaths()
     {
         var repo = new ProfileRepository(FindAircraftProfilesRoot());
         var profile = repo.LoadOne("ifly-737-max8", SimulatorVersion.Msfs2020);
@@ -317,12 +317,23 @@ public class ProfileRepositoryRealDataTests
 
         foreach (var control in lvarControls)
         {
-            // Todo control generado escribe por calculator code contra la L-Var de
-            // trigger de su sistema: iFly no expone eventos H:/K:/B: en la cabina
-            // (ver aircraft-profiles/ifly-737-max8/NOTAS-SDK.md).
+            // La mayoría sigue escribiendo por calculator code contra la L-Var de
+            // trigger de su sistema. Algunos controles puntuales pueden migrar al
+            // SDK oficial cuando ya existe una ruta determinística mejor
+            // verificada, sin cambiar la lectura por L-Var.
             Assert.NotNull(control.Write);
-            Assert.Equal(WriteType.CalculatorCode, control.Write!.Type);
-            Assert.Contains(">L:", control.Write.Name);
+            Assert.Contains(control.Write!.Type, new[] { WriteType.CalculatorCode, WriteType.ClientDataEvent });
+
+            if (control.Write.Type == WriteType.CalculatorCode)
+            {
+                Assert.Contains(">L:", control.Write.Name);
+            }
+            else
+            {
+                Assert.Equal("iFly737MAX_SDK_Control", control.Write.AreaName);
+                Assert.StartsWith("KEY_COMMAND_", control.Write.Event);
+                Assert.False(string.IsNullOrWhiteSpace(control.Write.Semantics));
+            }
 
             if (control.WriteOnly)
             {

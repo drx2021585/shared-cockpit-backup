@@ -42,8 +42,11 @@
     field: "L:VC_Gear_Lever_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Gear_Lever_VAL,number) $value < if{ 1 (>L:VC_Gear_trigger_VAL,number) } (L:VC_Gear_Lever_VAL,number) $value > if{ 2 (>L:VC_Gear_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GEAR_LEVER_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from gear lever state."
   synchronization:
     mode: event
     confirmAfterWrite: true

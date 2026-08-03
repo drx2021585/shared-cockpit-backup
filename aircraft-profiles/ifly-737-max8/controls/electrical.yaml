@@ -101,8 +101,11 @@
     field: "L:VC_Battery_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Battery_SW_VAL,number) $value < if{ 8 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_Battery_SW_VAL,number) $value > if{ 7 (>L:VC_Electrical_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_ELECTRICAL_BAT_SET"
+    parameter: "1|$ifly_bool_state|1"
+    semantics: "Value1=1, Value2=0/1 from battery switch state, Value3=1 ignore guard."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -141,8 +144,11 @@
     field: "L:VC_STANDBY_POWER_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_STANDBY_POWER_SW_VAL,number) $value < if{ 11 (>L:VC_Electrical_trigger_VAL,number) } (L:VC_STANDBY_POWER_SW_VAL,number) $value > if{ 12 (>L:VC_Electrical_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_ELECTRICAL_STANDBY_POWER_SET"
+    parameter: "1|$ifly_three_state|1"
+    semantics: "Value1=1, Value2=0/1/2 from standby power switch state, Value3=1 ignore guard."
   synchronization:
     mode: event
     confirmAfterWrite: true

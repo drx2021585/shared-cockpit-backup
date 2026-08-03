@@ -79,4 +79,46 @@ public class BridgeServiceWriteParameterTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public void CompositeTemplate_ReplacesOnlyDynamicPlaceholder()
+    {
+        var result = Resolve("1|$value|0", ControlDataType.Number, 2d);
+
+        Assert.Equal("1|2|0", result);
+    }
+
+    [Theory]
+    [InlineData(0d, "1|0|0")]
+    [InlineData(10d, "1|1|0")]
+    [InlineData(20d, "1|2|0")]
+    public void IflyApuTemplate_MapsAnimatedLvarBandsToSdkStates(double value, string expected)
+    {
+        var result = Resolve("1|$ifly_apu_state|0", ControlDataType.Number, value);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(0d, "1|0|0")]
+    [InlineData(4d, "1|0|0")]
+    [InlineData(5d, "1|1|0")]
+    [InlineData(10d, "1|1|0")]
+    public void IflyBoolTemplate_MapsAnimatedBandsToBooleanSdkStates(double value, string expected)
+    {
+        var result = Resolve("1|$ifly_bool_state|0", ControlDataType.Number, value);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(0d, "1|0|0")]
+    [InlineData(10d, "1|1|0")]
+    [InlineData(20d, "1|2|0")]
+    public void IflyThreeStateTemplate_MapsAnimatedBandsToSdkStates(double value, string expected)
+    {
+        var result = Resolve("1|$ifly_three_state|0", ControlDataType.Number, value);
+
+        Assert.Equal(expected, result);
+    }
 }

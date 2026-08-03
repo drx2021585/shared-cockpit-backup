@@ -23,7 +23,7 @@ public class IflySdkMonitorTests
     }
 
     [Fact]
-    public void Pump_WithPluginButPlaceholderMapping_StaysWaitingForSdkMemory()
+    public void Pump_WithPluginButWithoutSharedMemory_StaysWaitingForSdkMemory()
     {
         using var monitor = new IFlySdkMonitor(
             new IFlySdkSection(),
@@ -35,16 +35,18 @@ public class IflySdkMonitorTests
         monitor.Pump(simulatorConnected: true);
 
         Assert.Equal(IflyBridgeState.WaitingForSdkMemory, monitor.CurrentStatus.State);
-        Assert.Contains("REPLACE_WITH_", monitor.CurrentStatus.LastError);
+        Assert.NotNull(monitor.CurrentStatus.LastError);
     }
 
     private sealed class FakeProcessDetector : IProcessDetector
     {
         private readonly HashSet<string> _running;
+        private readonly HashSet<string> _windows;
 
         public FakeProcessDetector(params string[] running)
         {
             _running = new HashSet<string>(running, StringComparer.OrdinalIgnoreCase);
+            _windows = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         public bool IsRunning(string processName)
@@ -59,5 +61,9 @@ public class IflySdkMonitorTests
         }
 
         public bool IsAnyRunning(IEnumerable<string> processNames) => processNames.Any(IsRunning);
+
+        public bool HasWindow(string windowTitle) => _windows.Contains(windowTitle);
+
+        public bool HasAnyWindow(IEnumerable<string> windowTitles) => windowTitles.Any(HasWindow);
     }
 }

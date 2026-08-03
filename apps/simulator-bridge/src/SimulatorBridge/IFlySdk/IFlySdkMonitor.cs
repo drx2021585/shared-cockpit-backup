@@ -51,7 +51,9 @@ public sealed class IFlySdkMonitor : IIflySdkMonitor
             return;
         }
 
-        var pluginDetected = _processDetector.IsRunning(_config.PluginProcessName);
+        var pluginDetected =
+            _processDetector.IsRunning(_config.PluginProcessName)
+            || _processDetector.HasAnyWindow(_config.PluginWindowTitles);
         if (!pluginDetected)
         {
             Disconnect();

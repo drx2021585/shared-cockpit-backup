@@ -42,8 +42,11 @@
     field: "L:VC_AT_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_AT_SW_VAL,number) $value < if{ 1 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_AT_SW_VAL,number) $value > if{ 2 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_AUTOTHROTTLE_ARM_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from arm switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -138,8 +141,11 @@
     field: "L:VC_Course_1_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Course_1_SW_VAL,number) $value < if{ 12 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_Course_1_SW_VAL,number) $value > if{ 11 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_COURSE_1_SET"
+    parameter: "1|$value|0"
+    semantics: "Value1=1, Value2=course selector value."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -158,8 +164,11 @@
     field: "L:VC_Course_2_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Course_2_SW_VAL,number) $value < if{ 14 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_Course_2_SW_VAL,number) $value > if{ 13 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_COURSE_2_SET"
+    parameter: "1|$value|0"
+    semantics: "Value1=1, Value2=course selector value."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -324,8 +333,11 @@
     field: "L:VC_HEADING_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_HEADING_SW_VAL,number) $value < if{ 28 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_HEADING_SW_VAL,number) $value > if{ 27 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_HDG_SEL_SET"
+    parameter: "1|$value|0"
+    semantics: "Value1=1, Value2=heading selector value."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -363,8 +375,11 @@
     field: "L:VC_ALTIDUTE_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_ALTIDUTE_SW_VAL,number) $value < if{ 32 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_ALTIDUTE_SW_VAL,number) $value > if{ 31 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_ALT_SEL_SET"
+    parameter: "1|$value|0"
+    semantics: "Value1=1, Value2=altitude selector value."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -460,8 +475,11 @@
     field: "L:VC_FD_left_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_FD_left_SW_VAL,number) $value < if{ 42 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_FD_left_SW_VAL,number) $value > if{ 41 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_LEFT_FD_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from left FD switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -480,8 +498,11 @@
     field: "L:VC_FD_right_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_FD_right_SW_VAL,number) $value < if{ 44 (>L:VC_Automatic_Flight_trigger_VAL,number) } (L:VC_FD_right_SW_VAL,number) $value > if{ 43 (>L:VC_Automatic_Flight_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AUTOMATICFLIGHT_RIGHT_FD_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from right FD switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true

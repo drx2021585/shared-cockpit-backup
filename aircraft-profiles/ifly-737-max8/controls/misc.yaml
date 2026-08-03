@@ -432,8 +432,11 @@
     field: "L:VC_Landing_Light_1_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Landing_Light_1_SW_VAL,number) $value < if{ 19 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_1_SW_VAL,number) $value > if{ 18 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_LANDING_LIGHT_1_SET"
+    parameter: "1|$ifly_three_state|0"
+    semantics: "Value1=1, Value2=0/1/2 from left landing light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -452,8 +455,11 @@
     field: "L:VC_Landing_Light_2_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Landing_Light_2_SW_VAL,number) $value < if{ 21 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Landing_Light_2_SW_VAL,number) $value > if{ 20 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_LANDING_LIGHT_2_SET"
+    parameter: "1|$ifly_three_state|0"
+    semantics: "Value1=1, Value2=0/1/2 from right landing light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -472,8 +478,11 @@
     field: "L:VC_Runway_Turnoff_Light_L_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value < if{ 23 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_L_SW_VAL,number) $value > if{ 22 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_RUNWAY_TURNOFF_LIGHT_1_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from left runway turnoff switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -492,8 +501,11 @@
     field: "L:VC_Runway_Turnoff_Light_R_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value < if{ 25 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Runway_Turnoff_Light_R_SW_VAL,number) $value > if{ 24 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_RUNWAY_TURNOFF_LIGHT_2_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from right runway turnoff switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -512,8 +524,11 @@
     field: "L:VC_Taxi_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Taxi_Light_SW_VAL,number) $value < if{ 27 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Taxi_Light_SW_VAL,number) $value > if{ 26 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_TAXI_LIGHT_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from taxi light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -532,8 +547,11 @@
     field: "L:VC_Logo_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Logo_Light_SW_VAL,number) $value < if{ 29 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Logo_Light_SW_VAL,number) $value > if{ 28 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_LOGO_LIGHT_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from logo light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -552,8 +570,11 @@
     field: "L:VC_Position_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Position_Light_SW_VAL,number) $value < if{ 31 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Position_Light_SW_VAL,number) $value > if{ 30 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_POSITION_LIGHT_SET"
+    parameter: "1|$ifly_three_state|0"
+    semantics: "Value1=1, Value2=0/1/2 from position light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -572,8 +593,11 @@
     field: "L:VC_Beacon_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Beacon_Light_SW_VAL,number) $value < if{ 33 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Beacon_Light_SW_VAL,number) $value > if{ 32 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_ANTI_COLLISION_LIGHT_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from beacon light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -592,8 +616,11 @@
     field: "L:VC_Wing_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Wing_Light_SW_VAL,number) $value < if{ 35 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wing_Light_SW_VAL,number) $value > if{ 34 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_WING_LIGHT_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from wing light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -612,8 +639,11 @@
     field: "L:VC_Wheel_Well_Light_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Wheel_Well_Light_SW_VAL,number) $value < if{ 37 (>L:VC_Miscellaneous_trigger_VAL,number) } (L:VC_Wheel_Well_Light_SW_VAL,number) $value > if{ 36 (>L:VC_Miscellaneous_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_GENERAL_WHEEL_WELL_LIGHT_SET"
+    parameter: "1|$ifly_bool_state|0"
+    semantics: "Value1=1, Value2=0/1 from wheel well light switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true

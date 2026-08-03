@@ -1,7 +1,7 @@
 {
   "profileId": "ifly-737-max8",
   "displayName": "iFly Boeing 737 MAX 8",
-  "sdkVersion": "REPLACE_WITH_REAL_IFLY_SDK_VERSION",
+  "sdkVersion": "1.5",
   "polling": {
     "readIntervalMs": 20,
     "heartbeatIntervalMs": 1000,

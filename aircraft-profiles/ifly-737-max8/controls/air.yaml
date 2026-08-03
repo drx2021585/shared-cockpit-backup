@@ -280,8 +280,11 @@
     field: "L:VC_Pack_1_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Pack_1_SW_VAL,number) $value < if{ 25 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_1_SW_VAL,number) $value > if{ 24 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AIRSYSTEM_PACK_1_SET"
+    parameter: "1|$ifly_three_state|0"
+    semantics: "Value1=1, Value2=0/1/2 from left pack switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
@@ -300,8 +303,11 @@
     field: "L:VC_Pack_2_SW_VAL"
     nativeType: float
   write:
-    type: calculatorCode
-    name: "(L:VC_Pack_2_SW_VAL,number) $value < if{ 27 (>L:VC_Air_Systems_trigger_VAL,number) } (L:VC_Pack_2_SW_VAL,number) $value > if{ 26 (>L:VC_Air_Systems_trigger_VAL,number) }"
+    type: clientDataEvent
+    areaName: "iFly737MAX_SDK_Control"
+    event: "KEY_COMMAND_AIRSYSTEM_PACK_2_SET"
+    parameter: "1|$ifly_three_state|0"
+    semantics: "Value1=1, Value2=0/1/2 from right pack switch state."
   synchronization:
     mode: event
     confirmAfterWrite: true
