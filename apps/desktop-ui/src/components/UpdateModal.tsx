@@ -57,6 +57,17 @@ function normalizedVersion(version: string) {
   return version.trim().replace(/^v/i, "");
 }
 
+function compareVersions(left: string, right: string): number {
+  const a = normalizedVersion(left).split(".").map((part) => Number(part));
+  const b = normalizedVersion(right).split(".").map((part) => Number(part));
+  const length = Math.max(a.length, b.length, 3);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (a[index] ?? 0) - (b[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
 function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
@@ -244,7 +255,9 @@ function WebUpdateModal({ open, onClose }: { open: boolean; onClose: () => void 
   if (!open) return null;
 
   const latestVersion = check.status === "ready" ? normalizedVersion(check.release.tag_name) : null;
-  const upToDate = latestVersion === normalizedVersion(currentVersion);
+  const currentVsLatest =
+    latestVersion === null ? null : compareVersions(currentVersion, latestVersion);
+  const upToDate = currentVsLatest !== null && currentVsLatest >= 0;
   const installer =
     check.status === "ready"
       ? check.release.assets.find((asset) => asset.name.toLowerCase().endsWith(".exe"))
@@ -280,7 +293,9 @@ function WebUpdateModal({ open, onClose }: { open: boolean; onClose: () => void 
               {check.status === "error" && "No version or download information could be verified."}
               {check.status === "ready" &&
                 (upToDate
-                  ? `We Connect v${currentVersion} is the latest published version.`
+                  ? currentVsLatest === 0
+                    ? `We Connect v${currentVersion} is the latest published version.`
+                    : `We Connect v${currentVersion} is newer than the latest public GitHub release v${latestVersion}.`
                   : `DCS Interactive - We Connect div. has published We Connect v${latestVersion}. The web build can't update itself — download the desktop app to get in-app auto-updates.`)}
             </p>
           </div>

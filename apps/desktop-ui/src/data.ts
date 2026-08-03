@@ -182,13 +182,23 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.61",
+    version: "0.1.62",
     title: "Current build",
     date: "2026-08-03",
     commits: [
+      "Version history now shows the full release list in Profile instead of stopping after the first three entries.",
+      "The update modal now compares versions properly, so a local build newer than the latest public GitHub release is reported honestly instead of pretending to be exactly up to date.",
+      "The desktop app and the server compatibility endpoint are version-aligned at 0.1.62, so update checks advertise this release consistently.",
+    ],
+  },
+  {
+    version: "0.1.61",
+    title: "Published release",
+    date: "2026-08-03",
+    commits: [
       "The bundled aircraft catalog now reports the current real coverage again, including the corrected PMDG 737 NG percentage instead of the old stale fallback values.",
-      "The desktop app and the server compatibility endpoint are version-aligned at 0.1.61, so update checks advertise this release consistently.",
-      "This build ships with the latest published bridge bundle included in the desktop package.",
+      "The desktop app and the server compatibility endpoint were version-aligned at 0.1.61, so update checks advertise that release consistently once published.",
+      "This build shipped with the latest published bridge bundle included in the desktop package.",
     ],
   },
   {
