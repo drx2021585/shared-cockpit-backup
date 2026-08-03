@@ -1,5 +1,9 @@
 import type { AircraftProfile } from "./apiClient";
 
+type LocalAircraftProfile = AircraftProfile & {
+  coverageOverride?: number;
+};
+
 function coverageFromCapabilities(capabilities: Record<string, string>) {
   const levelScore: Record<string, number> = {
     full: 100,
@@ -13,7 +17,7 @@ function coverageFromCapabilities(capabilities: Record<string, string>) {
   );
 }
 
-const LOCAL_AIRCRAFT_PROFILES: AircraftProfile[] = [
+const LOCAL_AIRCRAFT_PROFILES: LocalAircraftProfile[] = [
   {
     id: "ifly-737-max8",
     name: "iFly B737 MAX 8",
@@ -50,7 +54,7 @@ const LOCAL_AIRCRAFT_PROFILES: AircraftProfile[] = [
   },
   {
     id: "lvfr-a330-200",
-    name: "LVFR A330-200",
+    name: "LVFR A330-200/300",
     developer: "LatinVFR",
     version: "1.2.3",
     availability: "released" as const,
@@ -73,37 +77,14 @@ const LOCAL_AIRCRAFT_PROFILES: AircraftProfile[] = [
       cabinMisc: "partial",
     } as Record<string, string>,
     compatibility: { msfs2020: true, msfs2024: false },
-    verified: true,
-    variants: ["LVFR A330-200GE", "LVFR A330-200PW", "LVFR A330-200RR"],
-    coverage: 0,
-  },
-  {
-    id: "lvfr-a330-300",
-    name: "LVFR A330-300",
-    developer: "LatinVFR",
-    version: "1.0.0-beta",
-    availability: "released" as const,
-    capabilities: {
-      flightControls: "full",
-      autopilot: "full",
-      electrical: "full",
-      hydraulics: "full",
-      radios: "full",
-      mcdu: "full",
-      failures: "partial",
-      air: "partial",
-      antiIce: "full",
-      engine: "full",
-      fuel: "full",
-      fireProtection: "partial",
-      instruments: "full",
-      warnings: "partial",
-      efb: "none",
-      cabinMisc: "partial",
-    } as Record<string, string>,
-    compatibility: { msfs2020: true, msfs2024: false },
     verified: false,
-    variants: ["LVFR A330-300", "LVFR A330-300F"],
+    variants: [
+      "LVFR A330-200GE",
+      "LVFR A330-200PW",
+      "LVFR A330-200RR",
+      "LVFR A330-300",
+      "LVFR A330-300F",
+    ],
     coverage: 0,
   },
   {
@@ -120,6 +101,15 @@ const LOCAL_AIRCRAFT_PROFILES: AircraftProfile[] = [
       radios: "partial",
       mcdu: "partial",
       failures: "none",
+      air: "partial",
+      antiIce: "partial",
+      engine: "partial",
+      fuel: "partial",
+      fireProtection: "partial",
+      instruments: "partial",
+      warnings: "partial",
+      efb: "none",
+      cabinMisc: "partial",
     } as Record<string, string>,
     compatibility: { msfs2020: true, msfs2024: false },
     verified: true,
@@ -133,11 +123,12 @@ const LOCAL_AIRCRAFT_PROFILES: AircraftProfile[] = [
       "PMDG 737 800 BDSF",
       "PMDG 737 800 BCF",
     ],
+    coverageOverride: 31,
     coverage: 0,
   },
 ].map((profile) => ({
   ...profile,
-  coverage: coverageFromCapabilities(profile.capabilities),
+  coverage: profile.coverageOverride ?? coverageFromCapabilities(profile.capabilities),
 }));
 
 export function mergeLocalAircraftProfiles(profiles: AircraftProfile[]): AircraftProfile[] {

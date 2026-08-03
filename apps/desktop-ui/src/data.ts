@@ -182,8 +182,18 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.59",
+    version: "0.1.61",
     title: "Current build",
+    date: "2026-08-03",
+    commits: [
+      "The bundled aircraft catalog now reports the current real coverage again, including the corrected PMDG 737 NG percentage instead of the old stale fallback values.",
+      "The desktop app and the server compatibility endpoint are version-aligned at 0.1.61, so update checks advertise this release consistently.",
+      "This build ships with the latest published bridge bundle included in the desktop package.",
+    ],
+  },
+  {
+    version: "0.1.60",
+    title: "Published release",
     date: "2026-08-01",
     commits: [
       "The aircraft catalog now keeps working even when the current relay is down: Aircraft, Create a party and the rest of the app fall back to the bundled local aircraft profiles instead of going empty behind a relay error.",
