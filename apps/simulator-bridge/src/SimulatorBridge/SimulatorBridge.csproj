@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="FSUIPCClientDLL" Version="3.3.16" />
-    <PackageReference Include="YamlDotNet" Version="16.2.0" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
   <ItemGroup>
