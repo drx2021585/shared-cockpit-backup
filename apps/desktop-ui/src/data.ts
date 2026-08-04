@@ -174,8 +174,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.63",
+    version: "0.1.64",
     title: "Current build",
+    date: "2026-08-04",
+    commits: [
+      "Aircraft cards now show only the latest profile update date instead of the old full-sync and partial-sync marketing copy.",
+      "The hosted relay compatibility metadata is version-aligned at 0.1.64, so update checks and relay diagnostics stop advertising the old 0.1.62 release after this publish.",
+    ],
+  },
+  {
+    version: "0.1.63",
+    title: "Published release",
     date: "2026-08-04",
     commits: [
       "My own relay now asks only for a public IPv4 and a TCP port; We Connect builds the relay URL itself so manual port-forwarding setup is clearer and less error-prone.",

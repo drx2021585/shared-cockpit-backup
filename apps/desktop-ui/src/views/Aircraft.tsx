@@ -20,26 +20,14 @@ function statusFor(coverage: number): { label: string; color: string } {
   return { label: "Early support", color: "rgba(199,248,254,0.4)" };
 }
 
-function describeCapabilities(profile: AircraftProfile): string {
-  if (profile.availability === "soon") {
-    return "Profile preview only. This aircraft is planned for We Connect, but players cannot use it in shared cockpit yet.";
-  }
-  const levels = Object.values(profile.capabilities);
-  const hasFullSync = levels.includes("full");
-  const hasPartialSync = levels.includes("partial");
+const LAST_UPDATED_BY_PROFILE_ID: Record<string, string> = {
+  "ifly-737-max8": "Jul 30, 2026",
+  "lvfr-a330-200": "Aug 3, 2026",
+  "pmdg-737-900": "Jul 26, 2026",
+};
 
-  const parts: string[] = [];
-  if (hasFullSync) {
-    parts.push(
-      "Full sync: All supported controls and switches synchronize with your co-pilot and function as expected."
-    );
-  }
-  if (hasPartialSync) {
-    parts.push(
-      "Partial sync: Some controls and switches may not synchronize reliably yet. Full synchronization is coming in a future update."
-    );
-  }
-  return parts.join(" ") || "No systems mapped yet.";
+function lastUpdatedLabel(profile: AircraftProfile): string {
+  return LAST_UPDATED_BY_PROFILE_ID[profile.id] ?? "Unknown";
 }
 
 export function Aircraft() {
@@ -89,7 +77,7 @@ export function Aircraft() {
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${ac.coverage}%` }} />
               </div>
-              <div className="aircraft-card-desc">{describeCapabilities(ac)}</div>
+              <div className="aircraft-card-desc">Last updated: {lastUpdatedLabel(ac)}</div>
               {ac.variants && ac.variants.length > 0 && (
                 <div className="aircraft-variants">
                   <div className="aircraft-variants-title">
