@@ -17,6 +17,8 @@
 import { currentVersion } from "../data";
 import { getRelayApiBaseUrl } from "./relayConfig";
 
+const PARTICIPANT_TOKEN_STORAGE_KEY = "weconnect.participantToken";
+
 export interface ServerHealth {
   status: "ok";
   uptimeSeconds: number;
@@ -81,9 +83,27 @@ export interface Session {
   participantToken?: string;
 }
 
-// Credencial de la sesión activa. Vive solo en memoria (igual que el resto
-// del estado de sesión de la app) — nunca se persiste a disco ni se loguea.
-let participantToken: string | null = null;
+function readStoredParticipantToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(PARTICIPANT_TOKEN_STORAGE_KEY);
+  return typeof raw === "string" && /^[a-f0-9]{64}$/i.test(raw) ? raw : null;
+}
+
+function setParticipantToken(next: string | null) {
+  participantToken = next;
+  if (typeof window === "undefined") return;
+  if (next) {
+    window.sessionStorage.setItem(PARTICIPANT_TOKEN_STORAGE_KEY, next);
+  } else {
+    window.sessionStorage.removeItem(PARTICIPANT_TOKEN_STORAGE_KEY);
+  }
+}
+
+// Credencial efímera de la sesión activa. Para que cerrar/abandonar la sesión
+// siga funcionando tras un reload del renderer o un reinicio de módulos en
+// desarrollo, se respalda en sessionStorage del navegador y se limpia al
+// salir/cerrar. Nunca se loguea.
+let participantToken: string | null = readStoredParticipantToken();
 
 export function getParticipantToken(): string | null {
   return participantToken;
@@ -145,7 +165,7 @@ export async function createSession(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
-  participantToken = session.participantToken ?? null;
+  setParticipantToken(session.participantToken ?? null);
   return session;
 }
 
@@ -157,7 +177,7 @@ export async function joinSession(
     method: "POST",
     body: JSON.stringify(input),
   });
-  participantToken = session.participantToken ?? null;
+  setParticipantToken(session.participantToken ?? null);
   return session;
 }
 
@@ -178,7 +198,7 @@ export async function closeSession(joinCode: string, _pilotName?: string) {
     const body = await res.json().catch(() => null);
     throw new ApiError(body?.error ?? "request-failed", res.status);
   }
-  participantToken = null;
+  setParticipantToken(null);
 }
 
 async function postSessionAction(joinCode: string, action: string) {
@@ -195,7 +215,7 @@ async function postSessionAction(joinCode: string, action: string) {
 
 export async function leaveSession(joinCode: string, _pilotName?: string) {
   await postSessionAction(joinCode, "leave");
-  participantToken = null;
+  setParticipantToken(null);
 }
 
 export function requestControls(joinCode: string, _pilotName?: string) {

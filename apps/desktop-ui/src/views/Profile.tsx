@@ -1,13 +1,5 @@
 import { currentVersion, versionHistory } from "../data";
 import { useEffect, useState } from "react";
-import {
-  buildCustomRelayApiBaseUrl,
-  DEFAULT_DIRECT_PORT,
-  getDefaultRelayApiBaseUrl,
-  getRelayConfig,
-  setRelayConfig,
-  type RelayMode,
-} from "../lib/relayConfig";
 
 interface ProfileProps {
   pilotName: string;
@@ -26,24 +18,6 @@ export function Profile({
 }: ProfileProps) {
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
-  const relayConfig = getRelayConfig();
-  const [relayMode, setRelayMode] = useState<RelayMode>(() => relayConfig.mode);
-  const [customRelayHost, setCustomRelayHost] = useState<string>(() => relayConfig.customHost ?? "");
-  const [relaySaved, setRelaySaved] = useState<string | null>(null);
-  const [relayError, setRelayError] = useState<string | null>(null);
-  const [relayTesting, setRelayTesting] = useState(false);
-  const [directPort, setDirectPort] = useState<number>(relayConfig.directPort || DEFAULT_DIRECT_PORT);
-  const [directRunning, setDirectRunning] = useState(false);
-  const [directStatus, setDirectStatus] = useState<string | null>(null);
-  const [publicIpv4, setPublicIpv4] = useState<string | null>(null);
-
-  const effectiveRelayHost = customRelayHost.trim() || publicIpv4 || "";
-  const effectiveRelayUrl =
-    buildCustomRelayApiBaseUrl({
-      customHost: effectiveRelayHost,
-      customUrl: null,
-      directPort,
-    }) ?? "";
 
   function toggleVersion(version: string) {
     setExpandedVersions((current) => ({
@@ -64,89 +38,6 @@ export function Profile({
     } catch {
       setFolderError("Could not open the app folder.");
     }
-  }
-
-  useEffect(() => {
-    const relay = window.weconnectRelay;
-    if (!relay) return;
-    relay
-      .getConfig()
-      .then((config) => {
-        setDirectPort(config.port ?? config.defaultPort);
-        setDirectRunning(config.running);
-      })
-      .catch(() => undefined);
-    window.weconnectNetwork?.getPublicAddresses()
-      .then((info) => {
-        setPublicIpv4(info.ipv4);
-        if (info.ipv4 && !relayConfig.customHost) {
-          setCustomRelayHost(info.ipv4);
-        }
-      })
-      .catch(() => undefined);
-  }, [relayConfig.customHost]);
-
-  function saveRelaySettings() {
-    setRelayConfig({
-      mode: relayMode,
-      customHost: relayMode === "custom" ? effectiveRelayHost : null,
-      customUrl: null,
-      directPort,
-    });
-    setRelayError(null);
-    setRelaySaved(
-      relayMode === "hosted"
-        ? "We Connect hosted relay selected."
-        : "Custom relay saved. New sessions and joins will use that URL."
-    );
-  }
-
-  async function testRelayUrl() {
-    const base =
-      relayMode === "hosted"
-        ? getDefaultRelayApiBaseUrl()
-        : effectiveRelayUrl;
-    if (!base) {
-      setRelayError("Enter the public IPv4 first.");
-      return;
-    }
-    setRelaySaved(null);
-    setRelayError(null);
-    setRelayTesting(true);
-    try {
-      const response = await fetch(`${base}/api/health`, {
-        headers: { "X-WeConnect-Client-Version": currentVersion },
-      });
-      if (!response.ok) {
-        setRelayError(`Relay responded with HTTP ${response.status}.`);
-        return;
-      }
-      setRelaySaved(`Relay reachable at ${base}.`);
-    } catch {
-      setRelayError("Could not reach that relay URL.");
-    } finally {
-      setRelayTesting(false);
-    }
-  }
-
-  async function handleStartDirectHost() {
-    setDirectStatus(null);
-    const result = await window.weconnectRelay?.startDirectHost(Number(directPort));
-    if (!result?.ok) {
-      setDirectRunning(false);
-      setDirectStatus(result?.error ?? "Could not start the direct host.");
-      return;
-    }
-    setDirectRunning(true);
-    setDirectPort(result.port ?? directPort);
-    setDirectStatus(`Direct host listening on TCP ${result.port}. Forward that same port to this PC.`);
-  }
-
-  async function handleStopDirectHost() {
-    setDirectStatus(null);
-    await window.weconnectRelay?.stopDirectHost();
-    setDirectRunning(false);
-    setDirectStatus("Direct host stopped.");
   }
 
   function formatHistoryDate(date: string) {
@@ -185,106 +76,6 @@ export function Profile({
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
           <div className="mono-label" style={{ marginBottom: 10 }}>
-            Session relay
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div className="seat-toggle" style={{ maxWidth: 420 }}>
-              <button
-                type="button"
-                className={`seat-option ${relayMode === "hosted" ? "active" : ""}`}
-                onClick={() => setRelayMode("hosted")}
-              >
-                Hosted relay
-              </button>
-              <button
-                type="button"
-                className={`seat-option ${relayMode === "custom" ? "active" : ""}`}
-                onClick={() => setRelayMode("custom")}
-              >
-                My own relay
-              </button>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--text-35)", margin: 0 }}>
-              Hosted relay works everywhere. My own relay is the port-forwarding mode: the host PC
-              runs the session server locally, opens a TCP port on the router, and the guest points
-              We Connect at that public URL.
-            </p>
-            {relayMode === "custom" && (
-              <>
-                <div className="field">
-                  <label>Public IPv4</label>
-                  <input
-                    type="text"
-                    placeholder="YOUR-PUBLIC-IP"
-                    value={customRelayHost}
-                    onChange={(e) => setCustomRelayHost(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Direct host port</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={65535}
-                    value={directPort}
-                    onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
-                  />
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-35)" }}>
-                  Relay URL used by We Connect: {effectiveRelayUrl || "Waiting for IPv4…"}
-                </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                  <button className="link-action" onClick={handleStartDirectHost}>
-                    {directRunning ? "Restart local direct host" : "Start local direct host"}
-                  </button>
-                  <span style={{ color: "var(--text-35)" }}>|</span>
-                  {directRunning && (
-                    <>
-                      <button className="link-action" onClick={handleStopDirectHost}>
-                        Stop local direct host
-                      </button>
-                      <span style={{ color: "var(--text-35)" }}>|</span>
-                    </>
-                  )}
-                  <button className="link-action" onClick={testRelayUrl} disabled={relayTesting}>
-                    {relayTesting ? "Testing…" : "Test relay"}
-                  </button>
-                  <span style={{ color: "var(--text-35)" }}>|</span>
-                  <button className="link-action" onClick={saveRelaySettings}>
-                    Save relay settings
-                  </button>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-35)" }}>
-                  {publicIpv4
-                    ? "The app detected your public IPv4. Keep that value or replace it if your router/external IP is different."
-                    : "Public IPv4 could not be detected automatically. Enter it manually and forward the same TCP port to this PC."}
-                </div>
-              </>
-            )}
-            {relayMode === "hosted" && (
-              <div style={{ fontSize: 12, color: "var(--text-35)" }}>
-                Default relay URL: {getDefaultRelayApiBaseUrl()}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {relayMode === "hosted" && (
-                <>
-                  <button className="link-action" onClick={testRelayUrl} disabled={relayTesting}>
-                    {relayTesting ? "Testing…" : "Test relay"}
-                  </button>
-                  <button className="link-action" onClick={saveRelaySettings}>
-                    Save relay settings
-                  </button>
-                </>
-              )}
-            </div>
-            {directStatus && <div style={{ color: "var(--text-70)", fontSize: 12 }}>{directStatus}</div>}
-            {relaySaved && <div style={{ color: "var(--green)", fontSize: 12 }}>{relaySaved}</div>}
-            {relayError && <div style={{ color: "#e24c4b", fontSize: 12 }}>{relayError}</div>}
-          </div>
-        </div>
-        <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
-          <div className="mono-label" style={{ marginBottom: 10 }}>
             App version
           </div>
           <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 14 }}>
@@ -299,7 +90,7 @@ export function Profile({
             Version history
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {versionHistory.map((entry) => {
+            {versionHistory.slice(0, 3).map((entry) => {
               const isExpanded = expandedVersions[entry.version] ?? false;
               return (
                 <div key={entry.version} className="profile-history-card">

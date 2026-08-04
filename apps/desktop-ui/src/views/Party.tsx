@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
-import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
+import { closeSession, createSession, ApiError, type Session } from "../lib/apiClient";
 import {
   buildCustomRelayApiBaseUrl,
   DEFAULT_DIRECT_PORT,
@@ -14,6 +14,7 @@ interface PartyProps {
   onPilotNameChange: (name: string) => void;
   createdSession: Session | null;
   onSessionCreated: (session: Session, pilotName: string) => void;
+  onCreatedSessionClosed: () => void;
   onSessionReady: (session: Session, pilotName: string) => void;
 }
 
@@ -22,6 +23,7 @@ export function Party({
   onPilotNameChange,
   createdSession,
   onSessionCreated,
+  onCreatedSessionClosed,
   onSessionReady,
 }: PartyProps) {
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
@@ -54,6 +56,7 @@ export function Party({
   const [observerConfirmOpen, setObserverConfirmOpen] = useState(false);
   const [joinCodeBlurred, setJoinCodeBlurred] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [closingPendingSession, setClosingPendingSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const compatibleProfiles = profiles.filter(
@@ -122,6 +125,20 @@ export function Party({
       await createParty();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleCloseCreatedParty() {
+    if (!createdSession || !pilotName.trim()) return;
+    setClosingPendingSession(true);
+    setError(null);
+    try {
+      await closeSession(createdSession.joinCode, pilotName.trim());
+      onCreatedSessionClosed();
+    } catch (err) {
+      setError(err instanceof ApiError ? `Could not close session: ${err.code}` : "Could not reach the server.");
+    } finally {
+      setClosingPendingSession(false);
     }
   }
 
@@ -196,32 +213,6 @@ export function Party({
               {relaySaved && <div style={{ color: "var(--green)", fontSize: 12 }}>{relaySaved}</div>}
             </div>
           </div>
-          {customRelayUrl && (
-            <div
-              style={{
-                border: "1px solid var(--hairline)",
-                background: "rgba(255,255,255,0.03)",
-                padding: 14,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div className="mono-label">Direct host checklist</div>
-              <div style={{ fontSize: 12, color: "var(--text-70)" }}>
-                This party will use your own relay at <span className="mono">{customRelayUrl}</span>.
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-35)" }}>
-                Before your friend joins from another network, make sure:
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-70)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div>1. The local direct host is running on TCP {directPort}.</div>
-                <div>2. Your router forwards the same TCP port from the internet to this PC.</div>
-                <div>3. Your friend uses the same relay URL: <span className="mono">{customRelayUrl}</span>.</div>
-                <div>4. If they cannot reach it, test that <span className="mono">{customRelayHost}</span> is really your current public address.</div>
-              </div>
-            </div>
-          )}
           <div className="field">
             <label>Your pilot name</label>
             <input
@@ -230,11 +221,6 @@ export function Party({
               value={pilotName}
               onChange={(e) => onPilotNameChange(e.target.value)}
             />
-          </div>
-
-          <div className="field">
-            <label>Session name</label>
-            <input type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} />
           </div>
 
           <div className="field">
@@ -345,9 +331,17 @@ export function Party({
 
 
           {createdSession && (
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
               <button className="btn" onClick={() => onSessionReady(createdSession, pilotName)}>
                 Get in cockpit
+              </button>
+              <button
+                className="btn"
+                onClick={handleCloseCreatedParty}
+                disabled={closingPendingSession}
+                style={{ background: "transparent", color: "#e24c4b", border: "1px solid rgba(226,76,75,0.35)" }}
+              >
+                {closingPendingSession ? "Closing…" : "Close party"}
               </button>
             </div>
           )}
@@ -381,7 +375,7 @@ export function Party({
           >
             <div className="mono-label">Observer seat confirmation</div>
             <div style={{ color: "var(--text-70)", lineHeight: 1.5 }}>
-              Estas conciente que al esatr en esta silla,no podras tocar,mover y influir en deciciones de los capitanes / primer oficial?
+              ¿Estás consciente de que, al estar en esta silla, no podrás tocar, mover ni influir en las decisiones del capitán o del primer oficial?
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button className="link-action" type="button" onClick={() => setObserverConfirmOpen(false)}>

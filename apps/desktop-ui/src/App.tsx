@@ -145,6 +145,11 @@ export function App() {
     setPilotName(name);
   }
 
+  function handleCreatedSessionClosed() {
+    setCreatedSession(null);
+    setCreatedSessionPilotName(null);
+  }
+
   function handleNavigate(nextView: ViewId) {
     if (activeSession && (nextView === "party" || nextView === "join")) {
       return;
@@ -176,6 +181,7 @@ export function App() {
             onPilotNameChange={setPilotName}
             createdSession={createdSession}
             onSessionCreated={handleSessionCreated}
+            onCreatedSessionClosed={handleCreatedSessionClosed}
             onSessionReady={handleSessionReady}
           />
         );

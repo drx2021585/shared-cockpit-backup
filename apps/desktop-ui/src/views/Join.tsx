@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { joinSession, ApiError, type Session } from "../lib/apiClient";
 import {
-  buildCustomRelayApiBaseUrl,
   DEFAULT_DIRECT_PORT,
   getRelayConfig,
   setRelayConfig,
-  type RelayMode,
 } from "../lib/relayConfig";
 
 interface JoinProps {
@@ -14,32 +12,23 @@ interface JoinProps {
   onSessionReady: (session: Session, pilotName: string) => void;
 }
 
+function isIpv4(value: string) {
+  const parts = value.trim().split(".");
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
+}
+
 export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
   const relayConfig = getRelayConfig();
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
   const [observerConfirmOpen, setObserverConfirmOpen] = useState(false);
-  const [relayMode, setRelayMode] = useState<RelayMode>(relayConfig.mode);
   const [relayHost, setRelayHost] = useState(relayConfig.customHost ?? "");
   const [directPort, setDirectPort] = useState<number>(relayConfig.directPort);
-  const [relaySaved, setRelaySaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  function applyRelaySettings() {
-    setRelayConfig({
-      mode: relayMode,
-      customHost: relayMode === "custom" ? relayHost.trim() || null : null,
-      customUrl: null,
-      directPort,
-    });
-    setRelaySaved(
-      relayMode === "custom"
-        ? "Direct connection settings saved for this PC."
-        : "Hosted relay selected for this PC."
-    );
-  }
+  const trimmedRelayHost = relayHost.trim();
+  const usesCustomRelay = trimmedRelayHost.length > 0;
 
   function requestObserverSeat() {
     setObserverConfirmOpen(true);
@@ -59,16 +48,16 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
       setError("Enter the session code.");
       return;
     }
-    if (relayMode === "custom" && !relayHost.trim()) {
-      setError("Enter the host public IPv4 for My own relay.");
+    if (usesCustomRelay && !isIpv4(trimmedRelayHost)) {
+      setError("Enter a valid host public IPv4.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       setRelayConfig({
-        mode: relayMode,
-        customHost: relayMode === "custom" ? relayHost.trim() || null : null,
+        mode: usesCustomRelay ? "custom" : "hosted",
+        customHost: usesCustomRelay ? trimmedRelayHost : null,
         customUrl: null,
         directPort,
       });
@@ -111,77 +100,6 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
         }}
         style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 16 }}
       >
-        <div
-          style={{
-            border: "1px solid var(--hairline)",
-            background: "rgba(255,255,255,0.03)",
-            padding: 14,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <div className="mono-label">Connection</div>
-          <div className="seat-toggle">
-            <button
-              className={`seat-option ${relayMode === "hosted" ? "active" : ""}`}
-              onClick={() => setRelayMode("hosted")}
-              type="button"
-            >
-              Hosted relay
-            </button>
-            <button
-              className={`seat-option ${relayMode === "custom" ? "active" : ""}`}
-              onClick={() => setRelayMode("custom")}
-              type="button"
-            >
-              My own relay
-            </button>
-          </div>
-          {relayMode === "custom" && (
-            <>
-              <div className="field">
-                <label>Direct host port</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={65535}
-                  value={directPort}
-                  onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
-                />
-              </div>
-              <div className="field">
-                <label>Host public IPv4</label>
-                <input
-                  type="text"
-                  placeholder="HOST-PUBLIC-IP"
-                  value={relayHost}
-                  onChange={(e) => setRelayHost(e.target.value)}
-                />
-              </div>
-              <p style={{ color: "var(--text-35)", fontSize: 12, margin: 0 }}>
-                Use the same public IPv4 and the same TCP port your host configured.
-              </p>
-              <p style={{ color: "var(--text-35)", fontSize: 12, margin: 0 }}>
-                We Connect will connect to{" "}
-                <span className="mono">
-                  {buildCustomRelayApiBaseUrl({
-                    customHost: relayHost,
-                    customUrl: null,
-                    directPort,
-                  }) ?? "http://HOST-PUBLIC-IP:25071"}
-                </span>
-                .
-              </p>
-            </>
-          )}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button className="link-action" onClick={applyRelaySettings} type="button">
-              Save connection settings
-            </button>
-            {relaySaved && <div style={{ color: "var(--green)", fontSize: 12 }}>{relaySaved}</div>}
-          </div>
-        </div>
         <input
           type="text"
           name="fake-username"
@@ -226,6 +144,31 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
             data-form-type="other"
           />
         </div>
+        <div className="field">
+          <label>Host public IPv4 (optional)</label>
+          <input
+            type="text"
+            placeholder="Only if your host gave you one"
+            value={relayHost}
+            onChange={(e) => setRelayHost(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+        </div>
+        {usesCustomRelay && (
+          <div className="field">
+            <label>Port</label>
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={directPort}
+              onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
+            />
+          </div>
+        )}
         <div className="field">
           <label>Password (if required)</label>
           <input
@@ -304,7 +247,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
           >
             <div className="mono-label">Observer seat confirmation</div>
             <div style={{ color: "var(--text-70)", lineHeight: 1.5 }}>
-              Estas conciente que al esatr en esta silla,no podras tocar,mover y influir en deciciones de los capitanes / primer oficial?
+              ¿Estás consciente de que, al estar en esta silla, no podrás tocar, mover ni influir en las decisiones del capitán o del primer oficial?
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button className="link-action" type="button" onClick={() => setObserverConfirmOpen(false)}>

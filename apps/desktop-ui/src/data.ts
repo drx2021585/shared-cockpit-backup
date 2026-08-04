@@ -174,8 +174,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.64",
+    version: "0.1.65",
     title: "Current build",
+    date: "2026-08-04",
+    commits: [
+      "The pending-party screen now lets the host close the newly created session before entering the cockpit, with a dedicated Close party action under Get in cockpit.",
+      "Join a party no longer shows the old Connection block: the screen was simplified so the hosted path stays implicit and only an optional host IPv4 plus port appears when needed.",
+      "My profile no longer shows the session-relay section, and Version history there is reduced again to the latest three releases.",
+      "The participant token now survives renderer reloads inside the same app session, so close-session and other authenticated cockpit actions keep working after a dev refresh.",
+    ],
+  },
+  {
+    version: "0.1.64",
+    title: "Published release",
     date: "2026-08-04",
     commits: [
       "Aircraft cards now show only the latest profile update date instead of the old full-sync and partial-sync marketing copy.",
