@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
 import { createSession, fetchServerHealth, ApiError, type Session } from "../lib/apiClient";
-import { getRelayConfig, setRelayConfig, type RelayMode } from "../lib/relayConfig";
+import {
+  buildCustomRelayApiBaseUrl,
+  DEFAULT_DIRECT_PORT,
+  getRelayConfig,
+  setRelayConfig,
+  type RelayMode,
+} from "../lib/relayConfig";
 
 interface PartyProps {
   pilotName: string;
@@ -21,10 +27,16 @@ export function Party({
   const { profiles, loading: loadingProfiles } = useAircraftProfiles();
   const relayConfig = getRelayConfig();
   const [relayMode, setRelayMode] = useState<RelayMode>(relayConfig.mode);
-  const [relayUrl, setRelayUrl] = useState(relayConfig.customUrl ?? "");
+  const [relayHost, setRelayHost] = useState(relayConfig.customHost ?? "");
   const [directPort, setDirectPort] = useState<number>(relayConfig.directPort);
   const [relaySaved, setRelaySaved] = useState<string | null>(null);
-  const customRelayUrl = relayMode === "custom" ? relayUrl.trim() || null : null;
+  const customRelayUrl = relayMode === "custom"
+    ? buildCustomRelayApiBaseUrl({
+      customHost: relayHost,
+      customUrl: null,
+      directPort,
+    })
+    : null;
   const customRelayHost = customRelayUrl ? (() => {
     try {
       return new URL(customRelayUrl).host;
@@ -55,20 +67,10 @@ export function Party({
   const joinCodeStyle = { filter: joinCodeBlurred ? "blur(4px)" : "none" };
 
   function applyRelaySettings() {
-    let nextUrl = relayUrl.trim();
-    if (relayMode === "custom" && nextUrl) {
-      try {
-        const parsed = new URL(nextUrl);
-        parsed.port = String(directPort);
-        nextUrl = parsed.toString().replace(/\/+$/, "");
-        setRelayUrl(nextUrl);
-      } catch {
-        // Mantener el valor escrito tal cual si no parsea como URL todavía.
-      }
-    }
     setRelayConfig({
       mode: relayMode,
-      customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+      customHost: relayMode === "custom" ? relayHost.trim() || null : null,
+      customUrl: null,
       directPort,
     });
     setRelaySaved(
@@ -170,17 +172,20 @@ export function Party({
                     min={1}
                     max={65535}
                     value={directPort}
-                    onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
+                    onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
                   />
                 </div>
                 <div className="field">
-                  <label>Relay URL</label>
+                  <label>Public IPv4</label>
                   <input
                     type="text"
-                    placeholder="http://YOUR-PUBLIC-IP:25071"
-                    value={relayUrl}
-                    onChange={(e) => setRelayUrl(e.target.value)}
+                    placeholder="YOUR-PUBLIC-IP"
+                    value={relayHost}
+                    onChange={(e) => setRelayHost(e.target.value)}
                   />
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-35)" }}>
+                  Guests connect to: <span className="mono">{customRelayUrl ?? "http://YOUR-PUBLIC-IP:25071"}</span>
                 </div>
               </>
             )}

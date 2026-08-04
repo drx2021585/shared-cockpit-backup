@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { joinSession, ApiError, type Session } from "../lib/apiClient";
-import { getRelayConfig, setRelayConfig, type RelayMode } from "../lib/relayConfig";
+import {
+  buildCustomRelayApiBaseUrl,
+  DEFAULT_DIRECT_PORT,
+  getRelayConfig,
+  setRelayConfig,
+  type RelayMode,
+} from "../lib/relayConfig";
 
 interface JoinProps {
   pilotName: string;
@@ -15,27 +21,17 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
   const [seat, setSeat] = useState<"captain" | "first_officer" | "observer">("first_officer");
   const [observerConfirmOpen, setObserverConfirmOpen] = useState(false);
   const [relayMode, setRelayMode] = useState<RelayMode>(relayConfig.mode);
-  const [relayUrl, setRelayUrl] = useState(relayConfig.customUrl ?? "");
+  const [relayHost, setRelayHost] = useState(relayConfig.customHost ?? "");
   const [directPort, setDirectPort] = useState<number>(relayConfig.directPort);
   const [relaySaved, setRelaySaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function applyRelaySettings() {
-    let nextUrl = relayUrl.trim();
-    if (relayMode === "custom" && nextUrl) {
-      try {
-        const parsed = new URL(nextUrl);
-        parsed.port = String(directPort);
-        nextUrl = parsed.toString().replace(/\/+$/, "");
-        setRelayUrl(nextUrl);
-      } catch {
-        // Dejar el texto tal cual si todavía no parsea.
-      }
-    }
     setRelayConfig({
       mode: relayMode,
-      customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+      customHost: relayMode === "custom" ? relayHost.trim() || null : null,
+      customUrl: null,
       directPort,
     });
     setRelaySaved(
@@ -63,27 +59,17 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
       setError("Enter the session code.");
       return;
     }
-    if (relayMode === "custom" && !relayUrl.trim()) {
-      setError("Enter the relay URL for My own relay.");
+    if (relayMode === "custom" && !relayHost.trim()) {
+      setError("Enter the host public IPv4 for My own relay.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      let nextUrl = relayUrl.trim();
-      if (relayMode === "custom" && nextUrl) {
-        try {
-          const parsed = new URL(nextUrl);
-          parsed.port = String(directPort);
-          nextUrl = parsed.toString().replace(/\/+$/, "");
-          setRelayUrl(nextUrl);
-        } catch {
-          // Si la URL escrita no parsea todavía, se deja tal cual y el join fallará con error claro.
-        }
-      }
       setRelayConfig({
         mode: relayMode,
-        customUrl: relayMode === "custom" ? (nextUrl || null) : null,
+        customHost: relayMode === "custom" ? relayHost.trim() || null : null,
+        customUrl: null,
         directPort,
       });
       const session = await joinSession(code.trim().toUpperCase(), {
@@ -161,20 +147,31 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
                   min={1}
                   max={65535}
                   value={directPort}
-                  onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
+                  onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
                 />
               </div>
               <div className="field">
-                <label>Relay URL</label>
+                <label>Host public IPv4</label>
                 <input
                   type="text"
-                  placeholder="http://HOST-PUBLIC-IP:25071"
-                  value={relayUrl}
-                  onChange={(e) => setRelayUrl(e.target.value)}
+                  placeholder="HOST-PUBLIC-IP"
+                  value={relayHost}
+                  onChange={(e) => setRelayHost(e.target.value)}
                 />
               </div>
               <p style={{ color: "var(--text-35)", fontSize: 12, margin: 0 }}>
-                Use the same URL and the same TCP port your host configured.
+                Use the same public IPv4 and the same TCP port your host configured.
+              </p>
+              <p style={{ color: "var(--text-35)", fontSize: 12, margin: 0 }}>
+                We Connect will connect to{" "}
+                <span className="mono">
+                  {buildCustomRelayApiBaseUrl({
+                    customHost: relayHost,
+                    customUrl: null,
+                    directPort,
+                  }) ?? "http://HOST-PUBLIC-IP:25071"}
+                </span>
+                .
               </p>
             </>
           )}

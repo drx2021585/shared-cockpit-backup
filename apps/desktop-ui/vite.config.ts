@@ -47,6 +47,6 @@ export default defineConfig({
   plugins: [react(), injectCsp()],
   server: {
     port: 5173,
-    strictPort: true,
+    open: true,
   },
 });

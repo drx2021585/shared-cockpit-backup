@@ -75,7 +75,7 @@ export function Aircraft() {
               <div className="aircraft-card-head">
                 <div className="aircraft-card-name-wrap">
                   <div className="aircraft-card-name">{ac.name}</div>
-                  {isNew && <span className="aircraft-card-badge-new">Nuevo</span>}
+                  {isNew && <span className="aircraft-card-badge-new">New</span>}
                   {isSoon && <span className="aircraft-card-badge-soon">Soon</span>}
                 </div>
                 <div className="aircraft-card-pct">{ac.coverage}%</div>

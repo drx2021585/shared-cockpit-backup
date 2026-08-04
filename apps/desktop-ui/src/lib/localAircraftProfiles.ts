@@ -4,6 +4,10 @@ type LocalAircraftProfile = AircraftProfile & {
   coverageOverride?: number;
 };
 
+const PROFILE_ID_ALIASES: Record<string, string> = {
+  "lvfr-a330-300": "lvfr-a330-200",
+};
+
 function coverageFromCapabilities(capabilities: Record<string, string>) {
   const levelScore: Record<string, number> = {
     full: 100,
@@ -132,14 +136,57 @@ const LOCAL_AIRCRAFT_PROFILES: LocalAircraftProfile[] = [
 }));
 
 export function mergeLocalAircraftProfiles(profiles: AircraftProfile[]): AircraftProfile[] {
+  const canonicalizeId = (id: string) => PROFILE_ID_ALIASES[id] ?? id;
+  const mergeVariants = (left?: string[], right?: string[]) =>
+    [...new Set([...(left ?? []), ...(right ?? [])])];
+  const mergeProfile = (
+    current: AircraftProfile | undefined,
+    incoming: AircraftProfile
+  ): AircraftProfile => {
+    if (!current) {
+      return {
+        ...incoming,
+        id: canonicalizeId(incoming.id),
+        variants: mergeVariants(incoming.variants),
+      };
+    }
+
+    return {
+      ...incoming,
+      ...current,
+      id: canonicalizeId(incoming.id),
+      name: incoming.id === canonicalizeId(incoming.id) ? incoming.name : current.name,
+      developer: incoming.id === canonicalizeId(incoming.id) ? incoming.developer : current.developer,
+      version:
+        incoming.id === canonicalizeId(incoming.id) && incoming.version !== "unknown"
+          ? incoming.version
+          : current.version,
+      availability:
+        incoming.id === canonicalizeId(incoming.id)
+          ? (incoming.availability ?? current.availability)
+          : (current.availability ?? incoming.availability),
+      coverage: Math.max(current.coverage, incoming.coverage),
+      capabilities: {
+        ...current.capabilities,
+        ...incoming.capabilities,
+      },
+      compatibility: {
+        msfs2020: current.compatibility.msfs2020 || incoming.compatibility.msfs2020,
+        msfs2024: current.compatibility.msfs2024 || incoming.compatibility.msfs2024,
+      },
+      verified: current.verified || incoming.verified,
+      variants: mergeVariants(current.variants, incoming.variants),
+    };
+  };
+
   const byId = new Map<string, AircraftProfile>();
   for (const profile of profiles) {
-    byId.set(profile.id, profile);
+    const canonicalId = canonicalizeId(profile.id);
+    byId.set(canonicalId, mergeProfile(byId.get(canonicalId), profile));
   }
   for (const localProfile of LOCAL_AIRCRAFT_PROFILES) {
-    if (!byId.has(localProfile.id)) {
-      byId.set(localProfile.id, localProfile);
-    }
+    const canonicalId = canonicalizeId(localProfile.id);
+    byId.set(canonicalId, mergeProfile(byId.get(canonicalId), localProfile));
   }
   return [...byId.values()].sort((left, right) => right.coverage - left.coverage);
 }

@@ -160,14 +160,6 @@ export const reliability = [
   },
 ];
 
-export const learnSteps = [
-  "Pick the aircraft you want supported",
-  "Fly it once while the app watches what changes",
-  "Confirm the switches and gauges it found",
-  "Test that they sync correctly",
-  "Save it as a ready-to-fly profile",
-];
-
 export const requirements = [
   "Windows 10 or 11",
   "MSFS 2020 or 2024",
@@ -182,8 +174,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.62",
+    version: "0.1.63",
     title: "Current build",
+    date: "2026-08-04",
+    commits: [
+      "My own relay now asks only for a public IPv4 and a TCP port; We Connect builds the relay URL itself so manual port-forwarding setup is clearer and less error-prone.",
+      "Create a party, Join a party and Profile all use the same normalized self-hosted relay settings, so old full-URL leftovers stop breaking new session attempts.",
+      "The Aircraft list now collapses stale LVFR A330-300 entries into the consolidated A330-200/300 profile instead of showing both separately.",
+      "The new-aircraft badge was refreshed to a blue accent style that matches the rest of the UI better.",
+    ],
+  },
+  {
+    version: "0.1.62",
+    title: "Published release",
     date: "2026-08-03",
     commits: [
       "Version history now shows the full release list in Profile instead of stopping after the first three entries.",

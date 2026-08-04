@@ -1,6 +1,8 @@
 import { currentVersion, versionHistory } from "../data";
 import { useEffect, useState } from "react";
 import {
+  buildCustomRelayApiBaseUrl,
+  DEFAULT_DIRECT_PORT,
   getDefaultRelayApiBaseUrl,
   getRelayConfig,
   setRelayConfig,
@@ -24,17 +26,24 @@ export function Profile({
 }: ProfileProps) {
   const [folderError, setFolderError] = useState<string | null>(null);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
-  const [relayMode, setRelayMode] = useState<RelayMode>(() => getRelayConfig().mode);
-  const [customRelayUrl, setCustomRelayUrl] = useState<string>(() => getRelayConfig().customUrl ?? "");
+  const relayConfig = getRelayConfig();
+  const [relayMode, setRelayMode] = useState<RelayMode>(() => relayConfig.mode);
+  const [customRelayHost, setCustomRelayHost] = useState<string>(() => relayConfig.customHost ?? "");
   const [relaySaved, setRelaySaved] = useState<string | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
   const [relayTesting, setRelayTesting] = useState(false);
-  const [directPort, setDirectPort] = useState<number>(25071);
+  const [directPort, setDirectPort] = useState<number>(relayConfig.directPort || DEFAULT_DIRECT_PORT);
   const [directRunning, setDirectRunning] = useState(false);
   const [directStatus, setDirectStatus] = useState<string | null>(null);
   const [publicIpv4, setPublicIpv4] = useState<string | null>(null);
 
-  const autoRelayUrl = publicIpv4 ? `http://${publicIpv4}:${directPort}` : "";
+  const effectiveRelayHost = customRelayHost.trim() || publicIpv4 || "";
+  const effectiveRelayUrl =
+    buildCustomRelayApiBaseUrl({
+      customHost: effectiveRelayHost,
+      customUrl: null,
+      directPort,
+    }) ?? "";
 
   function toggleVersion(version: string) {
     setExpandedVersions((current) => ({
@@ -70,14 +79,18 @@ export function Profile({
     window.weconnectNetwork?.getPublicAddresses()
       .then((info) => {
         setPublicIpv4(info.ipv4);
+        if (info.ipv4 && !relayConfig.customHost) {
+          setCustomRelayHost(info.ipv4);
+        }
       })
       .catch(() => undefined);
-  }, []);
+  }, [relayConfig.customHost]);
 
   function saveRelaySettings() {
     setRelayConfig({
       mode: relayMode,
-      customUrl: relayMode === "custom" ? (autoRelayUrl || customRelayUrl) : null,
+      customHost: relayMode === "custom" ? effectiveRelayHost : null,
+      customUrl: null,
       directPort,
     });
     setRelayError(null);
@@ -92,9 +105,9 @@ export function Profile({
     const base =
       relayMode === "hosted"
         ? getDefaultRelayApiBaseUrl()
-        : (autoRelayUrl || customRelayUrl).trim().replace(/\/+$/, "");
+        : effectiveRelayUrl;
     if (!base) {
-      setRelayError("Enter the relay URL first.");
+      setRelayError("Enter the public IPv4 first.");
       return;
     }
     setRelaySaved(null);
@@ -199,13 +212,12 @@ export function Profile({
             {relayMode === "custom" && (
               <>
                 <div className="field">
-                  <label>Relay URL</label>
+                  <label>Public IPv4</label>
                   <input
                     type="text"
-                    placeholder="http://YOUR-PUBLIC-IP:25071"
-                    value={autoRelayUrl || customRelayUrl}
-                    onChange={(e) => setCustomRelayUrl(e.target.value)}
-                    readOnly={!!autoRelayUrl}
+                    placeholder="YOUR-PUBLIC-IP"
+                    value={customRelayHost}
+                    onChange={(e) => setCustomRelayHost(e.target.value)}
                   />
                 </div>
                 <div className="field">
@@ -215,8 +227,11 @@ export function Profile({
                     min={1}
                     max={65535}
                     value={directPort}
-                    onChange={(e) => setDirectPort(Number(e.target.value) || 25071)}
+                    onChange={(e) => setDirectPort(Number(e.target.value) || DEFAULT_DIRECT_PORT)}
                   />
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-35)" }}>
+                  Relay URL used by We Connect: {effectiveRelayUrl || "Waiting for IPv4…"}
                 </div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <button className="link-action" onClick={handleStartDirectHost}>
@@ -240,9 +255,9 @@ export function Profile({
                   </button>
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-35)" }}>
-                  {autoRelayUrl
-                    ? "Relay URL is generated automatically from your public IPv4 and the direct-host port."
-                    : "Public IPv4 could not be detected, so the relay URL stays manual."}
+                  {publicIpv4
+                    ? "The app detected your public IPv4. Keep that value or replace it if your router/external IP is different."
+                    : "Public IPv4 could not be detected automatically. Enter it manually and forward the same TCP port to this PC."}
                 </div>
               </>
             )}

@@ -5,7 +5,6 @@ import {
   scopeOut,
   screens,
   reliability,
-  learnSteps,
   currentVersion,
 } from "../data";
 
@@ -141,29 +140,6 @@ export function Home() {
             <div key={r.title}>
               <div className="reliability-title">{r.title}</div>
               <div className="reliability-desc">{r.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* AIRCRAFT SUPPORT */}
-      <div className="section">
-        <div className="section-head section-top">
-          <span className="index-num">04</span>
-          <h2 className="h2">Aircraft support</h2>
-        </div>
-        <p className="lead" style={{ maxWidth: 560 }}>
-          Each aircraft needs to be taught to the app once. You'll always see how well-supported a
-          plane is before you fly it.
-        </p>
-        <div style={{ maxWidth: 560 }}>
-          <div className="mono-label" style={{ marginBottom: 24 }}>
-            Adding a new aircraft
-          </div>
-          {learnSteps.map((step, i) => (
-            <div className="learn-step" key={step}>
-              <div className="learn-step-num">0{i + 1}</div>
-              <div className="learn-step-label">{step}</div>
             </div>
           ))}
         </div>
