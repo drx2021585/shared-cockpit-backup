@@ -46,22 +46,14 @@ export const flowSteps: FlowStep[] = flowLabels.map((label, i) => ({
 export const scopeIn = [
   "Two pilots, one aircraft",
   "Private session with a join code",
-  "Captain & first officer seats",
   "Full flight-control handoff",
-  "A heads-up when something looks out of sync",
   "Automatic reconnection if someone drops",
 ];
 
 export const scopeOut = [
   "Screen sharing or video",
   "Built-in voice chat",
-  "Public matchmaking / big lobbies",
-  "More than 2 players",
   "Instructor-triggered failures",
-  "Every aircraft on day one",
-  "Full airliner FMC/MCDU sharing",
-  "Xbox",
-  "Shared custom weather",
 ];
 
 export interface ScreenCard {
@@ -73,19 +65,8 @@ export interface ScreenCard {
 
 export const screens: ScreenCard[] = [
   {
-    title: "Home",
-    tag: "CONNECT",
-    subtitle: "The first thing you see when you open the app.",
-    items: [
-      "Simulator connection status",
-      "Aircraft currently loaded",
-      "Compatibility score for that aircraft",
-      "Create session / Join session",
-    ],
-  },
-  {
     title: "Create session",
-    tag: "HOST",
+    tag: "CREATE",
     subtitle: "Set up before your friends joins.",
     items: [
       "Session name",
@@ -96,37 +77,9 @@ export const screens: ScreenCard[] = [
   },
   {
     title: "Join session",
-    tag: "GUEST",
+    tag: "JOIN",
     subtitle: "For the second pilot.",
     items: ["Enter the code", "Aircraft match check", "Confirm and load into the shared flight"],
-  },
-  {
-    title: "Shared cockpit",
-    tag: "IN-FLIGHT",
-    subtitle: "The main screen while you're flying together.",
-    items: [
-      "Who's in each seat",
-      "Who currently has the controls",
-      "Connection quality (ping)",
-      "Request controls / hand off controls",
-    ],
-  },
-  {
-    title: "Aircraft",
-    tag: "SETUP",
-    subtitle: "Manage which planes are ready to fly together.",
-    items: ["Installed aircraft & compatibility %"],
-  },
-  {
-    title: "Flight diagnostics",
-    tag: "IN-FLIGHT",
-    subtitle: "Simple health check, not raw data.",
-    items: [
-      '"Everything is in sync" indicator',
-      "What's currently out of sync, in plain terms",
-      "Resync button",
-      "Send a report if something felt wrong",
-    ],
   },
 ];
 
@@ -174,7 +127,7 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.65",
+    version: "0.1.66",
     title: "Current build",
     date: "2026-08-04",
     commits: [
@@ -182,6 +135,8 @@ export const versionHistory: VersionHistoryEntry[] = [
       "Join a party no longer shows the old Connection block: the screen was simplified so the hosted path stays implicit and only an optional host IPv4 plus port appears when needed.",
       "My profile no longer shows the session-relay section, and Version history there is reduced again to the latest three releases.",
       "The participant token now survives renderer reloads inside the same app session, so close-session and other authenticated cockpit actions keep working after a dev refresh.",
+      "The cockpit now shows which simulator backends are actually active — SimConnect, the L-Var bridge, calculator code, PMDG SDK and iFly SDK — so diagnosing setup and sync problems is much more explicit.",
+      "L-Var access can now fail over in flight between FSUIPC7 and the installed Community WASM bridge, and the desktop bridge republishes that backend change to the UI instead of leaving the cockpit in an ambiguous half-connected state.",
     ],
   },
   {

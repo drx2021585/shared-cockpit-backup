@@ -1,8 +1,6 @@
 import {
   heroTags,
   flowSteps,
-  scopeIn,
-  scopeOut,
   screens,
   reliability,
   currentVersion,
@@ -55,55 +53,14 @@ export function Home() {
         </div>
       </div>
 
-      {/* FEATURES / SCOPE */}
-      <div className="section" id="features">
-        <div className="section-head section-top">
-          <span className="index-num">01</span>
-          <h2 className="h2">What you can do together</h2>
-        </div>
-        <p className="lead" style={{ maxWidth: 520 }}>
-          Version 1 is built around flying one aircraft together, start to finish — not around
-          streaming, chat, or crowds.
-        </p>
-        <div className="grid-2">
-          <div>
-            <div className="mono-label" style={{ color: "var(--accent)", marginBottom: 24 }}>
-              Works today
-            </div>
-            <div>
-              {scopeIn.map((item) => (
-                <div className="scope-item in" key={item}>
-                  <span className="scope-mark in">✓</span>
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="mono-label" style={{ marginBottom: 24 }}>
-              Not yet
-            </div>
-            <div>
-              {scopeOut.map((item) => (
-                <div className="scope-item out" key={item}>
-                  <span className="scope-mark out">–</span>
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* SCREENS */}
       <div className="section" id="screens">
         <div className="section-head section-top">
-          <span className="index-num">02</span>
+          <span className="index-num">01</span>
           <h2 className="h2">Inside the app</h2>
         </div>
         <p className="lead" style={{ maxWidth: 560 }}>
-          Every screen answers one question the pilot has in the moment — am I connected, who's
-          flying, and is anything out of sync.
+          The app flow is reduced to the two actions that matter before the flight starts.
         </p>
         <div className="grid-2-tight">
           {screens.map((s) => (
@@ -128,7 +85,7 @@ export function Home() {
       {/* STAYING IN SYNC (reliability) */}
       <div className="section">
         <div className="section-head section-top">
-          <span className="index-num">03</span>
+          <span className="index-num">02</span>
           <h2 className="h2">Staying in sync</h2>
         </div>
         <p className="lead" style={{ maxWidth: 560 }}>
@@ -148,7 +105,7 @@ export function Home() {
       {/* CTA / v1 */}
       <div className="section">
         <div className="cta">
-          <div className="cta-version">First release · V{currentVersion}</div>
+          <div className="cta-version">APP VERSION / We Connect v{currentVersion}</div>
           <div className="cta-copyright">© 2026 We Connect. All rights reserved.</div>
         </div>
       </div>

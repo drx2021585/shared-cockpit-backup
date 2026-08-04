@@ -266,6 +266,11 @@ app.post(
       return res.status(404).json({ error: "session-not-found" });
     }
     audit("session-left", { joinCode, ip: req.ip });
+    for (const [ws, meta] of connections) {
+      if (meta.joinCode === joinCode && meta.pilotName === pilotName) {
+        ws.close(4001, "session left");
+      }
+    }
     await broadcastSessionState(joinCode);
     res.status(204).end();
   }

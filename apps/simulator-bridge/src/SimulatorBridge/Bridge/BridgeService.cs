@@ -4,6 +4,7 @@ using SharedCockpit.Bridge.IFlySdk;
 using SharedCockpit.Bridge.Logging;
 using SharedCockpit.Bridge.Profiles;
 using SharedCockpit.Bridge.Protocol;
+using SharedCockpit.Bridge.SimConnectInterop;
 
 namespace SharedCockpit.Bridge.Bridge;
 
@@ -127,6 +128,13 @@ public sealed class BridgeService : IAsyncDisposable
     private readonly IPmdgClientDataClient? _sharedCockpitWasmClient;
 
     /// <summary>
+    /// Cliente alternativo para el área de L-Vars. Permite degradar de FSUIPC7
+    /// al módulo WASM propio (o viceversa) sin dejar la aeronave sin ninguna
+    /// fuente posible para SharedCockpitBridge_LVars.
+    /// </summary>
+    private readonly IPmdgClientDataClient? _lvarFallbackClient;
+
+    /// <summary>
     /// Ejecutor de calculator code (RPN) para controles write.type=calculatorCode
     /// (ej. flight.yoke.pitch/roll, flight.rudder en el 737 -- ver
     /// ICalculatorCodeClient para el detalle de la verificación en vivo). En
@@ -213,7 +221,10 @@ public sealed class BridgeService : IAsyncDisposable
     private AircraftProfile? _matchedProfile;
     private string? _lastTitle;
     private long _sequence;
-    private bool _pmdgUnavailableWarned;
+    private readonly Dictionary<string, IPmdgClientDataClient> _activeClientByArea = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _missingClientAreasWarned = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _unavailableClientAreasWarned = new(StringComparer.Ordinal);
+    private bool _resubscribingExternalSubscriptions;
     private readonly Dictionary<string, PendingWriteConfirmation> _pendingWriteConfirmations = new();
     private readonly Dictionary<string, List<WriteOnlyTriggerMirror>> _writeOnlyTriggerMirrorsBySyntheticKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<WriteOnlyTriggerMirror>> _writeOnlyTriggerMirrorsByFieldAndCode = new(StringComparer.Ordinal);
@@ -259,6 +270,7 @@ public sealed class BridgeService : IAsyncDisposable
         IIflySdkMonitor? iflySdkMonitor = null,
         IPmdgClientDataClient? pmdgClient = null,
         IPmdgClientDataClient? sharedCockpitWasmClient = null,
+        IPmdgClientDataClient? lvarFallbackClient = null,
         IPmdgClientDataClient? iflyClient = null,
         ICalculatorCodeClient? calculatorCodeClient = null,
         PolarityCalibration? polarityCalibration = null)
@@ -278,6 +290,7 @@ public sealed class BridgeService : IAsyncDisposable
         _iflySdkMonitor = iflySdkMonitor;
         _pmdgClient = pmdgClient;
         _sharedCockpitWasmClient = sharedCockpitWasmClient;
+        _lvarFallbackClient = lvarFallbackClient;
         _iflyClient = iflyClient;
         _calculatorCodeClient = calculatorCodeClient;
 
@@ -289,6 +302,8 @@ public sealed class BridgeService : IAsyncDisposable
 
         if (_pmdgClient is not null)
         {
+            _pmdgClient.Connected += OnExternalClientStateChanged;
+            _pmdgClient.Disconnected += OnExternalClientStateChanged;
             _pmdgClient.Warning += OnPmdgWarning;
             _pmdgClient.FieldValueReceived += OnNumericValueReceived;
             _pmdgClient.StringFieldValueReceived += OnStringValueReceived;
@@ -297,16 +312,33 @@ public sealed class BridgeService : IAsyncDisposable
 
         if (_sharedCockpitWasmClient is not null)
         {
+            _sharedCockpitWasmClient.Connected += OnExternalClientStateChanged;
+            _sharedCockpitWasmClient.Disconnected += OnExternalClientStateChanged;
             _sharedCockpitWasmClient.Warning += OnPmdgWarning;
             _sharedCockpitWasmClient.FieldValueReceived += OnNumericValueReceived;
             _sharedCockpitWasmClient.StringFieldValueReceived += OnStringValueReceived;
             _sharedCockpitWasmClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
         }
 
+        if (_lvarFallbackClient is not null
+            && !ReferenceEquals(_lvarFallbackClient, _sharedCockpitWasmClient)
+            && !ReferenceEquals(_lvarFallbackClient, _pmdgClient))
+        {
+            _lvarFallbackClient.Connected += OnExternalClientStateChanged;
+            _lvarFallbackClient.Disconnected += OnExternalClientStateChanged;
+            _lvarFallbackClient.Warning += OnPmdgWarning;
+            _lvarFallbackClient.FieldValueReceived += OnNumericValueReceived;
+            _lvarFallbackClient.StringFieldValueReceived += OnStringValueReceived;
+            _lvarFallbackClient.ScreenSnapshotReceived += OnScreenSnapshotReceived;
+        }
+
         if (_iflyClient is not null
             && !ReferenceEquals(_iflyClient, _pmdgClient)
-            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient)
+            && !ReferenceEquals(_iflyClient, _lvarFallbackClient))
         {
+            _iflyClient.Connected += OnExternalClientStateChanged;
+            _iflyClient.Disconnected += OnExternalClientStateChanged;
             _iflyClient.Warning += OnPmdgWarning;
             _iflyClient.FieldValueReceived += OnNumericValueReceived;
             _iflyClient.StringFieldValueReceived += OnStringValueReceived;
@@ -374,7 +406,7 @@ public sealed class BridgeService : IAsyncDisposable
                 if (!connected)
                 {
                     _iflySdkMonitor?.Pump(simulatorConnected: false);
-                    Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
+                    Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus, BuildBackendStatusJson()));
                     try
                     {
                         await Task.Delay(_reconnectInterval, ct);
@@ -398,6 +430,7 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("simconnect", () => _sim.Pump());
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
+            PumpSafely("lvars-fallback", () => _lvarFallbackClient?.Pump());
             PumpSafely("ifly-sdk", () => _iflySdkMonitor?.Pump(_sim.IsConnected));
             // Antes que las confirmaciones: si hay escrituras esperando su turno en
             // un trigger, conviene despacharlas ya para que la ventana de
@@ -869,8 +902,8 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         var areaName = write.AreaName ?? string.Empty;
-        var client = ResolveClientDataClient(areaName);
-        if (!EnsurePmdgClientReady(client, areaName, control.Id, "write"))
+        var client = ResolveReadyClientDataClient(areaName, control.Id, "write");
+        if (client is null)
         {
             return false;
         }
@@ -887,7 +920,7 @@ public sealed class BridgeService : IAsyncDisposable
 
         var eventIdOrName = write.Event ?? string.Empty;
         var resolvedParameter = ResolveWriteEventParameter(write.Parameter, control.DataType, value);
-        var ok = client!.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
+        var ok = client.WriteControlEvent(areaName, eventIdOrName, resolvedParameter);
         if (!ok)
         {
             Broadcast(BridgeError.Build(control.Id, "write", $"clientDataEvent '{eventIdOrName}' en área '{areaName}' no se pudo escribir (ver logs del bridge para el motivo)"));
@@ -1702,10 +1735,9 @@ public sealed class BridgeService : IAsyncDisposable
         ClearPendingWriteConfirmations();
         _matchedProfile = null;
         _lastTitle = null;
-        _pmdgUnavailableWarned = false;
         _sim.SubscribeString(TitleKey, "TITLE", PollMode.OnChange);
         SubscribeFlightPoseVariables();
-        Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
+        Broadcast(BridgeStatus.Build(true, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus, BuildBackendStatusJson()));
     }
 
     private void OnDisconnected()
@@ -1716,7 +1748,7 @@ public sealed class BridgeService : IAsyncDisposable
         _lastTitle = null;
         _remoteFlightPoseTarget = null;
         _iflySdkMonitor?.Pump(simulatorConnected: false);
-        Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
+        Broadcast(BridgeStatus.Build(false, null, null, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus, BuildBackendStatusJson()));
     }
 
     private void OnSimConnectException(string message)
@@ -2326,21 +2358,20 @@ public sealed class BridgeService : IAsyncDisposable
                 : $"no matching aircraft profile (ojo: estos perfiles no se pudieron cargar y por eso " +
                   $"nunca van a detectarse: {string.Join(", ", _failedProfileIds)})";
 
-            Broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
+            Broadcast(BridgeStatus.Build(true, null, title, error, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus, BuildBackendStatusJson()));
             return;
         }
 
         _matchedProfile = result.Profile;
         ClearPendingWriteConfirmations();
         _log.Info($"Perfil detectado: '{result.Profile.ProfileId}' (partialMatch={result.IsPartialMatch}) para título '{title}'");
-        Broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus));
+        Broadcast(BridgeStatus.Build(true, result.Profile.ProfileId, title, null, SimulatorVersionLabel, _iflySdkMonitor?.CurrentStatus, BuildBackendStatusJson()));
         SubscribeControls(result.Profile);
     }
 
     private void SubscribeControls(AircraftProfile profile)
     {
         ResetExternalSubscriptions();
-        IndexWriteOnlyTriggerMirrors(profile);
 
         foreach (var control in profile.Controls)
         {
@@ -2371,11 +2402,33 @@ public sealed class BridgeService : IAsyncDisposable
                 }
 
                 case ReadType.Lvar:
-                    SubscribeLvarControl(control);
+                case ReadType.ClientDataArea:
                     break;
 
                 case ReadType.Hvar:
                     _log.Warn($"control '{control.Id}': read.type={control.Read.Type} requiere ejecución de calculator code vía WASM, no soportado por este proceso SimConnect puro. Se omite la suscripción.");
+                    break;
+            }
+        }
+
+        SubscribeExternalSources(profile);
+    }
+
+    private void SubscribeExternalSources(AircraftProfile profile)
+    {
+        IndexWriteOnlyTriggerMirrors(profile);
+
+        foreach (var control in profile.Controls)
+        {
+            if (control.WriteOnly || control.Read is null)
+            {
+                continue;
+            }
+
+            switch (control.Read.Type)
+            {
+                case ReadType.Lvar:
+                    SubscribeLvarControl(control);
                     break;
 
                 case ReadType.ClientDataArea:
@@ -2390,12 +2443,20 @@ public sealed class BridgeService : IAsyncDisposable
 
     private void ResetExternalSubscriptions()
     {
+        _activeClientByArea.Clear();
         _pmdgClient?.ResetSubscriptions();
         if (!ReferenceEquals(_sharedCockpitWasmClient, _pmdgClient))
         {
             _sharedCockpitWasmClient?.ResetSubscriptions();
         }
-        if (!ReferenceEquals(_iflyClient, _pmdgClient) && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+        if (!ReferenceEquals(_lvarFallbackClient, _pmdgClient)
+            && !ReferenceEquals(_lvarFallbackClient, _sharedCockpitWasmClient))
+        {
+            _lvarFallbackClient?.ResetSubscriptions();
+        }
+        if (!ReferenceEquals(_iflyClient, _pmdgClient)
+            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient)
+            && !ReferenceEquals(_iflyClient, _lvarFallbackClient))
         {
             _iflyClient?.ResetSubscriptions();
         }
@@ -2417,13 +2478,13 @@ public sealed class BridgeService : IAsyncDisposable
             return;
         }
 
-        var client = ResolveClientDataClient("SharedCockpitBridge_LVars");
-        if (!EnsurePmdgClientReady(client, "SharedCockpitBridge_LVars", control.Id, "read"))
+        var client = ResolveReadyClientDataClient("SharedCockpitBridge_LVars", control.Id, "read");
+        if (client is null)
         {
             return;
         }
 
-        client!.SubscribeField(control.Id, "SharedCockpitBridge_LVars", lvarName, arrayIndex: null, ClientDataNativeType.Float);
+        client.SubscribeField(control.Id, "SharedCockpitBridge_LVars", lvarName, arrayIndex: null, ClientDataNativeType.Float);
     }
 
     private void IndexWriteOnlyTriggerMirrors(AircraftProfile profile)
@@ -2496,14 +2557,14 @@ public sealed class BridgeService : IAsyncDisposable
                      .Select(mirrors => mirrors[0].TriggerLVar)
                      .Distinct(StringComparer.Ordinal))
         {
-            var client = ResolveClientDataClient("SharedCockpitBridge_LVars");
             var representative = _writeOnlyTriggerMirrorsBySyntheticKey[WriteOnlyTriggerSyntheticKey(triggerLVar)][0];
-            if (!EnsurePmdgClientReady(client, "SharedCockpitBridge_LVars", representative.Control.Id, "read"))
+            var client = ResolveReadyClientDataClient("SharedCockpitBridge_LVars", representative.Control.Id, "read");
+            if (client is null)
             {
                 continue;
             }
 
-            client!.SubscribeField(
+            client.SubscribeField(
                 WriteOnlyTriggerSyntheticKey(triggerLVar),
                 "SharedCockpitBridge_LVars",
                 triggerLVar,
@@ -2535,85 +2596,197 @@ public sealed class BridgeService : IAsyncDisposable
         }
 
         var areaName = read.AreaName ?? string.Empty;
-        var client = ResolveClientDataClient(areaName);
-        if (!EnsurePmdgClientReady(client, areaName, control.Id, "read"))
+        var client = ResolveReadyClientDataClient(areaName, control.Id, "read");
+        if (client is null)
         {
             return;
         }
 
         var field = read.Field ?? string.Empty;
         var nativeType = read.NativeType ?? ClientDataNativeType.Bool;
-        client!.SubscribeField(control.Id, areaName, field, read.ArrayIndex, nativeType);
+        client.SubscribeField(control.Id, areaName, field, read.ArrayIndex, nativeType);
     }
 
     private void SubscribeScreens(AircraftProfile profile)
     {
         foreach (var screen in profile.Screens)
         {
-            var client = ResolveClientDataClient(screen.AreaName);
-            if (!EnsurePmdgClientReady(client, screen.AreaName, screen.Id, "read"))
+            var client = ResolveReadyClientDataClient(screen.AreaName, screen.Id, "read");
+            if (client is null)
             {
                 continue;
             }
 
-            client!.SubscribeScreen(screen);
+            client.SubscribeScreen(screen);
         }
     }
 
     /// <summary>
-    /// Resuelve qué cliente de Client Data Area es dueño de un areaName dado.
-    /// "PMDG_NG3_Data"/"PMDG_NG3_Control" → _pmdgClient (SDK oficial de PMDG).
-    /// "SharedCockpitBridge_LVars" → _sharedCockpitWasmClient (módulo WASM propio
-    /// del proyecto, ver simulator/wasm-bridge). Cualquier otro nombre no tiene
-    /// cliente asignado todavía (null, se reporta como error estructurado más
-    /// arriba en la cadena de llamadas, no aquí).
+    /// Lista los clientes candidatos para un areaName. Para L-Vars se permite
+    /// más de uno: el primario y un fallback, en ese orden.
     /// </summary>
-    private IPmdgClientDataClient? ResolveClientDataClient(string areaName) => areaName switch
+    private IEnumerable<IPmdgClientDataClient> ResolveClientDataClients(string areaName) => areaName switch
     {
-        "PMDG_NG3_Data" or "PMDG_NG3_Control" or "PMDG_NG3_CDU_0" or "PMDG_NG3_CDU_1" => _pmdgClient,
-        "SharedCockpitBridge_LVars" => _sharedCockpitWasmClient,
-        "iFly737MAX_SDK_Control" or "iFly737MAX_SDK_Data" => _iflyClient,
-        _ => null,
+        "PMDG_NG3_Data" or "PMDG_NG3_Control" or "PMDG_NG3_CDU_0" or "PMDG_NG3_CDU_1" => EnumerateDistinctClients(_pmdgClient),
+        "SharedCockpitBridge_LVars" => EnumerateDistinctClients(_sharedCockpitWasmClient, _lvarFallbackClient),
+        "iFly737MAX_SDK_Control" or "iFly737MAX_SDK_Data" => EnumerateDistinctClients(_iflyClient),
+        _ => Array.Empty<IPmdgClientDataClient>(),
     };
 
     /// <summary>
-    /// Verifica (y, si hace falta, intenta abrir) la conexión dedicada al SDK de
-    /// terceros o al módulo WASM propio, según cuál área se está pidiendo.
-    /// Reporta como warning/BridgeError la primera vez que no está disponible
-    /// por perfil, sin reintentar en cada Pump (evita spam de logs).
+    /// Devuelve el cliente activo para un areaName, o prueba los candidatos en
+    /// orden hasta que alguno quede listo.
     /// </summary>
-    private bool EnsurePmdgClientReady(IPmdgClientDataClient? client, string areaName, string controlId, string direction)
+    private IPmdgClientDataClient? ResolveReadyClientDataClient(string areaName, string controlId, string direction)
     {
-        if (client is null)
+        if (_activeClientByArea.TryGetValue(areaName, out var activeClient) && activeClient.IsConnected)
         {
-            if (!_pmdgUnavailableWarned)
+            return activeClient;
+        }
+
+        _activeClientByArea.Remove(areaName);
+        var candidates = ResolveClientDataClients(areaName).ToArray();
+        if (candidates.Length == 0)
+        {
+            if (_missingClientAreasWarned.Add(areaName))
             {
-                _pmdgUnavailableWarned = true;
-                _log.Warn($"El perfil activo declara un control clientDataArea para '{areaName}', pero el bridge no tiene ningún cliente asignado a esa área (ver Program.cs / BridgeService.ResolveClientDataClient). Esos controles no se sincronizarán.");
+                _log.Warn($"El perfil activo declara un control clientDataArea para '{areaName}', pero el bridge no tiene ningún cliente asignado a esa área (ver Program.cs / BridgeService.ResolveClientDataClients). Esos controles no se sincronizarán.");
             }
 
             Broadcast(BridgeError.Build(controlId, direction, $"ningún cliente Client Data Area configurado para el área '{areaName}'"));
-            return false;
+            return null;
         }
 
-        if (client.IsConnected)
+        foreach (var candidate in candidates)
         {
-            return true;
+            if (candidate.IsConnected || candidate.TryConnect(_appName))
+            {
+                _activeClientByArea[areaName] = candidate;
+                return candidate;
+            }
         }
 
-        if (client.TryConnect(_appName))
+        if (_unavailableClientAreasWarned.Add(areaName))
         {
-            return true;
-        }
-
-        if (!_pmdgUnavailableWarned)
-        {
-            _pmdgUnavailableWarned = true;
-            _log.Warn($"No se pudo conectar el cliente Client Data Area para '{areaName}' — ¿el addon/módulo correspondiente no está cargado? Esos controles no se sincronizarán hasta la próxima reconexión.");
+            var providers = string.Join(", ", candidates.Select(DescribeClientProvider));
+            _log.Warn($"No se pudo conectar ningún cliente Client Data Area para '{areaName}' ({providers}) — ¿el addon/módulo correspondiente no está cargado? Esos controles no se sincronizarán hasta la próxima reconexión.");
         }
 
         Broadcast(BridgeError.Build(controlId, direction, $"no se pudo conectar el cliente Client Data Area para '{areaName}'"));
-        return false;
+        return null;
+    }
+
+    private static IEnumerable<IPmdgClientDataClient> EnumerateDistinctClients(params IPmdgClientDataClient?[] candidates)
+    {
+        var seen = new HashSet<IPmdgClientDataClient>(ReferenceEqualityComparer.Instance);
+        foreach (var candidate in candidates)
+        {
+            if (candidate is not null && seen.Add(candidate))
+            {
+                yield return candidate;
+            }
+        }
+    }
+
+    private static string DescribeClientProvider(object? client) => client switch
+    {
+        FsuipcLVarClient => "FSUIPC7",
+        SharedCockpitWasmClient => "Community WASM",
+        PmdgClientDataClient => "PMDG SDK",
+        IflySdkClient => "iFly SDK",
+        null => "Not configured",
+        _ => client.GetType().Name,
+    };
+
+    private JsonObject BuildBackendStatusJson()
+    {
+        var lvarActive = _activeClientByArea.TryGetValue("SharedCockpitBridge_LVars", out var lvarClient)
+            ? lvarClient
+            : _sharedCockpitWasmClient ?? _lvarFallbackClient;
+        var lvarStandby = ReferenceEquals(lvarActive, _sharedCockpitWasmClient)
+            ? _lvarFallbackClient
+            : _sharedCockpitWasmClient;
+
+        return new JsonObject
+        {
+            ["simConnect"] = BuildBackendEntry("SimConnect", _sim.IsConnected),
+            ["lvarBridge"] = BuildBackendEntry(DescribeClientProvider(lvarActive), lvarActive?.IsConnected ?? false, lvarActive is not null, lvarStandby),
+            ["calculatorCode"] = BuildBackendEntry(DescribeClientProvider(_calculatorCodeClient), _calculatorCodeClient?.IsConnected ?? false),
+            ["pmdgSdk"] = BuildBackendEntry(DescribeClientProvider(_pmdgClient), _pmdgClient?.IsConnected ?? false),
+            ["iflySdk"] = BuildBackendEntry(DescribeClientProvider(_iflyClient), _iflyClient?.IsConnected ?? false),
+        };
+    }
+
+    private static JsonObject BuildBackendEntry(string provider, bool connected, bool active = false, IPmdgClientDataClient? standby = null)
+    {
+        var json = new JsonObject
+        {
+            ["provider"] = provider,
+            ["connected"] = connected,
+        };
+        if (active)
+        {
+            json["active"] = true;
+        }
+        if (standby is not null)
+        {
+            json["standbyProvider"] = DescribeClientProvider(standby);
+            json["standbyConnected"] = standby.IsConnected;
+        }
+        return json;
+    }
+
+    private void OnExternalClientStateChanged()
+    {
+        if (_resubscribingExternalSubscriptions)
+        {
+            return;
+        }
+
+        var lostAreas = _activeClientByArea
+            .Where(entry => !entry.Value.IsConnected)
+            .Select(entry => entry.Key)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (lostAreas.Length > 0 && _matchedProfile is not null && _sim.IsConnected)
+        {
+            _log.Warn(
+                $"Backend externo desconectado durante la sesión ({string.Join(", ", lostAreas)}). " +
+                "Se rearman las suscripciones para intentar failover automático.");
+            RebuildExternalSubscriptions();
+        }
+
+        Broadcast(BridgeStatus.Build(
+            _sim.IsConnected,
+            _matchedProfile?.ProfileId,
+            _lastTitle,
+            null,
+            SimulatorVersionLabel,
+            _iflySdkMonitor?.CurrentStatus,
+            BuildBackendStatusJson()));
+    }
+
+    private void RebuildExternalSubscriptions()
+    {
+        if (_matchedProfile is null || _resubscribingExternalSubscriptions)
+        {
+            return;
+        }
+
+        _resubscribingExternalSubscriptions = true;
+        try
+        {
+            _activeClientByArea.Clear();
+            _missingClientAreasWarned.Clear();
+            _unavailableClientAreasWarned.Clear();
+            ResetExternalSubscriptions();
+            SubscribeExternalSources(_matchedProfile);
+        }
+        finally
+        {
+            _resubscribingExternalSubscriptions = false;
+        }
     }
 
     private void OnPmdgWarning(string message)
@@ -2710,9 +2883,21 @@ public sealed class BridgeService : IAsyncDisposable
             _sharedCockpitWasmClient.Dispose();
         }
 
+        if (_lvarFallbackClient is not null
+            && !ReferenceEquals(_lvarFallbackClient, _sharedCockpitWasmClient)
+            && !ReferenceEquals(_lvarFallbackClient, _pmdgClient))
+        {
+            _lvarFallbackClient.Warning -= OnPmdgWarning;
+            _lvarFallbackClient.FieldValueReceived -= OnNumericValueReceived;
+            _lvarFallbackClient.StringFieldValueReceived -= OnStringValueReceived;
+            _lvarFallbackClient.ScreenSnapshotReceived -= OnScreenSnapshotReceived;
+            _lvarFallbackClient.Dispose();
+        }
+
         if (_iflyClient is not null
             && !ReferenceEquals(_iflyClient, _pmdgClient)
-            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient))
+            && !ReferenceEquals(_iflyClient, _sharedCockpitWasmClient)
+            && !ReferenceEquals(_iflyClient, _lvarFallbackClient))
         {
             _iflyClient.Warning -= OnPmdgWarning;
             _iflyClient.FieldValueReceived -= OnNumericValueReceived;

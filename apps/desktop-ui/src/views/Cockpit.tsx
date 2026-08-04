@@ -135,6 +135,47 @@ function healthTone(status: "ok" | "warn" | "bad") {
   return { color: "#e24c4b", dot: "#e24c4b" };
 }
 
+function formatBackendValue(
+  backend:
+    | {
+        provider: string | null;
+        connected: boolean;
+        active?: boolean;
+        standbyProvider?: string | null;
+        standbyConnected?: boolean;
+      }
+    | null
+    | undefined,
+  connectedLabel = "Connected",
+  disconnectedLabel = "Disconnected",
+) {
+  if (!backend?.provider) return "Not configured";
+  const parts = [backend.provider, backend.connected ? connectedLabel : disconnectedLabel];
+  if (backend.active) {
+    parts.push("active");
+  }
+  if (backend.standbyProvider) {
+    parts.push(`standby: ${backend.standbyProvider}${backend.standbyConnected ? " ready" : ""}`);
+  }
+  return parts.join(" · ");
+}
+
+function backendRowStatus(
+  backend:
+    | {
+        provider: string | null;
+        connected: boolean;
+        standbyProvider?: string | null;
+        standbyConnected?: boolean;
+      }
+    | null
+    | undefined,
+): "ok" | "warn" | "bad" {
+  if (backend?.connected) return "ok";
+  if (backend?.standbyConnected) return "warn";
+  return "bad";
+}
+
 /**
  * `controlOwner`/`controlRequestedBy` en `Session` son un `seat`
  * ("captain" | "first_officer"), no un `pilotName` (server/api los cambió a
@@ -615,10 +656,6 @@ export function Cockpit({
             : sessionActionBusy ? "Leaving…" : "Leave session"}
         </button>
       </div>
-      <p className="lead-sm" style={{ maxWidth: 560, marginBottom: 22, fontSize: 13 }}>
-        Live status while you're flying together — {session?.sessionName ?? joinCode}.
-      </p>
-
       <div
         className="connected-banner"
         style={!connected ? { borderColor: "rgba(226,76,75,0.3)", background: "rgba(226,76,75,0.06)" } : undefined}
@@ -824,7 +861,7 @@ export function Cockpit({
                       : "Screen feed stale",
                 status: sharedScreensStatus as "ok" | "warn" | "bad",
               },
-            ].map((item) => {
+            ].filter((item) => item.label).map((item) => {
               const tone = healthTone(item.status);
               return (
                 <div className="net-row" key={item.label}>
@@ -845,10 +882,6 @@ export function Cockpit({
                 </div>
               );
             })}
-            <p style={{ fontSize: 11, color: "var(--text-45)", lineHeight: 1.6, marginTop: 10 }}>
-              After a reconnect, We Connect now re-publishes your current controls and read-only screens so both
-              cabins converge again without waiting for the next manual action.
-            </p>
           </div>
 
           {/* Reporte de diagnóstico. Antes, entender por qué una sesión no
@@ -856,16 +889,6 @@ export function Cockpit({
               %APPDATA% y lo mandara a mano -- un archivo ruidoso que además no
               sabe nada de la sesión ni trae contadores agregados. */}
           <div style={{ marginTop: 26 }}>
-            <div className="mono-label" style={{ marginBottom: 10 }}>Diagnostics</div>
-            <div className="net-row">
-              <div className="net-label">Sync problems logged</div>
-              <div
-                className="net-value"
-                style={{ color: (bridge.diagnostics?.errorsReported ?? 0) > 0 ? "#fbbf24" : "var(--green)" }}
-              >
-                {bridge.diagnostics?.errorsReported ?? 0}
-              </div>
-            </div>
             {bridge.diagnostics && (
               <div className="net-row">
                 <div className="net-label">Controls reporting / subscribed</div>
@@ -913,14 +936,6 @@ export function Cockpit({
                 </div>
               </div>
             )}
-            <button className="btn" onClick={handleDownloadReport} style={{ marginTop: 12 }}>
-              Download report
-            </button>
-            <p style={{ fontSize: 11, color: "var(--text-45)", lineHeight: 1.6, marginTop: 10 }}>
-              {reportFilename
-                ? `Saved ${reportFilename}. Send it over along with your co-pilot's — a report from each side is what makes a sync problem diagnosable.`
-                : "Saves everything needed to diagnose a sync problem: bridge errors, what arrived from your co-pilot, and your FSUIPC7 status. Both pilots should download one."}
-            </p>
           </div>
 
           {hasAnySharedScreens && (
@@ -967,30 +982,6 @@ export function Cockpit({
             </div>
           </div>
           <div className="net-row">
-            <div className="net-label">Session status</div>
-            <div className="net-value" style={{ color: session?.status === "active" ? "var(--green)" : "var(--accent)" }}>
-              {session?.status === "active" ? "Active" : "Waiting for pilots"}
-            </div>
-          </div>
-          <div className="net-row">
-            <div className="net-label">Aircraft</div>
-            <div className="net-value">{aircraft?.name ?? session?.aircraftProfileId ?? "—"}</div>
-          </div>
-          <div className="net-row">
-            <div className="net-label">Sim</div>
-            <div className="net-value">
-              {session?.sim === "msfs2024"
-                ? "Microsoft Flight Simulator 2024"
-                : session?.sim === "msfs2020"
-                  ? "Microsoft Flight Simulator 2020"
-                  : "—"}
-            </div>
-          </div>
-          <div className="net-row">
-            <div className="net-label">App version</div>
-            <div className="net-value">v{currentVersion}</div>
-          </div>
-          <div className="net-row">
             <div className="net-label">Bridge build</div>
             <div className="net-value">
               {bridge.bridgeBuildVersion
@@ -1000,6 +991,50 @@ export function Cockpit({
                   : "Unknown"}
             </div>
           </div>
+          {bridge.backends && (
+            <div style={{ marginTop: 18 }}>
+              <div className="mono-label" style={{ marginBottom: 10 }}>
+                Simulator backends
+              </div>
+              {[
+                {
+                  label: "SimConnect",
+                  value: formatBackendValue(bridge.backends.simConnect),
+                  status: backendRowStatus(bridge.backends.simConnect),
+                },
+                {
+                  label: "L-Var bridge",
+                  value: formatBackendValue(bridge.backends.lvarBridge),
+                  status: backendRowStatus(bridge.backends.lvarBridge),
+                },
+                {
+                  label: "Calculator code",
+                  value: formatBackendValue(bridge.backends.calculatorCode, "Ready", "Not ready"),
+                  status: backendRowStatus(bridge.backends.calculatorCode),
+                },
+                {
+                  label: "PMDG SDK",
+                  value: formatBackendValue(bridge.backends.pmdgSdk),
+                  status: backendRowStatus(bridge.backends.pmdgSdk),
+                },
+                {
+                  label: "iFly SDK",
+                  value: formatBackendValue(bridge.backends.iflySdk),
+                  status: backendRowStatus(bridge.backends.iflySdk),
+                },
+              ].map((item) => {
+                const tone = healthTone(item.status);
+                return (
+                  <div className="net-row" key={item.label}>
+                    <div className="net-label">{item.label}</div>
+                    <div className="net-value" style={{ color: tone.color }}>
+                      {item.value}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="divider-row" style={{ marginTop: 24, marginBottom: 10, border: "none" }}>
             <div className="mono-label">Network</div>

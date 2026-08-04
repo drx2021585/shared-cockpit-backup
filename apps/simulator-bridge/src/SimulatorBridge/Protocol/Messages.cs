@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using SharedCockpit.Bridge.IFlySdk;
 
@@ -205,7 +206,17 @@ public static class BridgeStatus
             return informational.Split('+')[0];
         }
 
-        return assembly.GetName().Version?.ToString() ?? "unknown";
+        var executablePath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(executablePath))
+        {
+            var fileVersion = FileVersionInfo.GetVersionInfo(executablePath).FileVersion;
+            if (!string.IsNullOrWhiteSpace(fileVersion))
+            {
+                return fileVersion;
+            }
+        }
+
+        return assembly.GetName().Version?.ToString() ?? "0.1.65";
     }
 
     public static JsonObject Build(
@@ -214,7 +225,8 @@ public static class BridgeStatus
         string? detectedTitle,
         string? error,
         string simulatorVersion,
-        IflySdkStatus? iflyStatus = null)
+        IflySdkStatus? iflyStatus = null,
+        JsonObject? backends = null)
     {
         var json = new JsonObject
         {
@@ -230,6 +242,7 @@ public static class BridgeStatus
         };
 
         json["ifly"] = BuildIflyStatusJson(iflyStatus);
+        json["backends"] = backends?.DeepClone();
         return json;
     }
 

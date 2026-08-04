@@ -75,12 +75,6 @@ export function Profile({
           </p>
         </div>
         <div style={{ borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
-          <div className="mono-label" style={{ marginBottom: 10 }}>
-            App version
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-70)", marginBottom: 14 }}>
-            We Connect v{currentVersion}
-          </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
             <button className="link-action" onClick={onCheckForUpdates}>
               Check for updates
@@ -152,6 +146,10 @@ export function Profile({
             <div style={{ color: "#e24c4b", fontSize: 12, marginTop: 12 }}>{folderError}</div>
           )}
         </div>
+      </div>
+      <div className="cta" style={{ marginTop: 36 }}>
+        <div className="cta-version">APP VERSION / We Connect v{currentVersion}</div>
+        <div className="cta-copyright">© 2026 We Connect. All rights reserved.</div>
       </div>
     </div>
   );

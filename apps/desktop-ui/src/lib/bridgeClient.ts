@@ -62,6 +62,22 @@ export interface BridgeIflyStatus {
   lastError: string | null;
 }
 
+export interface BridgeBackendEntry {
+  provider: string | null;
+  connected: boolean;
+  active?: boolean;
+  standbyProvider?: string | null;
+  standbyConnected?: boolean;
+}
+
+export interface BridgeBackendStatus {
+  simConnect?: BridgeBackendEntry | null;
+  lvarBridge?: BridgeBackendEntry | null;
+  calculatorCode?: BridgeBackendEntry | null;
+  pmdgSdk?: BridgeBackendEntry | null;
+  iflySdk?: BridgeBackendEntry | null;
+}
+
 /**
  * Le pide a Electron que mate el bridge que esté escuchando en el 17481 y arranque
  * el empaquetado con la app. Es la salida para el caso en que un bridge viejo
@@ -147,6 +163,7 @@ export interface SimulatorBridgeState {
   simulatorVersion: "msfs2020" | "msfs2024" | null;
   bridgeApiVersion: number | null;
   bridgeBuildVersion: string | null;
+  backends: BridgeBackendStatus | null;
   ifly: BridgeIflyStatus | null;
   pose: BridgeFlightPose | null;
   /** Últimos valores conocidos por controlId (control.event + control.axis fundidos). */
@@ -208,6 +225,7 @@ function emptyState(
     simulatorVersion: null,
     bridgeApiVersion: null,
     bridgeBuildVersion: null,
+    backends: null,
     ifly: null,
     pose: null,
     controls: {},
@@ -229,6 +247,7 @@ function applyMessage(
       simulatorVersion?: "msfs2020" | "msfs2024";
       bridgeApiVersion?: number;
       bridgeBuildVersion?: string | null;
+      backends?: BridgeBackendStatus | null;
       ifly?: BridgeIflyStatus | null;
     };
     return {
@@ -241,6 +260,7 @@ function applyMessage(
         typeof status.bridgeApiVersion === "number" ? status.bridgeApiVersion : null,
       bridgeBuildVersion:
         typeof status.bridgeBuildVersion === "string" ? status.bridgeBuildVersion : null,
+      backends: status.backends ?? null,
       ifly: status.ifly ?? null,
     };
   }
