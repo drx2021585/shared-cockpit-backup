@@ -98,6 +98,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ];
+const LOCALHOST_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
 
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS ?? "")
@@ -109,6 +110,7 @@ const allowedOrigins = new Set(
 
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin || origin === "null" || origin.startsWith("file://")) return true;
+  if (LOCALHOST_ORIGIN_RE.test(origin)) return true;
   return allowedOrigins.has(origin);
 }
 

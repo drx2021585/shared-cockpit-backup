@@ -70,6 +70,9 @@ test("isOriginAllowed: app de escritorio y dev sí, web arbitraria no", () => {
   assert.equal(isOriginAllowed("null"), true); // Electron file://
   assert.equal(isOriginAllowed("file://"), true);
   assert.equal(isOriginAllowed("http://localhost:5173"), true);
+  assert.equal(isOriginAllowed("http://localhost:5174"), true);
+  assert.equal(isOriginAllowed("http://127.0.0.1:4173"), true);
+  assert.equal(isOriginAllowed("http://[::1]:5173"), true);
   assert.equal(isOriginAllowed("https://evil.example.com"), false);
 });
 
