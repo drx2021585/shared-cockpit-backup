@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAircraftProfiles } from "../lib/useAircraftProfiles";
-import { closeSession, createSession, ApiError, type Session } from "../lib/apiClient";
+import { closeSession, createSession, createSessionAtBaseUrl, ApiError, type Session } from "../lib/apiClient";
 import {
   buildCustomRelayApiBaseUrl,
   DEFAULT_DIRECT_PORT,
@@ -136,14 +136,17 @@ export function Party({
       setDirectHostRuntime({ running: false, port: null });
     }
     try {
-      const session = await createSession({
+      const createInput = {
         sessionName,
         aircraftProfileId: effectiveProfileId,
         password: usePassword ? password : undefined,
         hostPilotName: pilotName.trim(),
         hostSeat: seat,
         sim,
-      });
+      };
+      const session = usesCustomRelay
+        ? await createSessionAtBaseUrl(`http://127.0.0.1:${directPort}`, createInput)
+        : await createSession(createInput);
       onSessionCreated(session, pilotName.trim());
       return true;
     } catch (err) {

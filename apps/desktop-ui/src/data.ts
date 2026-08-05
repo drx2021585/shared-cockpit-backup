@@ -127,8 +127,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.68",
+    version: "0.1.69",
     title: "Current build",
+    date: "2026-08-05",
+    commits: [
+      "Create a party now bypasses the global relay resolver on the host PC and creates self-hosted sessions straight against 127.0.0.1:port, removing the last path that could still throw a generic reachability error before any friend joined.",
+      "The local direct-relay create flow now uses an explicit API helper instead of relying on ambient relay state, so the first host request is deterministic even if the saved relay settings were stale.",
+    ],
+  },
+  {
+    version: "0.1.68",
+    title: "Published release",
     date: "2026-08-05",
     commits: [
       "Create a party now applies the selected self-hosted relay settings before the first session-creation request, so hosting with a public IPv4 no longer falls back to the previous relay target and fail with a generic reachability error.",

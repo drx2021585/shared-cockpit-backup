@@ -116,8 +116,8 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${getRelayApiBaseUrl()}${path}`, {
+async function requestFromBaseUrl<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -130,6 +130,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(body?.error ?? "request-failed", res.status);
   }
   return body as T;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return requestFromBaseUrl<T>(getRelayApiBaseUrl(), path, init);
 }
 
 export class ApiError extends Error {
@@ -162,6 +166,25 @@ export async function createSession(input: {
   sim: "msfs2020" | "msfs2024";
 }) {
   const session = await request<Session>("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  setParticipantToken(session.participantToken ?? null);
+  return session;
+}
+
+export async function createSessionAtBaseUrl(
+  baseUrl: string,
+  input: {
+    sessionName: string;
+    aircraftProfileId: string;
+    password?: string;
+    hostPilotName: string;
+    hostSeat: "captain" | "first_officer" | "observer";
+    sim: "msfs2020" | "msfs2024";
+  }
+) {
+  const session = await requestFromBaseUrl<Session>(baseUrl, "/api/sessions", {
     method: "POST",
     body: JSON.stringify(input),
   });
