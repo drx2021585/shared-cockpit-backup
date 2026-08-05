@@ -59,6 +59,8 @@ export function Party({
   const [submitting, setSubmitting] = useState(false);
   const [closingPendingSession, setClosingPendingSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trimmedRelayHost = relayHost.trim();
+  const usesCustomRelay = relayMode === "custom";
 
   const compatibleProfiles = profiles.filter(
     (profile) => profile.availability !== "soon" && profile.compatibility[sim]
@@ -73,7 +75,7 @@ export function Party({
   function applyRelaySettings() {
     setRelayConfig({
       mode: relayMode,
-      customHost: relayMode === "custom" ? relayHost.trim() || null : null,
+      customHost: usesCustomRelay ? trimmedRelayHost || null : null,
       customUrl: null,
       directPort,
     });
@@ -102,7 +104,19 @@ export function Party({
       setError("No aircraft profile available to fly.");
       return false;
     }
-    if (relayMode === "custom") {
+    if (usesCustomRelay && !/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(trimmedRelayHost)) {
+      setError("Enter a valid host public IPv4.");
+      return false;
+    }
+
+    setRelayConfig({
+      mode: usesCustomRelay ? "custom" : "hosted",
+      customHost: usesCustomRelay ? trimmedRelayHost : null,
+      customUrl: null,
+      directPort,
+    });
+
+    if (usesCustomRelay) {
       if (!window.weconnectRelay?.startDirectHost) {
         setError("My own relay is only available in the desktop app.");
         return false;

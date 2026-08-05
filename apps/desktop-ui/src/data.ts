@@ -127,8 +127,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.67",
+    version: "0.1.68",
     title: "Current build",
+    date: "2026-08-05",
+    commits: [
+      "Create a party now applies the selected self-hosted relay settings before the first session-creation request, so hosting with a public IPv4 no longer falls back to the previous relay target and fail with a generic reachability error.",
+      "The self-hosted create flow now validates the public IPv4 up front, matching Join a party instead of deferring the failure to an opaque network error.",
+    ],
+  },
+  {
+    version: "0.1.67",
+    title: "Published release",
     date: "2026-08-05",
     commits: [
       "My own relay now starts its embedded direct host automatically when the host creates a session, instead of failing the first request with a generic server-reachability error.",
