@@ -127,8 +127,19 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.66",
+    version: "0.1.67",
     title: "Current build",
+    date: "2026-08-05",
+    commits: [
+      "My own relay now starts its embedded direct host automatically when the host creates a session, instead of failing the first request with a generic server-reachability error.",
+      "The host PC now talks to its own direct relay through 127.0.0.1 even when a public IPv4 is configured, avoiding the NAT loopback failure that blocked self-hosted sessions on many routers.",
+      "The cockpit no longer presents iFly SDK and shared-display diagnostics as hard failures when the active aircraft does not actually use those channels.",
+      "The simulator bridge now opens and pumps the iFly command client as soon as an iFly profile requires it, so the backend state is ready before the first remote control write arrives.",
+    ],
+  },
+  {
+    version: "0.1.66",
+    title: "Published release",
     date: "2026-08-04",
     commits: [
       "The pending-party screen now lets the host close the newly created session before entering the cockpit, with a dedicated Close party action under Get in cockpit.",

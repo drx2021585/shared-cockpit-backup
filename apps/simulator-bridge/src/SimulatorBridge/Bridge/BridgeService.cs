@@ -431,6 +431,7 @@ public sealed class BridgeService : IAsyncDisposable
             PumpSafely("client-data", () => _pmdgClient?.Pump());
             PumpSafely("lvars", () => _sharedCockpitWasmClient?.Pump());
             PumpSafely("lvars-fallback", () => _lvarFallbackClient?.Pump());
+            PumpSafely("ifly-client", () => _iflyClient?.Pump());
             PumpSafely("ifly-sdk", () => _iflySdkMonitor?.Pump(_sim.IsConnected));
             // Antes que las confirmaciones: si hay escrituras esperando su turno en
             // un trigger, conviene despacharlas ya para que la ventana de
@@ -2417,6 +2418,7 @@ public sealed class BridgeService : IAsyncDisposable
     private void SubscribeExternalSources(AircraftProfile profile)
     {
         IndexWriteOnlyTriggerMirrors(profile);
+        EnsureProfileSpecificClientsReady(profile);
 
         foreach (var control in profile.Controls)
         {
@@ -2439,6 +2441,32 @@ public sealed class BridgeService : IAsyncDisposable
 
         SubscribeWriteOnlyTriggerMirrors();
         SubscribeScreens(profile);
+    }
+
+    /// <summary>
+    /// Algunos perfiles usan un SDK externo SOLO para escribir (caso real del
+    /// iFly 737 MAX 8: la lectura va por SharedCockpitBridge_LVars/FSUIPC7 y el
+    /// canal iFly queda invisible hasta el primer clic si no se fuerza acá).
+    /// Conexión temprana = estado honesto en la UI y menos latencia en la
+    /// primera acción remota.
+    /// </summary>
+    private void EnsureProfileSpecificClientsReady(AircraftProfile profile)
+    {
+        if (_iflyClient is not null && ProfileUsesClientDataArea(profile, "iFly737MAX_SDK_Control", "iFly737MAX_SDK_Data"))
+        {
+            _iflyClient.TryConnect(_appName);
+        }
+    }
+
+    private static bool ProfileUsesClientDataArea(AircraftProfile profile, params string[] areaNames)
+    {
+        return profile.Controls.Any(control =>
+                   control.Read is { Type: ReadType.ClientDataArea, AreaName: not null } read
+                   && areaNames.Contains(read.AreaName, StringComparer.Ordinal))
+               || profile.Controls.Any(control =>
+                   control.Write is { Type: WriteType.ClientDataEvent, AreaName: not null } write
+                   && areaNames.Contains(write.AreaName, StringComparer.Ordinal))
+               || profile.Screens.Any(screen => areaNames.Contains(screen.AreaName, StringComparer.Ordinal));
     }
 
     private void ResetExternalSubscriptions()

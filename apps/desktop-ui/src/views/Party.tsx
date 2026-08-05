@@ -4,6 +4,7 @@ import { closeSession, createSession, ApiError, type Session } from "../lib/apiC
 import {
   buildCustomRelayApiBaseUrl,
   DEFAULT_DIRECT_PORT,
+  setDirectHostRuntime,
   getRelayConfig,
   setRelayConfig,
   type RelayMode,
@@ -100,6 +101,25 @@ export function Party({
     if (!effectiveProfileId) {
       setError("No aircraft profile available to fly.");
       return false;
+    }
+    if (relayMode === "custom") {
+      if (!window.weconnectRelay?.startDirectHost) {
+        setError("My own relay is only available in the desktop app.");
+        return false;
+      }
+      const started = await window.weconnectRelay.startDirectHost(directPort);
+      if (!started.ok || !started.running) {
+        setDirectHostRuntime({ running: false, port: null });
+        setError(
+          started.error
+            ? `Could not start the direct host on this PC: ${started.error}`
+            : "Could not start the direct host on this PC."
+        );
+        return false;
+      }
+      setDirectHostRuntime({ running: true, port: started.port ?? directPort });
+    } else {
+      setDirectHostRuntime({ running: false, port: null });
     }
     try {
       const session = await createSession({

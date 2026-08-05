@@ -1,5 +1,6 @@
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
 const STORAGE_KEY = "weconnect.relayConfig";
+const DIRECT_RUNTIME_STORAGE_KEY = "weconnect.directHostRuntime";
 
 export type RelayMode = "hosted" | "custom";
 export const DEFAULT_DIRECT_PORT = 25071;
@@ -9,6 +10,11 @@ export interface RelayConfig {
   customHost: string | null;
   customUrl: string | null;
   directPort: number;
+}
+
+export interface DirectHostRuntime {
+  running: boolean;
+  port: number | null;
 }
 
 function normalizeUrl(value: string): string {
@@ -33,6 +39,21 @@ function normalizeHost(value: string): string | null {
 function normalizePort(value: unknown): number {
   const port = Number(value);
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : DEFAULT_DIRECT_PORT;
+}
+
+function readStoredDirectHostRuntime(): DirectHostRuntime | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DIRECT_RUNTIME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      running: parsed?.running === true,
+      port: parsed?.port === null || parsed?.port === undefined ? null : normalizePort(parsed.port),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function buildCustomRelayApiBaseUrl(config: Pick<RelayConfig, "customHost" | "customUrl" | "directPort">) {
@@ -96,9 +117,31 @@ export function setRelayConfig(config: RelayConfig) {
   window.dispatchEvent(new Event("weconnect-relay-changed"));
 }
 
+export function setDirectHostRuntime(runtime: DirectHostRuntime) {
+  if (typeof window === "undefined") return;
+  const next = {
+    running: runtime.running === true,
+    port: runtime.port === null ? null : normalizePort(runtime.port),
+  };
+  window.localStorage.setItem(DIRECT_RUNTIME_STORAGE_KEY, JSON.stringify(next));
+}
+
+export function getDirectHostRuntime(): DirectHostRuntime {
+  return readStoredDirectHostRuntime() ?? { running: false, port: null };
+}
+
 export function getRelayApiBaseUrl() {
   const config = getRelayConfig();
   if (config.mode === "custom") {
+    const runtime = getDirectHostRuntime();
+    const directPort = normalizePort(config.directPort);
+    if (runtime.running && runtime.port === directPort) {
+      // El host local NO debe hablarse a sí mismo por la IPv4 pública: muchos
+      // routers no soportan NAT loopback/hairpin y eso se ve como "Could not
+      // reach the server" aunque el relay esté vivo. En la PC anfitriona se usa
+      // siempre loopback; los invitados siguen usando customHost:puerto.
+      return `http://127.0.0.1:${directPort}`;
+    }
     const customBase = buildCustomRelayApiBaseUrl(config);
     if (customBase) return customBase;
   }

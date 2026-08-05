@@ -13,6 +13,7 @@ import { Cockpit } from "./views/Cockpit";
 import { Profile } from "./views/Profile";
 import type { ViewId } from "./views/types";
 import { fetchServerHealth, type Session } from "./lib/apiClient";
+import { setDirectHostRuntime } from "./lib/relayConfig";
 import { invalidateAircraftProfilesCache, prefetchAircraftProfiles } from "./lib/useAircraftProfiles";
 import { currentVersion } from "./data";
 
@@ -101,6 +102,19 @@ export function App() {
       setCommunityPath(config.communityPath);
       if (!config.firstLaunchCompleted) setShowFirstLaunchSetup(true);
     });
+  }, []);
+
+  useEffect(() => {
+    window.weconnectRelay?.getConfig()
+      .then((config) => {
+        setDirectHostRuntime({
+          running: config.running,
+          port: config.port ?? null,
+        });
+      })
+      .catch(() => {
+        setDirectHostRuntime({ running: false, port: null });
+      });
   }, []);
 
   useEffect(() => {

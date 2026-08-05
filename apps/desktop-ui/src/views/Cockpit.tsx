@@ -199,6 +199,17 @@ function normalizeText(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
 }
 
+function profileUsesIflySdk(profileId: string | null | undefined) {
+  return (profileId ?? "").startsWith("ifly-");
+}
+
+function profileSupportsSharedDisplays(profileId: string | null | undefined) {
+  // Hoy `screen.snapshot` solo existe para perfiles que declaran `screens/`
+  // en el repo; por ahora eso cubre PMDG. Si se suma otro perfil con pantallas,
+  // este helper es el lugar explícito para ampliarlo.
+  return profileId === "pmdg-737-900";
+}
+
 export function Cockpit({
   joinCode,
   pilotName,
@@ -514,6 +525,12 @@ export function Cockpit({
   const remotePilotScreenEntries = Object.entries(peerScreens).filter(([name]) => remotePilotNames.has(name));
   const localScreenEntries = Object.entries(bridge.screens).sort(([a], [b]) => a.localeCompare(b));
   const hasAnySharedScreens = localScreenEntries.length > 0 || remotePilotScreenEntries.length > 0;
+  const localIflySdkRelevant = profileUsesIflySdk(localProfileId);
+  const sharedDisplaysRelevant =
+    profileSupportsSharedDisplays(localProfileId) ||
+    profileSupportsSharedDisplays(session?.aircraftProfileId) ||
+    profileSupportsSharedDisplays(remotePilotAircraft?.profileId) ||
+    hasAnySharedScreens;
   const now = healthNow;
   const networkHealthy = connected && !!lastPongAt && now - lastPongAt <= STALE_NETWORK_MS;
   const peerFlightDataFresh =
@@ -544,7 +561,9 @@ export function Cockpit({
           ? "warn"
           : "bad";
   const sharedScreensStatus =
-    remotePilotScreenEntries.length === 0
+    !sharedDisplaysRelevant
+      ? "warn"
+      : remotePilotScreenEntries.length === 0
       ? "warn"
       : peerScreensFresh
         ? "ok"
@@ -854,7 +873,9 @@ export function Cockpit({
               {
                 label: "Shared displays",
                 value:
-                  remotePilotScreenEntries.length === 0
+                  !sharedDisplaysRelevant
+                    ? "Not available on this aircraft"
+                    : remotePilotScreenEntries.length === 0
                     ? "No remote screens yet"
                     : peerScreensFresh
                       ? "Fresh"
@@ -1019,8 +1040,10 @@ export function Cockpit({
                 },
                 {
                   label: "iFly SDK",
-                  value: formatBackendValue(bridge.backends.iflySdk),
-                  status: backendRowStatus(bridge.backends.iflySdk),
+                  value: localIflySdkRelevant
+                    ? formatBackendValue(bridge.backends.iflySdk)
+                    : `${bridge.backends.iflySdk?.provider ?? "iFly SDK"} · Not in use`,
+                  status: (localIflySdkRelevant ? backendRowStatus(bridge.backends.iflySdk) : "warn"),
                 },
               ].map((item) => {
                 const tone = healthTone(item.status);
