@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
+const DEFAULT_API_BASE = import.meta.env?.VITE_API_BASE ?? "https://shared-cockpit-api.onrender.com";
 const STORAGE_KEY = "weconnect.relayConfig";
 const DIRECT_RUNTIME_STORAGE_KEY = "weconnect.directHostRuntime";
 
@@ -54,6 +54,21 @@ function readStoredDirectHostRuntime(): DirectHostRuntime | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Acepta lo que el usuario realmente teclea ("192.168.1.50", "192.168.1.50:25071",
+ * "http://192.168.1.50/") y devuelve solo la IPv4, o null si no lo es.
+ */
+export function parseHostIpv4(value: string): string | null {
+  // Strip a mano (no `new URL`): el parser WHATWG expande "192.168.1" a
+  // "192.168.0.1", y una IP tecleada a medias debe fallar, no adivinarse.
+  const host = value.trim().replace(/^\w+:\/\//, "").replace(/[/:].*$/, "");
+  if (!host) return null;
+  const parts = host.split(".");
+  const ok = parts.length === 4
+    && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+  return ok ? host : null;
 }
 
 export function buildCustomRelayApiBaseUrl(config: Pick<RelayConfig, "customHost" | "customUrl" | "directPort">) {

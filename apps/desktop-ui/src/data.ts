@@ -127,8 +127,17 @@ export const currentVersion = packageMetadata.version;
 
 export const versionHistory: VersionHistoryEntry[] = [
   {
-    version: "0.1.69",
+    version: "0.1.70",
     title: "Current build",
+    date: "2026-08-05",
+    commits: [
+      "My own relay now accepts the host address the way people actually type it - a bare IPv4, an IPv4 with the port, or a full http:// URL - instead of rejecting everything but four bare octets with 'Enter a valid host public IPv4'.",
+      "Both Create a party and Join a party now say the host address can be a LAN IPv4 (192.168.x.x, two PCs on the same network) or a public one, so local play no longer looks unsupported.",
+    ],
+  },
+  {
+    version: "0.1.69",
+    title: "Published release",
     date: "2026-08-05",
     commits: [
       "Create a party now bypasses the global relay resolver on the host PC and creates self-hosted sessions straight against 127.0.0.1:port, removing the last path that could still throw a generic reachability error before any friend joined.",

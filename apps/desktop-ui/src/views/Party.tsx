@@ -6,6 +6,7 @@ import {
   DEFAULT_DIRECT_PORT,
   setDirectHostRuntime,
   getRelayConfig,
+  parseHostIpv4,
   setRelayConfig,
   type RelayMode,
 } from "../lib/relayConfig";
@@ -61,6 +62,7 @@ export function Party({
   const [error, setError] = useState<string | null>(null);
   const trimmedRelayHost = relayHost.trim();
   const usesCustomRelay = relayMode === "custom";
+  const relayHostIpv4 = parseHostIpv4(trimmedRelayHost);
 
   const compatibleProfiles = profiles.filter(
     (profile) => profile.availability !== "soon" && profile.compatibility[sim]
@@ -75,7 +77,7 @@ export function Party({
   function applyRelaySettings() {
     setRelayConfig({
       mode: relayMode,
-      customHost: usesCustomRelay ? trimmedRelayHost || null : null,
+      customHost: usesCustomRelay ? relayHostIpv4 : null,
       customUrl: null,
       directPort,
     });
@@ -104,14 +106,14 @@ export function Party({
       setError("No aircraft profile available to fly.");
       return false;
     }
-    if (usesCustomRelay && !/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(trimmedRelayHost)) {
-      setError("Enter a valid host public IPv4.");
+    if (usesCustomRelay && !relayHostIpv4) {
+      setError("Enter a valid host IPv4 (LAN like 192.168.1.50, or public).");
       return false;
     }
 
     setRelayConfig({
       mode: usesCustomRelay ? "custom" : "hosted",
-      customHost: usesCustomRelay ? trimmedRelayHost : null,
+      customHost: relayHostIpv4,
       customUrl: null,
       directPort,
     });
@@ -230,10 +232,10 @@ export function Party({
                   />
                 </div>
                 <div className="field">
-                  <label>Public IPv4</label>
+                  <label>Your IPv4 — LAN (same network) or public (internet)</label>
                   <input
                     type="text"
-                    placeholder="YOUR-PUBLIC-IP"
+                    placeholder="192.168.1.50"
                     value={relayHost}
                     onChange={(e) => setRelayHost(e.target.value)}
                   />

@@ -3,6 +3,7 @@ import { joinSession, ApiError, type Session } from "../lib/apiClient";
 import {
   DEFAULT_DIRECT_PORT,
   getRelayConfig,
+  parseHostIpv4,
   setRelayConfig,
 } from "../lib/relayConfig";
 
@@ -10,11 +11,6 @@ interface JoinProps {
   pilotName: string;
   onPilotNameChange: (name: string) => void;
   onSessionReady: (session: Session, pilotName: string) => void;
-}
-
-function isIpv4(value: string) {
-  const parts = value.trim().split(".");
-  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
 }
 
 export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps) {
@@ -29,6 +25,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
   const [error, setError] = useState<string | null>(null);
   const trimmedRelayHost = relayHost.trim();
   const usesCustomRelay = trimmedRelayHost.length > 0;
+  const relayHostIpv4 = parseHostIpv4(trimmedRelayHost);
 
   function requestObserverSeat() {
     setObserverConfirmOpen(true);
@@ -48,8 +45,8 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
       setError("Enter the session code.");
       return;
     }
-    if (usesCustomRelay && !isIpv4(trimmedRelayHost)) {
-      setError("Enter a valid host public IPv4.");
+    if (usesCustomRelay && !relayHostIpv4) {
+      setError("Enter a valid host IPv4 (LAN like 192.168.1.50, or public).");
       return;
     }
     setSubmitting(true);
@@ -57,7 +54,7 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
     try {
       setRelayConfig({
         mode: usesCustomRelay ? "custom" : "hosted",
-        customHost: usesCustomRelay ? trimmedRelayHost : null,
+        customHost: relayHostIpv4,
         customUrl: null,
         directPort,
       });
@@ -145,10 +142,10 @@ export function Join({ pilotName, onPilotNameChange, onSessionReady }: JoinProps
           />
         </div>
         <div className="field">
-          <label>Host public IPv4 (optional)</label>
+          <label>Host IPv4 — LAN or public (optional)</label>
           <input
             type="text"
-            placeholder="Only if your host gave you one"
+            placeholder="e.g. 192.168.1.50 on the same network"
             value={relayHost}
             onChange={(e) => setRelayHost(e.target.value)}
             autoComplete="off"
